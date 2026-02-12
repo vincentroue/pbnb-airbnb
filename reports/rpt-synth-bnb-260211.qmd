@@ -64,7 +64,7 @@ LABEL_SIZE = _mod.LABEL_SIZE
 SUBTITLE_SIZE = _mod.SUBTITLE_SIZE
 
 BASE = Path(r"C:\Users\vince\hh\pq\PDS\pbnb-airbnb-log-jrr-jpy")
-kpi = pd.read_csv(BASE / "data" / "interim" / "kpi_35cities_by_city_2506.csv")
+kpi = pd.read_csv(BASE / "data" / "interim" / "kpi_europe_by_city_2506.csv")
 
 # Coordonnées pour scatter_geo
 COORDS = {

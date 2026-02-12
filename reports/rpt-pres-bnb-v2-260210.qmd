@@ -57,7 +57,7 @@ LAYOUT_BASE = dict(
 )
 
 # Charger KPI villes
-kpi = pd.read_csv("../data/interim/kpi_35cities_by_city_2506.csv")
+kpi = pd.read_csv("../data/interim/kpi_europe_by_city_2506.csv")
 
 # Coordonnées des 35 villes (approx centre-ville)
 COORDS = {
