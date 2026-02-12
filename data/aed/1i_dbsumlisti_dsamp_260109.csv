@@ -1,0 +1,201 @@
+﻿id,name,host_id,host_name,neighbourhood_group,neighbourhood,latitude,longitude,room_type,price,minimum_nights,number_of_reviews,last_review,reviews_per_month,calculated_host_listings_count,availability_365,number_of_reviews_ltm,license,city,country_code,country_name,date_snapshot
+3109,zen and calm,3631,Anne,,Observatoire,48.83191,2.3187,Entire home/apt,135.0,2,7,2025-06-03,0.08,1,355,3,7511409139079,paris,FRA,France,2025-06
+5396,Your perfect Paris studio on Île Saint-Louis,7903,Borzou,,Hôtel-de-Ville,48.85247,2.35835,Entire home/apt,114.0,1,452,2025-06-05,2.32,1,69,48,7510402838018,paris,FRA,France,2025-06
+7397,MARAIS - 2ROOMS APT - 2/4 PEOPLE,2626,Franck,,Hôtel-de-Ville,48.85909,2.35315,Entire home/apt,149.0,10,380,2025-06-03,2.2,1,197,25,7510400829623,paris,FRA,France,2025-06
+7964,Sunny apartment with balcony,22155,Anaïs,,Opéra,48.87417,2.34245,Entire home/apt,,7,5,2015-09-14,0.03,1,0,0,7510903576564,paris,FRA,France,2025-06
+9359,"Cozy, Central Paris: WALK or VELIB EVERYWHERE !",28422,Bernadette,,Louvre,48.86006,2.34863,Entire home/apt,75.0,180,0,,,1,358,0,"Available with a mobility lease only (""bail mobilité"")",paris,FRA,France,2025-06
+11265,Elegant appartment in Montmartre,41718,Sylvie,,Buttes-Montmartre,48.88494,2.33997,Entire home/apt,150.0,7,35,2025-05-31,0.32,1,59,5,7511801401834,paris,FRA,France,2025-06
+11487,"Heart of  Paris, brand new aparment.",42666,Brigitte,,Popincourt,48.86441,2.37139,Entire home/apt,63.0,30,16,2025-06-06,0.1,1,241,5,"Available with a mobility lease only (""bail mobilité"")",paris,FRA,France,2025-06
+11798,Amazing Loft in Paris,44444,Laurence,,Gobelins,48.82524108886719,2.367469072341919,Entire home/apt,126.0,3,121,2023-10-21,0.78,1,349,0,Exempt - hotel-type listing,paris,FRA,France,2025-06
+12268,Faubourg Saint Antoine-chambrecalme,47196,Charles,,Popincourt,48.85186,2.3857,Private room,,6,1,2010-05-28,0.01,1,0,0,,paris,FRA,France,2025-06
+12452,Voltaire Charm,48733,Irene,,Popincourt,48.86159,2.37952,Entire home/apt,360.0,1,63,2025-05-24,0.73,1,8,4,7511102600669,paris,FRA,France,2025-06
+14264,Charming sunny 2BR in Montmartre !,55995,Lara,,Buttes-Montmartre,48.88259,2.34251,Entire home/apt,,365,10,2020-03-14,0.07,1,270,0,,paris,FRA,France,2025-06
+14903,SPACIEUX PARC DE LA VILLETTE,58645,Fred,,Buttes-Chaumont,48.88279,2.38642,Entire home/apt,200.0,7,8,2012-10-24,0.05,1,173,0,7511911870085,paris,FRA,France,2025-06
+16626,Elegance in St Michel,64627,Phoenice,,Luxembourg,48.8522,2.34114,Private room,162.0,3,176,2025-03-30,0.94,3,294,18,,paris,FRA,France,2025-06
+17316,BEAUTIFUL APT IN PARIS CANAL ST MAR,67192,Frank,,Entrepôt,48.87172,2.36184,Entire home/apt,,3,0,,,1,0,0,7512345678902,paris,FRA,France,2025-06
+17994,Center of paris: Louvre,69389,Reem,,Louvre,48.86185,2.3434,Entire home/apt,1200.0,4,202,2023-06-25,1.08,1,365,0,7510102359633,paris,FRA,France,2025-06
+19029,Brand new lovely studio + balcony Sopi montmartre,72713,Anna,,Opéra,48.88205,2.33372,Entire home/apt,64.0,30,91,2025-06-01,0.52,1,250,4,"Available with a mobility lease only (""bail mobilité"")",paris,FRA,France,2025-06
+21004,LUXURIOUS PENTHOUSE+ 80 SQM TERRACE,79843,Nadia,,Reuilly,48.83797,2.40058,Entire home/apt,173.0,2,133,2025-04-22,0.72,8,324,8,7511205142339,paris,FRA,France,2025-06
+22158,Artist Loft with rooftop in the city center!,84874,Fabienne,,Élysée,48.87039,2.32273,Private room,150.0,2,116,2025-06-12,0.76,1,54,14,,paris,FRA,France,2025-06
+22979,Staying in the Heart of Paris!,89023,Lisa,,Hôtel-de-Ville,48.85424,2.34975,Private room,,3,336,2025-05-30,1.83,1,0,16,,paris,FRA,France,2025-06
+24151,Studio entièrement rénové au cœur de Paris,89209,Rémy,,Panthéon,48.84406,2.34539,Entire home/apt,180.0,3,28,2025-05-27,0.15,1,338,6,7510514643384,paris,FRA,France,2025-06
+24260,Lovely place near Champs Elysees,98012,Emmanuel,,Batignolles-Monceau,48.8809,2.30388,Entire home/apt,112.0,2,42,2025-04-09,0.23,3,362,12,7511709896091,paris,FRA,France,2025-06
+25450,PARIS 10eme Luxury 2 Bed Apartment,105570,Florian,,Entrepôt,48.87007,2.36442,Entire home/apt,320.0,365,0,,,1,365,0,,paris,FRA,France,2025-06
+25819,BBB : Bed & Breakfast Bouchardon,108444,Jozsef,,Entrepôt,48.87151,2.35737,Private room,,3,0,,,1,0,0,,paris,FRA,France,2025-06
+26562,The Tower as your neighbour,107514,Judith,,Vaugirard,48.85357,2.29232,Entire home/apt,200.0,4,167,2024-08-04,0.91,1,92,1,7511500915333,paris,FRA,France,2025-06
+27288,"Beautiful, huge, very Parisian",77087,Simone,,Buttes-Chaumont,48.88564,2.37205,Entire home/apt,,5,77,2025-04-20,0.45,1,18,2,7511900186931,paris,FRA,France,2025-06
+27967,Nice haussmannian apt. Canal Saint-Martin area.,120508,Philippe,,Entrepôt,48.87081527709961,2.3632121086120605,Entire home/apt,180.0,4,27,2025-04-28,0.15,1,186,5,7511010572118,paris,FRA,France,2025-06
+29386,Lovely garden studio in Butte-aux-Cailles village,126361,Marcolino,,Gobelins,48.82794375495768,2.34895242921778,Entire home/apt,92.0,3,5,2025-05-21,1.67,1,68,5,7511314277633,paris,FRA,France,2025-06
+29853,Shayne's Amazing 15th Century Latin Quarter Garret,2883,Bruce,,Panthéon,48.8524,2.34508,Private room,176.0,1,76,2024-08-03,0.48,2,363,1,,paris,FRA,France,2025-06
+31435,Stylish Private Suite + Sunny Balcony Paris,135024,Kay,,Buttes-Montmartre,48.89153,2.35359,Private room,59.0,4,134,2025-05-17,0.73,2,274,15,7511801517739,paris,FRA,France,2025-06
+33814,"2/3 rooms70m2 PARIS quiet, bright, 2 big balconies",146066,Léna,,Observatoire,48.82399,2.32151,Entire home/apt,144.0,15,60,2025-06-15,0.33,1,363,1,7511400184395,paris,FRA,France,2025-06
+35065,Lovely Loft Saint-Germain des Pres,150876,Benoit,,Palais-Bourbon,48.85284,2.32517,Entire home/apt,267.0,1,932,2025-06-05,5.18,1,269,65,7510708233709,paris,FRA,France,2025-06
+36221,Lovely DUPLEX apartment Montmartre,155516,Alex&Clem,,Buttes-Montmartre,48.88324,2.34448,Entire home/apt,170.0,3,5,2025-04-18,0.03,1,118,2,7511811901093,paris,FRA,France,2025-06
+36490,Low budget in a residential area,156936,Christian,,Reuilly,48.8357,2.40168,Private room,,3,83,2019-01-18,0.46,1,0,0,7511201078435,paris,FRA,France,2025-06
+36724,Romantic Flat in charming Parisian quater,72723,Candice,,Buttes-Chaumont,48.88092,2.39355,Entire home/apt,,4,28,2024-08-12,0.15,1,0,1,7511905511439,paris,FRA,France,2025-06
+38650,Bastille/10m2 à la Roquette,153645,Marie-José,,Popincourt,48.85367,2.37656,Entire home/apt,59.0,6,28,2025-01-02,0.16,2,218,6,7511105303308,paris,FRA,France,2025-06
+39651,Charming Studio close to Bastille,170325,Carole,,Reuilly,48.8491,2.38975,Entire home/apt,54.0,30,50,2021-09-16,0.28,1,48,0,7511100761629,paris,FRA,France,2025-06
+39666,"Ile Saint-Louis - 5 Star Luxury in Paris, France",170397,Judith,,Hôtel-de-Ville,48.85202026367188,2.356126070022583,Entire home/apt,827.0,2,51,2023-11-06,0.29,1,344,0,7510404177410,paris,FRA,France,2025-06
+39948,COSY INDEPENDENT ROOM IN CENTRAL PARIS,171483,Aliyah & Philippe,,Bourse,48.87068,2.3446,Private room,,5,154,2025-06-11,1.08,1,19,21,7510200734360,paris,FRA,France,2025-06
+40143,Stylish & Design 1BR flat- Voltaire Bastille,172322,Emmanuelle,,Popincourt,48.85719,2.37831,Entire home/apt,,365,11,2017-04-16,0.06,1,0,0,,paris,FRA,France,2025-06
+43055,Studio - centre de Paris (Le Marais),187863,Claire,,Hôtel-de-Ville,48.85482963649008,2.3602633849721983,Entire home/apt,112.0,2,240,2025-06-02,1.34,1,267,25,7510408913483,paris,FRA,France,2025-06
+43355,STUDIO REPUBLIQUE  CANAL  ST MARTIN,187798,Chris,,Entrepôt,48.86954,2.36702,Entire home/apt,70.0,30,7,2019-06-08,0.05,1,89,0,"Available with a mobility lease only (""bail mobilité"")",paris,FRA,France,2025-06
+43500,Cosy one bedroom Montmartre Abesses village,152242,Delphine,,Buttes-Montmartre,48.88471,2.33941,Entire home/apt,280.0,30,3,2020-10-28,0.02,102,0,0,Exempt - hotel-type listing,paris,FRA,France,2025-06
+200845,Studio in 16th next to Eiffel Tower,982391,Edouard,,Passy,48.86209,2.29239,Entire home/apt,80.0,30,173,2025-01-12,1.03,2,354,2,"Available with a mobility lease only (""bail mobilité"")",paris,FRA,France,2025-06
+205140,Faubourg organic calm bnb Bastille,1008345,Barbara,,Reuilly,48.84765,2.38669,Private room,,1,128,2022-06-25,0.83,2,0,0,,paris,FRA,France,2025-06
+208080,Duplex in the heart of the Latin Quarter,1024111,Valérie,,Panthéon,48.85043,2.34916,Entire home/apt,294.0,2,220,2024-08-12,1.32,1,135,7,7510500327372,paris,FRA,France,2025-06
+212853,Wonderful 1B with view in the Heart of Montmartre,1097498,Agnès Jan,,Buttes-Montmartre,48.88636,2.33887,Entire home/apt,,30,208,2025-05-07,1.24,1,1,2,"Available with a mobility lease only (""bail mobilité"")",paris,FRA,France,2025-06
+213360,Beau 2 pièces à Paris Montmartre - 1 à 4 personnes,1100291,Laurence,,Buttes-Montmartre,48.8912,2.33785,Entire home/apt,100.0,7,30,2022-09-30,0.19,1,151,0,7511805117528,paris,FRA,France,2025-06
+214046,2 bed Marais Rue Vieille du Temple,438828,Polo,,Hôtel-de-Ville,48.8582,2.35849,Entire home/apt,153.0,30,192,2025-05-25,1.15,3,141,3,"Available with a mobility lease only (""bail mobilité"")",paris,FRA,France,2025-06
+214578,Cosy apartment in the best lively area of Paris,972051,Cyril,,Entrepôt,48.87392,2.3553,Entire home/apt,150.0,3,336,2025-05-18,2.01,2,335,12,7511000266461,paris,FRA,France,2025-06
+214596,appartement in Paris 14eme,1107785,Sorina,,Observatoire,48.8248,2.3337,Entire home/apt,,365,0,,,1,0,0,,paris,FRA,France,2025-06
+215638,Apartment in the Soho of París,1113009,Andrea,,Louvre,48.86457,2.34454,Entire home/apt,123.0,2,252,2025-05-18,1.52,1,95,2,Exempt - hotel-type listing,paris,FRA,France,2025-06
+215763,Chic and cosy central flat,1113807,Franck,,Entrepôt,48.87143,2.36354,Entire home/apt,91.0,3,189,2025-06-09,1.13,1,94,20,7511000361877,paris,FRA,France,2025-06
+219447,Appartement calme : Eiffel Tower- une chambre,579988,Astrid,,Palais-Bourbon,48.86052,2.30764,Private room,279.0,2,1,2015-05-27,0.01,1,362,0,,paris,FRA,France,2025-06
+220063,Cosy and calm appart in Montmatre,1140685,Yann,,Buttes-Montmartre,48.88377,2.34424,Entire home/apt,100.0,2,321,2025-05-28,1.92,2,286,15,7511809470947,paris,FRA,France,2025-06
+221745,"Large 1bd flat for ""Extended Stay""",1150777,Floy,,Reuilly,48.84859,2.39318,Entire home/apt,80.0,15,25,2025-04-26,0.18,1,297,2,7511202716547,paris,FRA,France,2025-06
+221754,Magic loft in a private green courtyard,1150845,Valerie,,Buttes-Chaumont,48.88422,2.36752,Entire home/apt,139.0,1,521,2025-06-05,3.13,1,309,65,7511001261603,paris,FRA,France,2025-06
+224807,@lagrandefontaineauroi - Canal St.Martin,69564,Tommaso,,Popincourt,48.86903,2.36917,Private room,,3,34,2015-08-11,0.2,3,0,0,,paris,FRA,France,2025-06
+225747,Exactly in Saint Germain des Prés,1176386,Isabelle,,Luxembourg,48.85305,2.33194,Entire home/apt,300.0,7,92,2025-05-23,0.55,1,158,9,7510601658522,paris,FRA,France,2025-06
+226556,charming room in lovely flatshare,1181306,Jen,,Temple,48.8608,2.3661,Private room,,3,20,2015-07-29,0.12,2,0,0,,paris,FRA,France,2025-06
+227846,2 room cosy flat / Montmartre,1188610,Leslie,,Buttes-Montmartre,48.89043,2.34727,Entire home/apt,82.0,3,37,2025-05-05,0.37,1,164,23,7511810623663,paris,FRA,France,2025-06
+229202,Studio near Luxembourg garden (760€/month),1196794,Samy,,Panthéon,48.84562,2.34435,Entire home/apt,44.0,30,244,2024-09-30,1.48,3,109,2,"Available with a mobility lease only (""bail mobilité"")",paris,FRA,France,2025-06
+229501,Sunny apartment in  Montmartre,1175281,Isabelle,,Buttes-Montmartre,48.88464,2.33838,Entire home/apt,220.0,2,246,2025-06-06,1.56,1,16,29,7511800120642,paris,FRA,France,2025-06
+230036,SPLENDIDE  MONTMARTRE APPARTMENT,1172903,Guillaume,,Buttes-Montmartre,48.88363,2.34667,Entire home/apt,131.0,3,136,2025-04-13,0.88,1,76,8,7510900079517,paris,FRA,France,2025-06
+230112,Appartment with terrasse 30m2,1202318,Cathy,,Buttes-Chaumont,48.88253,2.37256,Private room,119.0,1,27,2023-10-31,0.16,1,360,0,,paris,FRA,France,2025-06
+231419,Apt comfortable and sunny!,89494,Joane,,Entrepôt,48.88206,2.3588,Entire home/apt,106.0,7,9,2024-10-28,0.06,1,133,1,7511013278220,paris,FRA,France,2025-06
+231442,Paris' Marais exquisite studio flat,1210122,Judith,,Temple,48.8624,2.35855,Entire home/apt,,365,95,2020-01-01,0.61,1,0,0,,paris,FRA,France,2025-06
+232293,Arc de Triomphe- Cosy Studio,1215154,Fabrice,,Batignolles-Monceau,48.88518,2.29711,Entire home/apt,81.0,3,136,2025-05-25,0.89,2,130,9,7511702397102,paris,FRA,France,2025-06
+232437,Cosy & charming vintage flat,515870,Brice,,Ménilmontant,48.87321,2.38981,Entire home/apt,108.0,2,137,2024-10-29,0.82,1,156,2,7512001338036,paris,FRA,France,2025-06
+233110,"Appartement lumineux du Marais, dernier étage",1220078,Sebastien,,Temple,48.86107,2.36545,Entire home/apt,145.0,6,280,2025-05-16,1.68,2,155,25,7510305680442,paris,FRA,France,2025-06
+240484,Palais Congrès Porte Maillot -Renovated Luxury,1260856,Elisabeth,,Passy,48.8741419184579,2.284333079697212,Entire home/apt,223.0,5,57,2024-10-05,0.36,1,158,1,7511602000419,paris,FRA,France,2025-06
+241715,Big Cosy Appartement with 100 m2 Terrace in Paris,3342097,Iryna,,Buttes-Chaumont,48.8934638,2.3783407,Entire home/apt,462.0,5,0,,,1,173,0,7511913070313,paris,FRA,France,2025-06
+243040,Apart Hotel / Paris Opera Madeleine,1275649,Gwenael,,Élysée,48.87114,2.32606,Entire home/apt,,365,52,2017-01-16,0.31,2,0,0,,paris,FRA,France,2025-06
+243245,Charming studio in Paris-Montmartre,1276616,David,,Opéra,48.88054,2.33135,Entire home/apt,95.0,5,215,2018-04-06,1.29,1,84,0,7511800698187,paris,FRA,France,2025-06
+243961,Beautifull loft - Grands Boulevards,1280100,Olivier  Et Elisa,,Entrepôt,48.873074,2.350599,Entire home/apt,160.0,4,143,2023-08-24,0.95,1,53,0,7511001069581,paris,FRA,France,2025-06
+245715,"Apart Hotel, Paris Champs Elysee",1275649,Gwenael,,Passy,48.86534,2.29942,Entire home/apt,7589.0,365,33,2018-12-29,0.25,2,365,0,,paris,FRA,France,2025-06
+247728,Apartment Republic Canal St Martin,1298369,Delphine & Guillaume,,Popincourt,48.86918,2.36945,Entire home/apt,77.0,4,59,2023-07-21,0.36,1,167,0,7511000908938,paris,FRA,France,2025-06
+247764,appartment next to canal st martin,1298530,Laure,,Entrepôt,48.87473,2.36061,Entire home/apt,140.0,5,50,2024-08-08,0.3,1,349,2,7511002875563,paris,FRA,France,2025-06
+248869,Loft Baron,1303882,Cyril & Aurélie,,Batignolles-Monceau,48.89323,2.32303,Entire home/apt,140.0,3,49,2023-07-17,0.57,1,243,0,7511701481936,paris,FRA,France,2025-06
+252049,"Grand appartement, 2 chambres, 2 salles de bain",1322340,Mireille,,Popincourt,48.85395,2.37586,Entire home/apt,,5,37,2019-09-08,0.34,1,0,0,7511100063427,paris,FRA,France,2025-06
+252095,2-room apt Buttes-Chaumont 436 P²,624794,Laurent,,Buttes-Chaumont,48.88457,2.38151,Entire home/apt,178.0,3,27,2021-07-17,0.17,1,353,0,7511901218002,paris,FRA,France,2025-06
+252525,charming bedroom near  metro OPERA,1164453,Antonella,,Bourse,48.86869,2.33542,Private room,71.0,1,634,2025-06-13,3.95,2,15,62,7510200798302,paris,FRA,France,2025-06
+255958,Appartement Tendance proche du Marais,1345719,Camille,,Hôtel-de-Ville,48.85883331298828,2.3500630855560303,Entire home/apt,181.0,5,37,2024-08-06,0.24,1,0,1,7510403106846,paris,FRA,France,2025-06
+256643,"Lovely apt, rue Oberkampf Paris 11",1032884,Daphne,,Popincourt,48.8641,2.37485,Entire home/apt,197.0,30,8,2018-07-19,0.05,1,173,0,"Available with a mobility lease only (""bail mobilité"")",paris,FRA,France,2025-06
+256758,Lovely Flat Right in Paris Center,1347744,Odile,,Louvre,48.86365,2.33241,Entire home/apt,150.0,365,3,2014-10-11,0.02,1,365,0,,paris,FRA,France,2025-06
+259807,"DUPLEX 135m2, 3 BEDROOMS, COURTYARD",1363515,Loic,,Ménilmontant,48.87231,2.38938,Entire home/apt,172.0,5,36,2024-12-30,0.22,1,25,1,7512005930094,paris,FRA,France,2025-06
+261875,Paris Lovely flat Mouffetard Monge,1373780,Anais,,Panthéon,48.84166,2.3527,Entire home/apt,,365,30,2020-01-14,0.18,1,0,0,,paris,FRA,France,2025-06
+45630,room in an artist's flat with great view!,202804,Regis,,Buttes-Montmartre,48.88946,2.35867,Private room,50.0,5,63,2025-04-13,0.35,1,82,3,,paris,FRA,France,2025-06
+45661,"Very Heart of Paris, Charming",202918,Patrice,,Bourse,48.87006,2.34543,Entire home/apt,100.0,7,153,2025-05-25,0.86,1,202,11,7510200628254,paris,FRA,France,2025-06
+45967,Palais Royal central 2 beds 450ft2,204922,Benoit,,Bourse,48.86711,2.34034,Entire home/apt,,5,34,2020-08-17,0.19,1,0,0,7510203007229,paris,FRA,France,2025-06
+46666,Charming apartment on a cobbled street,63319740,Amira,,Ménilmontant,48.8582,2.3965,Entire home/apt,110.0,4,41,2025-06-12,0.23,2,38,5,7512001167295,paris,FRA,France,2025-06
+47155,Charming appartment in paris 16 ème,212393,Nina,,Passy,48.8445,2.25761,Entire home/apt,1350.0,7,50,2022-06-23,0.31,1,363,0,7511600972714,paris,FRA,France,2025-06
+48498,sourdière Louvre Vendôme,152242,Delphine,,Louvre,48.86751965494359,2.331969013773704,Entire home/apt,249.0,3,40,2024-06-17,0.23,102,168,0,7500420130404,paris,FRA,France,2025-06
+48584,Beautreillis Place des Vosges,152242,Delphine,,Hôtel-de-Ville,48.85316,2.36474,Entire home/apt,133.0,30,37,2018-09-15,0.22,102,332,0,"Available with a mobility lease only (""bail mobilité"")",paris,FRA,France,2025-06
+48592,Rue D'artois - Champs Elysées,152242,Delphine,,Élysée,48.87341,2.30778,Entire home/apt,323.0,3,43,2025-03-30,0.29,102,140,4,7510813102300,paris,FRA,France,2025-06
+53353,Rare 18th century washhouse convert,248319,Trixie,,Buttes-Montmartre,48.88985,2.35066,Entire home/apt,259.0,3,47,2025-05-12,0.26,1,336,6,Exempt - hotel-type listing,paris,FRA,France,2025-06
+54377,Duplex flat in Paris close to Montmartre,247562,Nicolas,,Buttes-Montmartre,48.88927,2.35903,Entire home/apt,,3,143,2025-06-05,1.33,2,15,23,7511800523290,paris,FRA,France,2025-06
+55071,Amazing 1 bedroom near Montmartre,259503,Marion,,Opéra,48.88047,2.3431,Entire home/apt,,2,86,2023-06-04,0.5,2,0,0,7510902880540,paris,FRA,France,2025-06
+55239,"Luxury, Calm & Pleasure in 915 sqf.",260696,Joseph,,Élysée,48.8726,2.31477,Entire home/apt,609.0,1,22,2024-08-16,0.14,2,324,1,7510800978179,paris,FRA,France,2025-06
+55348,TOP LUXURY MARAIS DESIGN STUDIO APT,261355,Virginia & Pascal,,Hôtel-de-Ville,48.85614,2.35878,Entire home/apt,178.0,6,164,2025-05-23,1.01,4,246,21,7510400937511,paris,FRA,France,2025-06
+56662,180°view penthouse sunny terrace jacuzzi,268825,Sophie,,Buttes-Chaumont,48.87386,2.38231,Entire home/apt,175.0,6,125,2025-06-01,0.71,1,232,17,7511901575516,paris,FRA,France,2025-06
+1440531349699635057,Apartment in Brussels,416785627,"Loic, Estelle And Co",,Bruxelles,50.85944,4.35129,Entire home/apt,105.0,1,0,,,1,359,0,,brussels,BEL,Belgium,2025-06
+1440543254335315127,Bright room with private shower,420616155,Roha Ali,,Saint-Josse-ten-Noode,50.85455,4.36997,Private room,37.0,60,0,,,1,92,0,,brussels,BEL,Belgium,2025-06
+1440637477362895795,Appartement 1 chambre design,479787796,Amal,,Ixelles,50.8285,4.38136,Entire home/apt,127.0,3,0,,,3,12,0,,brussels,BEL,Belgium,2025-06
+1440677075789118383,Oasis in the heart of Brussels,12472459,Anneleen,,Ixelles,50.837457330579866,4.366665501852411,Entire home/apt,163.0,14,0,,,1,89,0,,brussels,BEL,Belgium,2025-06
+1440678759599127634,Studio spacieux avec douche,339700198,Mairama,,Molenbeek-Saint-Jean,50.85502,4.32147,Private room,59.0,1,2,2025-06-18,2.0,3,364,2,,brussels,BEL,Belgium,2025-06
+1440683831685855339,The Mill Familial House,495829195,,,Molenbeek-Saint-Jean,50.8583345,4.3080313,Entire home/apt,120.0,1,0,,,1,365,0,,brussels,BEL,Belgium,2025-06
+1440704123850107189,Nice studio EU Quarter,486624083,Kalela,,Etterbeek,50.83926216840864,4.3975480645895,Entire home/apt,105.0,2,0,,,2,77,0,,brussels,BEL,Belgium,2025-06
+1440709430905642282,"Je haven, Felix le Palmier",424411405,Pieter,,Bruxelles,50.8560326,4.3470567,Entire home/apt,68.0,7,0,,,1,300,0,,brussels,BEL,Belgium,2025-06
+1440726245014963016,Modern apartment next to Parc du Cinquantenaire,471305135,Jerome,,Etterbeek,50.8372,4.38946,Entire home/apt,98.0,92,0,,,1,169,0,,brussels,BEL,Belgium,2025-06
+1440745989071321553,"Chambre - Forest, Bruxelles",61814548,Auriane,,Forest,50.81807,4.34864,Private room,47.0,1,0,,,1,175,0,,brussels,BEL,Belgium,2025-06
+1440757178288703610,Loft penthouse deux terrasses,4914268,Pierre Marc,,Forest,50.8195347,4.341608799999999,Entire home/apt,128.0,2,0,,,2,257,0,,brussels,BEL,Belgium,2025-06
+1441209644779917791,Élégant appartement une chambre,421104039,Kevin,,Uccle,50.81311,4.33607,Entire home/apt,127.0,1,1,2025-06-14,1.0,4,311,1,,brussels,BEL,Belgium,2025-06
+1441220341560540081,Studio Uccle,10384229,Elizabeth,,Uccle,50.81069,4.36799,Entire home/apt,67.0,3,1,2025-06-16,1.0,1,224,1,,brussels,BEL,Belgium,2025-06
+1441220792139834952,Appart Noa,408987294,Liliana,,Anderlecht,50.8363277,4.3125592,Entire home/apt,91.0,2,0,,,1,328,0,,brussels,BEL,Belgium,2025-06
+1441222384784327564,Studio Bellavista,113676626,Coralie,,Auderghem,50.81629,4.39724,Entire home/apt,75.0,6,0,,,2,352,0,,brussels,BEL,Belgium,2025-06
+1441318725060075173,Charmant & central appartement,7860171,Noémie,,Schaerbeek,50.86047,4.37275,Entire home/apt,61.0,15,0,,,1,193,0,,brussels,BEL,Belgium,2025-06
+1441464664153512602,super duplex à 15 min du centre,22723958,,,Berchem-Sainte-Agathe,50.86390550179844,4.305009471257993,Entire home/apt,82.0,1,1,2025-06-18,1.0,1,361,1,,brussels,BEL,Belgium,2025-06
+1441550857018011412,Une chambre à louer avec TV,599146656,Alae,,Anderlecht,50.8269568,4.295663300000001,Private room,60.0,1,0,,,1,358,0,,brussels,BEL,Belgium,2025-06
+1441788555769149164,Bruxelles,133809331,Arman,,Jette,50.8730513,4.3235025,Entire home/apt,89.0,3,1,2025-06-20,1.0,1,362,1,,brussels,BEL,Belgium,2025-06
+1441912491754389520,Second floor apartment,517326221,Michel,,Etterbeek,50.83177,4.385599,Entire home/apt,85.0,6,0,,,6,82,0,,brussels,BEL,Belgium,2025-06
+1441939676077532925,Confédérés 3 (3eme étage),123426,Dimitri,,Bruxelles,50.8479464,4.3881587,Entire home/apt,72.0,4,0,,,11,333,0,,brussels,BEL,Belgium,2025-06
+1441945129494672871,Bel Appart à la grande place,685079590,Saber,,Bruxelles,50.84667,4.35139,Entire home/apt,100.0,5,0,,,2,360,0,,brussels,BEL,Belgium,2025-06
+1441984201561352044,Studio in Toison d'or (Ixelles),666616671,Benjamin,,Ixelles,50.836,4.35812,Entire home/apt,71.0,7,0,,,1,62,0,,brussels,BEL,Belgium,2025-06
+1442210622272238611,Apparemment de la grâce 1.,700956801,Gracia-Toussaint,,Jette,50.87923,4.32853,Entire home/apt,89.0,1,0,,,1,359,0,,brussels,BEL,Belgium,2025-06
+1443159291317753016,Central Brussels Studio,24933244,Axel,,Bruxelles,50.85249,4.35096,Entire home/apt,76.0,1,0,,,8,40,0,,brussels,BEL,Belgium,2025-06
+1443162973240450228,Cozy Central Stay,24933244,Axel,,Bruxelles,50.84546220398949,4.34845427146853,Entire home/apt,103.0,1,0,,,8,4,0,,brussels,BEL,Belgium,2025-06
+1443166688829122242,City Apartment in Brussels,24933244,Axel,,Bruxelles,50.836301587778095,4.351948952919318,Entire home/apt,79.0,1,0,,,8,37,0,,brussels,BEL,Belgium,2025-06
+1443169735230516431,City Studio,24933244,Axel,,Bruxelles,50.85392,4.35195,Entire home/apt,79.0,1,0,,,8,35,0,,brussels,BEL,Belgium,2025-06
+1443247989182734781,Appartement entier 2 chambres,458865873,Juliette,,Schaerbeek,50.87009270245609,4.386908972518852,Entire home/apt,79.0,1,0,,,1,55,0,,brussels,BEL,Belgium,2025-06
+1443386025626521803,ULB & Cambre Cosy Duplex Suite 1,5836382,Cristhian,,Ixelles,50.81754851487115,4.380690032550588,Private room,77.0,1,0,,,12,350,0,,brussels,BEL,Belgium,2025-06
+1443423296404177833,ULB & Cambre Cosy Duplex Suite 2,5836382,Cristhian,,Ixelles,50.819368546913,4.379498788777139,Private room,77.0,1,0,,,12,346,0,,brussels,BEL,Belgium,2025-06
+1443480682829518023,1 Hébergement Gare de l'Ouest,71488214,Brenda Thandi,,Molenbeek-Saint-Jean,50.8487188,4.3190826,Entire home/apt,220.0,1,0,,,4,363,0,,brussels,BEL,Belgium,2025-06
+1443489649411402434,Belle chambre cosy,150943196,Emma,,Forest,50.81147,4.32733,Private room,47.0,1,0,,,1,363,0,,brussels,BEL,Belgium,2025-06
+1443507378247716289,2 Hébergement Gare de l'Ouest,71488214,Brenda Thandi,,Molenbeek-Saint-Jean,50.8487188,4.3190826,Entire home/apt,159.0,1,0,,,4,365,0,,brussels,BEL,Belgium,2025-06
+1443521742298723220,3 Hébergement à Bruxelles,71488214,Brenda Thandi,,Molenbeek-Saint-Jean,50.8487188,4.3190826,Entire home/apt,140.0,1,0,,,4,365,0,,brussels,BEL,Belgium,2025-06
+1443526890769776822,Studio de vacances au quatrième étage.,700902648,Ştefan,,Etterbeek,50.82778,4.40096,Entire home/apt,68.0,2,0,,,2,346,0,,brussels,BEL,Belgium,2025-06
+1443532174848336306,Chambre grand lit/un petit lit,71488214,Brenda Thandi,,Molenbeek-Saint-Jean,50.8487188,4.3190826,Private room,80.0,1,0,,,4,365,0,,brussels,BEL,Belgium,2025-06
+1443670524527534534,Grand Place Beautiful Studio,5836382,Cristhian,,Bruxelles,50.84750911626935,4.3514597016225,Entire home/apt,106.0,1,0,,,12,268,0,,brussels,BEL,Belgium,2025-06
+1443680862095998917,Appartement élégant au Chatelain,48759845,Louis,,Saint-Gilles,50.82857,4.35564,Entire home/apt,110.0,90,0,,,1,170,0,,brussels,BEL,Belgium,2025-06
+1443925408981397226,Lovely duplex apartment,119646299,Laura,,Ixelles,50.8359,4.36464,Entire home/apt,97.0,2,0,,,2,137,0,,brussels,BEL,Belgium,2025-06
+1443934043934339299,Bright & Cozy Studio Apartment,119646299,Laura,,Ixelles,50.83686,4.36466,Entire home/apt,72.0,2,0,,,2,329,0,,brussels,BEL,Belgium,2025-06
+1444034121785975690,Reserva 1,411233593,Super Hostel,,Anderlecht,50.84235005045607,4.333879746721095,Shared room,17.0,1,0,,,14,347,0,,brussels,BEL,Belgium,2025-06
+1444035958986137078,Reserva 2,411233593,Super Hostel,,Anderlecht,50.84056766815707,4.335475391036985,Shared room,21.0,1,0,,,14,340,0,,brussels,BEL,Belgium,2025-06
+1444073221877711708,Best room in Brussels center,668231333,Vital,,Ixelles,50.83487,4.35933,Private room,48.0,2,0,,,3,265,0,,brussels,BEL,Belgium,2025-06
+1444140942666561217,Appart Forest Bruxelles,577774717,Margherita,,Forest,50.81525,4.339371,Private room,34.0,3,0,,,1,88,0,,brussels,BEL,Belgium,2025-06
+1444271749752556863,Appartement calme et équipée,478527119,,,Auderghem,50.81972,4.40583,Entire home/apt,77.0,4,0,,,1,357,0,,brussels,BEL,Belgium,2025-06
+1444285447828053685,Gorgeous suite in neoclassical Hotel de Maître,366683050,Gautier,,Ixelles,50.82928,4.35829,Private room,60.0,90,0,,,6,356,0,,brussels,BEL,Belgium,2025-06
+1444328439438092325,Chambre à louer dans un appart.,580594739,Melissa,,Ixelles,50.8214923,4.3839326,Private room,20.0,15,0,,,1,153,0,,brussels,BEL,Belgium,2025-06
+1444415757688287534,Appartement lumineux avec terrasse Parking gratuit,701502183,Issifou,,Jette,50.88826116547797,4.317073906300062,Private room,82.0,1,0,,,1,364,0,,brussels,BEL,Belgium,2025-06
+1444554884975863444,Studio room in a penthouse + Jacuzzi,116420364,Nasir,,Etterbeek,50.83668622247995,4.403374157845974,Private room,89.0,2,0,,,1,355,0,,brussels,BEL,Belgium,2025-06
+1444597430585932301,"Cozy room EU & Center, ref D1M",23082521,Serenia,,Saint-Josse-ten-Noode,50.85242,4.37649,Private room,41.0,1,0,,,54,361,0,,brussels,BEL,Belgium,2025-06
+1444707492038776741,Loft lumineux institutions UE,12007467,Anthony,,Etterbeek,50.82705,4.38545,Entire home/apt,89.0,1,0,,,1,347,0,,brussels,BEL,Belgium,2025-06
+1444746025457972578,Lovely Apartment for Groups,24933244,Axel,,Bruxelles,50.85384304870697,4.350086131343633,Entire home/apt,187.0,1,0,,,8,38,0,,brussels,BEL,Belgium,2025-06
+1444806054534632484,Studio Brussels Center,24933244,Axel,,Bruxelles,50.852720381645376,4.352131040668058,Entire home/apt,94.0,1,0,,,8,3,0,,brussels,BEL,Belgium,2025-06
+1444937317788404456,Duplex for family and business,8111418,Belal,,Forest,50.8164,4.3206,Entire home/apt,111.0,3,0,,,1,347,0,,brussels,BEL,Belgium,2025-06
+1444940796035788445,Studio cosy au Sablon - Centre,102877358,Cédric,,Bruxelles,50.84245680486988,4.354493816408775,Entire home/apt,85.0,2,0,,,27,60,0,,brussels,BEL,Belgium,2025-06
+1444959185482741405,Penthouse Evere,701629683,Daniela,,Evere,50.8605,4.41823,Entire home/apt,278.0,3,0,,,1,347,0,,brussels,BEL,Belgium,2025-06
+1444967263173832376,1 bedroom apartment in the heart of Brussels,189315430,Daphné,,Bruxelles,50.84511,4.35355,Entire home/apt,69.0,2,0,,,11,140,0,,brussels,BEL,Belgium,2025-06
+1444968857241193355,2BR NATO & EU Apartment  - FreeLuggage Room,291264494,Brussels,,Schaerbeek,50.8495463,4.401574,Entire home/apt,142.0,1,0,,,17,352,0,,brussels,BEL,Belgium,2025-06
+1445008842037444362,Bright and calm bedroom in stylish apartment,8287835,Luis,,Ixelles,50.82301,4.38336,Private room,42.0,7,0,,,1,355,0,,brussels,BEL,Belgium,2025-06
+1445035031475973944,Studio pour un couplé,700902648,Ştefan,,Etterbeek,50.82592,4.40109,Entire home/apt,65.0,2,0,,,2,345,0,,brussels,BEL,Belgium,2025-06
+1445045941136066245,Maison du Cinquantenaire - The Residential,7916311,Marc,,Bruxelles,50.84691,4.38931,Entire home/apt,109.0,2,0,,,2,340,0,,brussels,BEL,Belgium,2025-06
+1445059614222716405,Spacieux et idéalement situé,24456997,Marie,,Anderlecht,50.84755537917961,4.333312176167965,Entire home/apt,99.0,1,0,,,1,131,0,,brussels,BEL,Belgium,2025-06
+1445064939598728447,Studio,701679129,Philippe,,Ixelles,50.812072,4.387645399999999,Entire home/apt,144.0,1,0,,,1,293,0,,brussels,BEL,Belgium,2025-06
+1445251368459323158,"Chambre de 15 m2, lit double",433056686,Clara,,Saint-Gilles,50.83297,4.33637,Private room,72.0,1,0,,,1,80,0,,brussels,BEL,Belgium,2025-06
+1445491532513235068,Newly refurbished & bright flat,9177686,Julie,,Uccle,50.8094512,4.3370983,Entire home/apt,81.0,1,0,,,1,356,0,,brussels,BEL,Belgium,2025-06
+1445585701873871224,Chambre cocon à louer,82317210,Eva,,Ixelles,50.8295365,4.3704242,Private room,69.0,3,0,,,2,100,0,,brussels,BEL,Belgium,2025-06
+1445705032800782835,"Appartement, localisation top !",691244003,Oueslati,,Bruxelles,50.84543,4.38381,Entire home/apt,123.0,1,0,,,1,365,0,,brussels,BEL,Belgium,2025-06
+1445718552171404866,1 BdR Appt Bxl EU District,31855715,Benedicte,,Bruxelles,50.85086,4.38447,Entire home/apt,52.0,30,0,,,1,61,0,,brussels,BEL,Belgium,2025-06
+1445761344827349458,Luxe appartement Brussels,684113510,Duy,,Bruxelles,50.84747,4.3676,Entire home/apt,66.0,1,2,2025-06-20,2.0,2,340,2,,brussels,BEL,Belgium,2025-06
+1446081242001704917,Bruxelles,686644585,Na,,Bruxelles,50.84170897561904,4.342666886715906,Entire home/apt,64.0,1,0,,,3,226,0,,brussels,BEL,Belgium,2025-06
+1446260520593711745,Moderna Habitación Privada,567854046,Yulieth,,Anderlecht,50.84321,4.33745,Private room,57.0,1,0,,,1,65,0,,brussels,BEL,Belgium,2025-06
+1446267837093904396,Lovely and comfortable apartment,86111133,Isabelle,,Schaerbeek,50.8452976289198,4.400485083460808,Entire home/apt,85.0,1,0,,,1,40,0,,brussels,BEL,Belgium,2025-06
+1446290080906839791,Small and cozy apnt near Louise,24088463,Alice,,Ixelles,50.82004,4.36801,Entire home/apt,63.0,2,0,,,1,48,0,,brussels,BEL,Belgium,2025-06
+1446326963716098038,Chambre bruxelloise en coloc,73826955,Shankar,,Schaerbeek,50.85474,4.38235,Private room,48.0,15,0,,,1,279,0,,brussels,BEL,Belgium,2025-06
+1446340233631468970,Joli duplex,84675712,Nathalie,,Ixelles,50.83258,4.37102,Entire home/apt,68.0,4,0,,,3,258,0,,brussels,BEL,Belgium,2025-06
+1446367610980396385,duplex 2 chambres/jardin/parc,702034653,Ingrid,,Schaerbeek,50.86118,4.38354,Entire home/apt,95.0,2,0,,,1,68,0,,brussels,BEL,Belgium,2025-06
+1446392249345541073,Apartment to rent in uccle.,110855659,Anila,,Uccle,50.81169,4.34406,Entire home/apt,60.0,1,0,,,1,203,0,,brussels,BEL,Belgium,2025-06
+1446412975061585270,Bruxelles Centre,702049393,Timothé Itongila,,Bruxelles,50.8478,4.34618,Entire home/apt,87.0,1,0,,,1,356,0,,brussels,BEL,Belgium,2025-06
+1446433650057869654,Séjour Atypique en Famille,206108421,Mandy,,Schaerbeek,50.85765224750001,4.374951794743538,Entire home/apt,148.0,1,0,,,13,42,0,,brussels,BEL,Belgium,2025-06
+1446915091761145792,Bel appartement (mois de juillet),232334751,Angèle,,Ixelles,50.81899,4.38339,Entire home/apt,70.0,1,0,,,1,364,0,,brussels,BEL,Belgium,2025-06
+1446953327729417018,Petit cocon familial – type loft,445017278,Celia,,Forest,50.8256,4.32846,Entire home/apt,78.0,1,0,,,1,349,0,,brussels,BEL,Belgium,2025-06
+1446965451622751994,Appartement deux chambres,108033714,Sasha,,Etterbeek,50.8339337,4.383325699999999,Entire home/apt,78.0,2,0,,,1,352,0,,brussels,BEL,Belgium,2025-06
+1446987956446076670,Appartement 1 chambre,55223330,Gaëlle,,Woluwe-Saint-Lambert,50.838733069207926,4.409666403019069,Entire home/apt,96.0,2,0,,,1,50,0,,brussels,BEL,Belgium,2025-06
+1447004601940547337,Bright Stylish Perfectly Located,63035504,Anna,,Etterbeek,50.83205,4.39593,Entire home/apt,86.0,30,0,,,1,332,0,,brussels,BEL,Belgium,2025-06
+1447028706772660673,Cœur d’Europe 90 m grand place,38749227,Touma,,Bruxelles,50.84675,4.3551,Entire home/apt,123.0,1,0,,,3,360,0,,brussels,BEL,Belgium,2025-06
+1447039315932861016,Appartement Cosy Avec Terrasse Proche Du Centre,276655040,Samah,,Bruxelles,50.8706437,4.3431877,Entire home/apt,65.0,1,0,,,2,357,0,,brussels,BEL,Belgium,2025-06
+1447052872526290145,New apt in Brussels - Châtelain,286085387,Maya,,Ixelles,50.8213024,4.3563266,Entire home/apt,74.0,1,0,,,5,104,0,,brussels,BEL,Belgium,2025-06
+1447072224241966703,Petit cocon super bien situé,500422518,Alice Francoise S,,Bruxelles,50.8493,4.36656,Entire home/apt,125.0,1,0,,,7,265,0,,brussels,BEL,Belgium,2025-06
+1447227248108543265,Bright room amd workspace,38268091,India,,Anderlecht,50.83255,4.32765,Private room,53.0,2,0,,,1,332,0,,brussels,BEL,Belgium,2025-06
+1447250772731532366,Chambre à louer à Bruxelles,581829310,Vincent,,Auderghem,50.8215548,4.410788399999999,Private room,70.0,1,0,,,1,365,0,,brussels,BEL,Belgium,2025-06
+1447298247187795140,Chambre lumineuse avec dressing,401086589,Najat,,Molenbeek-Saint-Jean,50.85003,4.30657,Private room,65.0,1,0,,,3,356,0,,brussels,BEL,Belgium,2025-06
+1447327011414501209,Cosy flat @ Gare du midi,693643939,ARia,,Saint-Gilles,50.83349,4.33647,Entire home/apt,53.0,1,0,,,1,340,0,,brussels,BEL,Belgium,2025-06
+1447492216831004412,"Cosy près du centre, unif & EU",125420553,Prescila,,Etterbeek,50.82722547996458,4.389942688883578,Entire home/apt,65.0,2,0,,,2,324,0,,brussels,BEL,Belgium,2025-06
+1447703823531762547,Appartement spacieux & cosy,153117758,Soufiane,,Bruxelles,50.8402,4.34285,Entire home/apt,109.0,1,0,,,2,72,0,,brussels,BEL,Belgium,2025-06
+1447711881575933179,Brussel Arlon Prestige residence,172298771,Yann,,Bruxelles,50.8423465,4.3761866,Entire home/apt,148.0,30,0,,,28,330,0,,brussels,BEL,Belgium,2025-06
+1447716801122981629,Appartement cosy et lumineux !,15529595,Elodie,,Forest,50.82479,4.33039,Entire home/apt,56.0,1,0,,,1,329,0,,brussels,BEL,Belgium,2025-06
+1447746166747843297,Chambre sympa avec balcon,191244024,Alix,,Koekelberg,50.86068,4.33428,Private room,48.0,5,0,,,1,55,0,,brussels,BEL,Belgium,2025-06
+1447756519235420162,Cosy apartment near Zaventem Airport,426014560,Sirvesto,,Woluwe-Saint-Lambert,50.85338,4.43241,Entire home/apt,102.0,1,0,,,1,364,0,,brussels,BEL,Belgium,2025-06
+1447813637301749094,"Modern Apartement | Park View, Near Louise Avenue",373403020,Cesar,,Ixelles,50.81927,4.36256,Entire home/apt,95.0,2,0,,,1,30,0,,brussels,BEL,Belgium,2025-06

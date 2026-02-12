@@ -1,0 +1,86 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+.venv
+venv/
+ENV/
+env/
+
+# R
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+*.Rproj
+.Rdata
+.httr-oauth
+.DS_Store
+.quarto
+
+# Jupyter
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Données temporaires et tests
+ytest/
+devtest/
+tz/
+zu/
+
+# Données volumineuses
+data/raw/
+data/interim/
+
+# Outputs rendus (HTML, PPTX, libs)
+reports/_output/
+reports/*.html
+reports/*.pptx
+reports/*.knit.md
+reports/*_files/
+
+# Benchmarks externes
+zuprj/
+
+# Backups et archives
+_npbacklog/
+
+# Outputs temporaires et logs
+outputs/
+reports/outputs/
+*.log
+
+# Fichiers corrompus (noms cassés)
+notebooks*
+rgd-guide*\357*
+rgd-guide*cp C*
+notebooks*cp C*

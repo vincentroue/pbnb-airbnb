@@ -1,0 +1,429 @@
+---
+title: "Airbnb Europe — 35 Marchés Comparés"
+subtitle: "EDA exploratoire · Inside Airbnb · Juin 2025"
+author: "Vincent R."
+date: today
+date-format: "DD MMMM YYYY"
+lang: fr
+format:
+  revealjs:
+    theme: [default, theme-pres.scss]
+    slide-number: true
+    transition: fade
+    width: 1280
+    height: 720
+    margin: 0.08
+    center: false
+    hash: true
+    history: true
+    controls: true
+    progress: true
+    logo: ""
+    footer: "Airbnb Europe — 35 villes × 18 pays | Inside Airbnb juin 2025"
+    title-slide-attributes:
+      data-background-color: "#1696d2"
+execute:
+  echo: false
+  warning: false
+---
+
+## Contexte et objectif {.smaller}
+
+::: {.columns}
+::: {.column width="55%"}
+
+### Pourquoi cette étude ?
+
+- Le marché Airbnb européen croît de **15 à 20 %** par an depuis 2022
+- Les régulations locales se multiplient (Amsterdam, Barcelone, Paris...)
+- Aucune **vue comparative** standardisée sur 35 marchés simultanément
+
+### Questions directrices
+
+1. Quels marchés dominent en **volume** et en **pression touristique** ?
+2. La **professionnalisation** corrèle-t-elle avec les prix ?
+3. Les indicateurs Airbnb révèlent-ils l'empreinte de la **régulation** ?
+4. Peut-on identifier des **profils de marché** distincts ?
+
+:::
+::: {.column width="45%"}
+
+### Données
+
+| | |
+|---|---|
+| **Source** | Inside Airbnb (open data) |
+| **Snapshot** | Juin 2025 |
+| **Périmètre** | 35 villes · 18 pays |
+| **Listings bruts** | ~870 000 |
+| **Listings nettoyés** | ~600 000 |
+| **Variables** | 18 (sumlistings) |
+
+### Pipeline
+
+Prix null → Dispo > 0 → Hôtels → Prix 10-1000€
+
+**Rétention : ~70 %**
+
+:::
+:::
+
+## Méthodologie en bref {.smaller}
+
+::: {.columns}
+::: {.column width="50%"}
+
+### Nettoyage séquentiel
+
+| Étape | Impact |
+|-------|--------|
+| Prix non null | ~25 % exclus |
+| Disponibilité > 0 | ~5 % |
+| Exclure Hotel room | ~1 % |
+| Prix EUR 10-1000 | ~3 % |
+| Flag longterm ≥30 nuits | 0 % (flag) |
+
+### Indicateurs construits
+
+- **Pression** : listings / 1 000 hab et / 1 000 logements
+- **Ratio L/H** : listings / hosts (professionnalisation)
+- **Concentration** : % hosts pour 50 % de l'offre
+- **Longterm** : proxy de régulation (min_nights ≥ 30)
+
+:::
+::: {.column width="50%"}
+
+### Approche analytique
+
+```{mermaid}
+%%| fig-width: 5
+flowchart TD
+    A[35 villes × 18 cols] --> B[Pipeline cleaning]
+    B --> C[5 axes EDA]
+    C --> D[Volumes & structure]
+    C --> E[Prix & dispersion]
+    C --> F[Professionnalisation]
+    C --> G[Activité & dispo]
+    C --> H[Corrélations]
+    H --> I[ACP 2 composantes]
+    I --> J[Clustering Ward k=4]
+    J --> K[4 profils de marché]
+```
+
+### Limites
+
+- Population = **aire métropolitaine** (biais dénominateur)
+- Prix **affichés** ≠ prix payés
+- Snapshot **unique** (pas de saisonnalité)
+
+:::
+:::
+
+## {background-color="#1696d2"}
+
+::: {.r-fit-text}
+**600 000** listings actifs
+
+35 villes · 18 pays
+:::
+
+::: {.notes}
+Chiffre après nettoyage. Base brute ~870K.
+:::
+
+## Londres et Paris concentrent 30 % de l'offre européenne
+
+::: {.columns}
+::: {.column width="60%"}
+
+### Structure bipolaire
+
+| Ville | Listings | Part |
+|-------|----------|------|
+| **Londres** | 97 000 | 16 % |
+| **Paris** | 84 000 | 14 % |
+| Rome | 36 000 | 6 % |
+| Istanbul | 30 000 | 5 % |
+| Madrid | 26 000 | 4 % |
+
+Le duo Londres-Paris = **181 000 listings** (30 %)
+
+Puis un peloton de 30 villes entre 3K et 36K
+
+:::
+::: {.column width="40%"}
+
+### Répartition par pays
+
+| Pays | Villes |
+|------|--------|
+| Italie | 7 |
+| Espagne | 6 |
+| France | 3 |
+| Royaume-Uni | 3 |
+| Suisse | 2 |
+| Grèce | 2 |
+
+**Écart de 1 à 30** entre Zurich et Londres
+
+:::
+:::
+
+## Florence subit une pression 15× supérieure à Istanbul
+
+::: {.columns}
+::: {.column width="50%"}
+
+### Listings / 1 000 habitants
+
+| Ville | Ratio | Pop. métro |
+|-------|-------|------------|
+| [Florence]{.hl} | **34** | 383K |
+| [Venise]{.hl} | **32** | 261K |
+| Copenhague | 17 | 1,4M |
+| Porto | 11 | 1,3M |
+| Amsterdam | 8 | 1,2M |
+| ... | ... | ... |
+| Istanbul | **2** | 15,8M |
+
+:::
+::: {.column width="50%"}
+
+### Listings / 1 000 logements
+
+| Ville | Ratio | Impact |
+|-------|-------|--------|
+| Florence | **~70** | 7 % du parc |
+| Venise | **~50** | 5 % du parc |
+| Copenhague | ~22 | 2 % |
+| Paris | ~17 | <2 % |
+
+<br>
+
+::: {.callout-warning}
+## Implication
+À Florence, **1 logement sur 14** est listé sur Airbnb.
+
+Cela pose directement la question de l'impact sur le marché locatif résidentiel.
+:::
+
+:::
+:::
+
+## Un facteur 4 sépare Amsterdam de Budapest {background-color="#f8f9fa"}
+
+::: {.r-fit-text .center}
+**223 €** Amsterdam &emsp; vs &emsp; **57 €** Budapest
+:::
+
+### Trois groupes tarifaires
+
+| Segment | Villes | Médiane |
+|---------|--------|---------|
+| **Premium** | Amsterdam, Copenhague, Paris | > 155 € |
+| **Intermédiaire** | Rome, Londres, Venise, Milan | 100-155 € |
+| **Budget** | Budapest, Istanbul, Athènes | < 80 € |
+
+::: {.fragment}
+> La dispersion intra-ville suit la même logique : l'IQR d'Amsterdam (153 €) **dépasse le prix médian** de Budapest.
+:::
+
+## La professionnalisation est inversement corrélée aux prix
+
+::: {.columns}
+::: {.column width="55%"}
+
+### Quatre quadrants
+
+|  | Prix élevés | Prix bas |
+|--|------------|---------|
+| **Peu de multi-hosts** | Amsterdam, Copenhague | — |
+| **Beaucoup de multi-hosts** | — | Barcelone, Prague, Istanbul |
+
+**Corrélation ville : r = −0,47**
+
+- Les marchés **régulés** limitent les multi-hosts → prix hauts
+- Les marchés **professionnalisés** = opérateurs + offre abondante → prix bas
+- Paris occupe une position **centrale atypique** (prix élevés, professionnalisation modérée)
+
+:::
+::: {.column width="45%"}
+
+### Chiffres clés
+
+| Ville | % Multi-host | Prix méd. |
+|-------|-------------|-----------|
+| Barcelone | **83 %** | 108 € |
+| Prague | **81 %** | 89 € |
+| Istanbul | **78 %** | 69 € |
+| ... | ... | ... |
+| Amsterdam | **23 %** | 223 € |
+| Copenhague | **18 %** | 165 € |
+
+<br>
+
+Le ratio L/H varie de **1,1** (Copenhague) à **3,2** (Barcelone)
+
+:::
+:::
+
+## La régulation laisse des traces dans les indicateurs
+
+::: {.columns}
+::: {.column width="50%"}
+
+### Longterm (min_nights ≥ 30)
+
+| Ville | % Longterm | Type |
+|-------|-----------|------|
+| Istanbul | **50 %** | Loi turque |
+| Barcelone | **42 %** | Interdiction licences |
+| Berlin | 26 % | Zweckentfremdung |
+| Paris | 14 % | Plafond 120j |
+| Amsterdam | < 2 % | Plafond nuitées |
+
+:::
+::: {.column width="50%"}
+
+### Disponibilité médiane
+
+| Ville | Jours/an | Profil |
+|-------|----------|--------|
+| Istanbul | 354 | Permanent |
+| Athènes | 278 | Permanent |
+| Lisbonne | 261 | Permanent |
+| ... | ... | ... |
+| Amsterdam | 111 | Contraint |
+| Copenhague | 106 | Contraint |
+
+:::
+:::
+
+::: {.fragment}
+> **3 marqueurs convergents** de régulation forte : ratio L/H ≈ 1, disponibilité < 120j, peu de multi-hosts
+:::
+
+## 0,6 % des hosts suffisent pour 50 % de l'offre à Barcelone {background-color="#f8f9fa"}
+
+::: {.columns}
+::: {.column width="50%"}
+
+### Concentration extrême
+
+| Ville | % hosts → 50 % offre |
+|-------|--------------------|
+| **Barcelone** | 0,6 % (47 hosts) |
+| Prague | 1,2 % |
+| Istanbul | 2,1 % |
+| ... | ... |
+| Amsterdam | 38 % |
+| **Copenhague** | 48 % (3 000 hosts) |
+
+**Écart de 1 à 80**
+
+:::
+::: {.column width="50%"}
+
+### Poids des top opérateurs
+
+| Ville | Top 10 hosts | % offre |
+|-------|-------------|---------|
+| Barcelone | 10 | ~19 % |
+| Prague | 10 | ~14 % |
+| Florence | 10 | ~12 % |
+| ... | ... | ... |
+| Copenhague | 10 | ~2 % |
+
+<br>
+
+::: {.callout-note}
+Les 10 premiers hosts de Barcelone gèrent **4 200 annonces** — l'équivalent d'une chaîne hôtelière.
+:::
+
+:::
+:::
+
+## Quatre profils de marché émergent
+
+::: {.columns}
+::: {.column width="55%"}
+
+### Clustering hiérarchique (Ward, k=4)
+
+| Cluster | Caractéristique | Villes type |
+|---------|----------------|-------------|
+| [**Premium régulé**]{style="color: #1696d2"} | Prix hauts, offre individuelle, dispo limitée | Amsterdam, Copenhague, Zurich |
+| [**Massif intermédiaire**]{style="color: #fdbf11"} | Volume élevé, prix moyens-hauts, mixte | Paris, Londres, Rome |
+| [**Touristique mature**]{style="color: #55b748"} | Forte pression/hab, reviews élevées | Florence, Venise, Porto |
+| [**Budget professionnel**]{style="color: #ec008b"} | Prix bas, multi-hosts dominants | Istanbul, Prague, Barcelone |
+
+:::
+::: {.column width="45%"}
+
+### ACP — 2 axes, 75 % de variance
+
+- **PC1** : Professionnalisation ↔ Individualisation
+- **PC2** : Prix élevés ↔ Prix budget
+
+<br>
+
+### Variables les plus discriminantes
+
+1. % multi-host (PC1)
+2. Ratio L/H (PC1)
+3. Prix médian (PC2)
+4. Disponibilité (PC1+PC2)
+
+:::
+:::
+
+## Synthèse — 6 enseignements {.smaller}
+
+::: {.incremental}
+
+1. **Structure bipolaire** — Londres (97K) + Paris (84K) = **30 % de l'offre**. Puis 30 villes entre 3K et 36K.
+
+2. **Pression inégale** — Florence (34/1000 hab) et Venise (32) subissent une pression **15× Istanbul**. Rapporté aux logements, 7 % du parc de Florence est sur Airbnb.
+
+3. **Fracture tarifaire** — Facteur **4** entre Amsterdam (223 €) et Budapest (57 €). Les marchés chers sont aussi les plus **hétérogènes** (IQR Amsterdam = prix médian Budapest).
+
+4. **Professionnalisation inversée** — Barcelone 83 % multi-hosts + prix modérés. Copenhague 18 % + prix élevés. Corrélation **r = −0,47**.
+
+5. **Régulation lisible** — Istanbul 50 % longterm, Copenhague dispo 106j. Trois marqueurs convergents : ratio L/H, dispo, multi-host.
+
+6. **4 profils** — Premium régulé · Massif intermédiaire · Touristique mature · Budget professionnel.
+
+:::
+
+## Prochaines étapes {background-color="#0a4c6a"}
+
+::: {.columns}
+::: {.column width="50%"}
+
+### Approfondissements
+
+- Analyse **infra-ville** (Paris par arrondissement, IRIS)
+- Merge avec listings complets (74 cols) pour scores, amenities
+- Analyse **temporelle** multi-snapshots (2024 → 2025)
+- Modélisation prix (features → prix prédit)
+
+:::
+::: {.column width="50%"}
+
+### Livrables envisagés
+
+- Dashboard **Shiny** interactif multi-villes
+- Rapport **Quarto** détaillé par ville (Paris focus)
+- Carte **Folium** interactive
+- API scoring régulation
+
+:::
+:::
+
+<br>
+
+::: {.center}
+**Données** : insideairbnb.com | **Stack** : Python · Quarto · Plotly · Reactable
+
+**Code source** : [github.com/vincentroue](https://github.com/vincentroue)
+:::

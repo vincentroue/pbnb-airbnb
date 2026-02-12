@@ -1,0 +1,58 @@
+project:
+  type: website
+  output-dir: _output
+  render:
+    - rpt-synth-bnb-260211.qmd
+    - rpt-nbk-bnb-eda-260207.qmd
+    # - rpt-nbk-bnb-stats-260211.qmd   # TODO annexe stats
+    # - rpt-dash-bnb-260211.qmd         # TODO dashboard OJS
+    # - rpt-focus-bnb-paris.qmd         # TODO zoom Paris
+    # - methodologie.qmd                # TODO
+
+website:
+  title: "Airbnb Europe — Marchés Comparés"
+  sidebar:
+    style: docked
+    search: true
+    contents:
+      - rpt-synth-bnb-260211.qmd
+      - section: "Analyses"
+        contents:
+          - rpt-nbk-bnb-eda-260207.qmd
+          # - rpt-nbk-bnb-stats-260211.qmd
+      # - section: "Focus"
+      #   contents:
+      #     - rpt-focus-bnb-paris.qmd
+      # - section: "Dashboard"
+      #   contents:
+      #     - rpt-dash-bnb-260211.qmd
+      - section: "Présentation"
+        contents:
+          - text: "RevealJS (v2)"
+            href: rpt-pres-bnb-v2-260210.html
+
+format:
+  html:
+    theme: [cosmo, theme-urban.scss]
+    toc: true
+    toc-depth: 3
+    toc-location: right
+    number-sections: true
+    code-fold: true
+    code-summary: "Code"
+    grid:
+      body-width: 950px
+      sidebar-width: 250px
+      margin-width: 250px
+    fig-width: 10
+    fig-height: 6
+    fig-align: center
+    mainfont: "Inter, system-ui, sans-serif"
+
+execute:
+  python: C:/ScoopApps/apps/python/current/python.exe
+  warning: false
+  message: false
+  echo: false
+
+lang: fr

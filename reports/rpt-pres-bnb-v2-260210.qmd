@@ -1,0 +1,540 @@
+---
+title: "Airbnb Europe — 35 Marchés Comparés"
+subtitle: "Analyse exploratoire · Inside Airbnb · Juin 2025"
+author: "Vincent R."
+date: today
+date-format: "DD MMMM YYYY"
+lang: fr
+format:
+  revealjs:
+    theme: [default, theme-pres-v2.scss]
+    slide-number: c/t
+    transition: fade
+    width: 1280
+    height: 720
+    margin: 0.06
+    center: false
+    hash: true
+    controls: true
+    progress: true
+    embed-resources: true
+    footer: "Airbnb Europe · 35 villes × 18 pays · Inside Airbnb juin 2025"
+    title-slide-attributes:
+      data-background-color: "#1696d2"
+execute:
+  echo: false
+  warning: false
+---
+
+```{python}
+#| label: setup
+#| include: false
+
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+
+# Palette Urban Institute
+COL_CYAN = "#1696d2"
+COL_YELLOW = "#fdbf11"
+COL_GREEN = "#55b748"
+COL_MAGENTA = "#ec008b"
+COL_ORANGE = "#ca5800"
+COL_DARKBLUE = "#0a4c6a"
+COL_SPACEGRAY = "#5c5859"
+COL_RED = "#db2b27"
+
+PAL_4 = [COL_CYAN, COL_YELLOW, COL_GREEN, COL_MAGENTA]
+PAL_DIV = ["#ca5800", "#fdbf11", "#fdd870", "#fff2cf", "#cfe8f3", "#73bfe2", "#1696d2", "#0a4c6a"]
+
+# Layout Plotly base (fond transparent pour slides)
+LAYOUT_BASE = dict(
+    font=dict(family="Inter, system-ui, sans-serif", size=13, color="#333"),
+    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)",
+    margin=dict(l=40, r=20, t=40, b=30),
+    hoverlabel=dict(font_size=12),
+)
+
+# Charger KPI villes
+kpi = pd.read_csv("../data/interim/kpi_35cities_by_city_2506.csv")
+
+# Coordonnées des 35 villes (approx centre-ville)
+COORDS = {
+    "london": (51.51, -0.13), "paris": (48.86, 2.35), "rome": (41.90, 12.50),
+    "istanbul": (41.01, 28.98), "lisbon": (38.72, -9.14), "madrid": (40.42, -3.70),
+    "athens": (37.98, 23.73), "barcelona": (41.39, 2.17), "copenhagen": (55.68, 12.57),
+    "budapest": (47.50, 19.04), "florence": (43.77, 11.25), "vienna": (48.21, 16.37),
+    "prague": (50.08, 14.44), "berlin": (52.52, 13.41), "bordeaux": (44.84, -0.58),
+    "venice": (45.44, 12.32), "amsterdam": (52.37, 4.90), "brussels": (50.85, 4.35),
+    "dublin": (53.35, -6.26), "lyon": (45.76, 4.84), "porto": (41.15, -8.61),
+    "milan": (45.46, 9.19), "naples": (40.85, 14.27), "seville": (37.39, -5.98),
+    "edinburgh": (55.95, -3.19), "greater-manchester": (53.48, -2.24),
+    "malaga": (36.72, -4.42), "valencia": (39.47, -0.38), "thessaloniki": (40.64, 22.94),
+    "oslo": (59.91, 10.75), "stockholm": (59.33, 18.07), "geneva": (46.20, 6.14),
+    "zurich": (47.38, 8.54), "palermo": (38.12, 13.36), "bologna": (44.49, 11.34),
+}
+
+kpi["lat"] = kpi["city"].map(lambda c: COORDS.get(c, (0, 0))[0])
+kpi["lon"] = kpi["city"].map(lambda c: COORDS.get(c, (0, 0))[1])
+
+# Clusters simplifiés (Ward k=4 du EDA)
+CLUSTERS = {
+    "amsterdam": "Premium régulé", "copenhagen": "Premium régulé", "zurich": "Premium régulé",
+    "geneva": "Premium régulé", "oslo": "Premium régulé", "stockholm": "Premium régulé",
+    "dublin": "Premium régulé", "edinburgh": "Premium régulé",
+    "paris": "Massif intermédiaire", "london": "Massif intermédiaire",
+    "rome": "Massif intermédiaire", "madrid": "Massif intermédiaire",
+    "greater-manchester": "Massif intermédiaire", "vienna": "Massif intermédiaire",
+    "berlin": "Massif intermédiaire", "brussels": "Massif intermédiaire",
+    "bordeaux": "Massif intermédiaire", "lyon": "Massif intermédiaire",
+    "florence": "Touristique mature", "venice": "Touristique mature",
+    "porto": "Touristique mature", "lisbon": "Touristique mature",
+    "naples": "Touristique mature", "bologna": "Touristique mature",
+    "palermo": "Touristique mature", "malaga": "Touristique mature",
+    "athens": "Touristique mature", "thessaloniki": "Touristique mature",
+    "seville": "Touristique mature", "milan": "Touristique mature",
+    "istanbul": "Budget professionnel", "barcelona": "Budget professionnel",
+    "prague": "Budget professionnel", "budapest": "Budget professionnel",
+    "valencia": "Budget professionnel",
+}
+CLUSTER_COLORS = {
+    "Premium régulé": COL_CYAN,
+    "Massif intermédiaire": COL_YELLOW,
+    "Touristique mature": COL_GREEN,
+    "Budget professionnel": COL_MAGENTA,
+}
+
+kpi["cluster"] = kpi["city"].map(CLUSTERS).fillna("Autre")
+```
+
+
+## Contexte et objectif
+
+::: {.columns}
+::: {.column width="55%"}
+
+### Pourquoi cette étude ?
+
+- Marché Airbnb européen en croissance de **15-20 %/an** depuis 2022
+- Régulations locales qui se multiplient (Amsterdam, Barcelone, Paris...)
+- Aucune **vue comparative standardisée** multi-villes
+
+### Questions directrices
+
+1. Quels marchés dominent en **volume** et **pression** ?
+2. La **professionnalisation** corrèle-t-elle avec les prix ?
+3. Les indicateurs révèlent-ils l'empreinte de la **régulation** ?
+4. Peut-on identifier des **profils de marché** distincts ?
+
+:::
+::: {.column width="45%"}
+
+### Données
+
+| | |
+|---|---|
+| **Source** | Inside Airbnb (open data) |
+| **Snapshot** | Juin 2025 |
+| **Périmètre** | 35 villes · 18 pays |
+| **Listings bruts** | ~870 000 |
+| **Listings nettoyés** | ~600 000 |
+
+### Pipeline de nettoyage
+
+Prix null → Dispo > 0 → Hôtels exclus → Prix 10-1000 € → Flag longterm ≥ 30 nuits
+
+**Rétention : ~70 %** de la base brute
+
+:::
+:::
+
+
+## Méthodologie {.smaller}
+
+::: {.columns}
+::: {.column width="50%"}
+
+### Nettoyage séquentiel
+
+| Étape | Action | Impact |
+|-------|--------|--------|
+| 1 | Prix non null | ~25 % exclus |
+| 2 | Disponibilité > 0 | ~5 % |
+| 3 | Exclure Hotel room | ~1 % |
+| 4 | Prix EUR 10-1000 | ~3 % |
+| 5 | **Flag** longterm ≥ 30 nuits | 0 % (flag seul) |
+
+### 5 axes analytiques
+
+1. Volumes et structure de l'offre
+2. Pression touristique (L/1000 hab, EH/1000 logements)
+3. Prix et dispersion tarifaire
+4. Professionnalisation et concentration
+5. Corrélations → ACP → Clustering (Ward, k = 4)
+
+:::
+::: {.column width="50%"}
+
+### Indicateurs construits
+
+| Indicateur | Formule |
+|-----------|---------|
+| Pression hab | listings / 1 000 habitants |
+| Pression log | entire homes / 1 000 logements |
+| Ratio L/H | listings / hosts |
+| Concentration | % hosts pour 50 % offre |
+| Longterm | % min_nights ≥ 30 (proxy régulation) |
+
+### Limites identifiées
+
+- Population = **commune** (biais petites villes touristiques)
+- Prix **affichés** ≠ prix payés (frais, réductions)
+- Snapshot **unique** (pas de saisonnalité)
+- Données Inside Airbnb ≠ registre officiel
+
+:::
+:::
+
+
+## {background-color="#1696d2"}
+
+::: {.r-fit-text}
+**600 000** listings actifs
+
+35 villes · 18 pays
+:::
+
+::: {.notes}
+Chiffre après nettoyage. Base brute ~870K.
+:::
+
+
+## Carte interactive des 35 marchés
+
+```{python}
+#| label: map-europe
+#| fig-align: center
+
+fig = px.scatter_geo(
+    kpi, lat="lat", lon="lon",
+    size="n_listings",
+    color="cluster",
+    color_discrete_map=CLUSTER_COLORS,
+    hover_name="city_fr",
+    hover_data={
+        "n_listings": ":,",
+        "prix_med": ":.0f",
+        "pct_multi": ":.1f",
+        "lat": False, "lon": False, "cluster": False,
+    },
+    labels={"n_listings": "Listings", "prix_med": "Prix méd EUR", "pct_multi": "% Multi-host"},
+    size_max=45,
+    category_orders={"cluster": list(CLUSTER_COLORS.keys())},
+)
+
+fig.update_geos(
+    scope="europe",
+    showland=True, landcolor="#f5f5f5",
+    showocean=True, oceancolor="#e8f4fa",
+    showcountries=True, countrycolor="#d2d2d2",
+    showcoastlines=True, coastlinecolor="#ccc",
+    projection_type="natural earth",
+    lonaxis_range=[-12, 35], lataxis_range=[34, 62],
+)
+
+fig.update_layout(
+    height=440, width=1050,
+    legend=dict(
+        title="Profil", orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5,
+        font=dict(size=11),
+    ),
+    **{k: v for k, v in LAYOUT_BASE.items() if k != "margin"},
+    margin=dict(l=0, r=0, t=30, b=0),
+)
+
+fig.show()
+```
+
+[Source : Inside Airbnb juin 2025 · Taille = volume de listings · Couleur = profil de marché]{.source-note}
+
+
+## Londres et Paris concentrent 30 % de l'offre
+
+```{python}
+#| label: bar-listings
+#| fig-align: center
+
+top20 = kpi.nlargest(20, "n_listings").sort_values("n_listings")
+
+fig = px.bar(
+    top20, x="n_listings", y="city_fr",
+    color="cluster",
+    color_discrete_map=CLUSTER_COLORS,
+    orientation="h",
+    hover_data={"n_listings": ":,", "cluster": False},
+    labels={"n_listings": "Listings actifs", "city_fr": ""},
+    category_orders={"cluster": list(CLUSTER_COLORS.keys())},
+)
+
+avg = kpi["n_listings"].mean()
+fig.add_vline(x=avg, line_dash="dash", line_color=COL_MAGENTA, line_width=1.5,
+              annotation_text=f"Moyenne: {avg:,.0f}", annotation_position="top right",
+              annotation_font_size=11, annotation_font_color=COL_MAGENTA)
+
+fig.update_layout(
+    height=440, width=1000,
+    showlegend=False,
+    xaxis_title="Nombre de listings actifs",
+    yaxis_title="",
+    **LAYOUT_BASE,
+)
+
+fig.show()
+```
+
+Le duo Londres-Paris = **181 000 listings** (30 %). Puis un peloton de 30 villes entre 3K et 36K.
+
+
+## Florence subit une pression 15× supérieure à Istanbul
+
+```{python}
+#| label: scatter-pression
+#| fig-align: center
+
+fig = px.scatter(
+    kpi, x="listings_1000hab", y="entire_1000hsg",
+    size="n_listings", size_max=40,
+    color="cluster",
+    color_discrete_map=CLUSTER_COLORS,
+    hover_name="city_fr",
+    hover_data={"listings_1000hab": ":.1f", "entire_1000hsg": ":.1f", "n_listings": ":,", "cluster": False},
+    labels={"listings_1000hab": "Listings / 1 000 hab", "entire_1000hsg": "Entire homes / 1 000 logements"},
+    text="city_fr",
+    category_orders={"cluster": list(CLUSTER_COLORS.keys())},
+)
+
+fig.update_traces(textposition="top center", textfont_size=9)
+
+fig.update_layout(
+    height=440, width=1000,
+    showlegend=False,
+    **LAYOUT_BASE,
+)
+
+fig.show()
+```
+
+Florence (34 L/1000 hab) et Venise (32) : pression **15× Istanbul** (2). À Florence, 1 logement sur 14 est sur Airbnb.
+
+
+## {background-color="#f8f9fa"}
+
+::: {.r-fit-text .center}
+**223 €** Amsterdam &emsp; vs &emsp; **57 €** Budapest
+:::
+
+Un facteur **4** sépare les marchés premium des marchés budget.
+
+L'IQR d'Amsterdam (153 €) **dépasse le prix médian** de Budapest.
+
+
+## Trois segments tarifaires
+
+```{python}
+#| label: bar-prix
+#| fig-align: center
+
+prix_sort = kpi.sort_values("prix_med", ascending=True)
+
+fig = px.bar(
+    prix_sort, x="prix_med", y="city_fr",
+    color="cluster",
+    color_discrete_map=CLUSTER_COLORS,
+    orientation="h",
+    hover_data={"prix_med": ":.0f", "prix_q25": ":.0f", "prix_q75": ":.0f", "cluster": False},
+    labels={"prix_med": "Prix médian (EUR)", "city_fr": "", "prix_q25": "Q25", "prix_q75": "Q75"},
+    category_orders={"cluster": list(CLUSTER_COLORS.keys())},
+)
+
+fig.add_vline(x=kpi["prix_med"].mean(), line_dash="dash", line_color=COL_MAGENTA, line_width=1.5,
+              annotation_text=f"Moy: {kpi['prix_med'].mean():.0f} €", annotation_position="top right",
+              annotation_font_size=11, annotation_font_color=COL_MAGENTA)
+
+fig.update_layout(
+    height=480, width=1000,
+    showlegend=False,
+    xaxis_title="Prix médian EUR / nuit",
+    yaxis_title="",
+    **LAYOUT_BASE,
+)
+
+fig.show()
+```
+
+**Premium** (>155 €) : Amsterdam, Copenhague, Paris · **Budget** (<80 €) : Budapest, Istanbul, Athènes
+
+
+## La professionnalisation est inversement corrélée aux prix
+
+```{python}
+#| label: scatter-prix-multi
+#| fig-align: center
+
+fig = px.scatter(
+    kpi, x="pct_multi", y="prix_med",
+    size="n_listings", size_max=40,
+    color="cluster",
+    color_discrete_map=CLUSTER_COLORS,
+    hover_name="city_fr",
+    hover_data={"pct_multi": ":.1f", "prix_med": ":.0f", "ratio_lh": ":.2f", "n_listings": ":,", "cluster": False},
+    labels={"pct_multi": "% Multi-host", "prix_med": "Prix médian EUR",
+            "ratio_lh": "Ratio L/H"},
+    text="city_fr",
+    category_orders={"cluster": list(CLUSTER_COLORS.keys())},
+)
+
+fig.update_traces(textposition="top center", textfont_size=9)
+
+# Ligne de tendance manuelle
+import numpy as np
+z = np.polyfit(kpi["pct_multi"], kpi["prix_med"], 1)
+x_line = [kpi["pct_multi"].min(), kpi["pct_multi"].max()]
+y_line = [z[0] * x + z[1] for x in x_line]
+fig.add_trace(go.Scatter(x=x_line, y=y_line, mode="lines",
+              line=dict(color=COL_SPACEGRAY, width=1.5, dash="dot"),
+              showlegend=False, hoverinfo="skip"))
+
+fig.update_layout(
+    height=440, width=1000,
+    showlegend=False,
+    **LAYOUT_BASE,
+)
+
+fig.show()
+```
+
+**r = −0,47** — Barcelone 83 % multi-hosts + 108 € vs Amsterdam 23 % + 223 €. Plus un marché est professionnalisé, plus les prix sont bas.
+
+
+## La régulation laisse des traces dans les indicateurs
+
+::: {.columns}
+::: {.column width="50%"}
+
+### % Longterm (min_nights ≥ 30)
+
+| Ville | % LT | Mécanisme |
+|-------|------|-----------|
+| [Istanbul]{.hl} | **50 %** | Loi turque |
+| [Barcelone]{.hl} | **42 %** | Suspension licences |
+| Berlin | 26 % | Zweckentfremdung |
+| Paris | 14 % | Plafond 120 j |
+| Amsterdam | < 2 % | Plafond nuitées strict |
+
+:::
+::: {.column width="50%"}
+
+### Disponibilité médiane (j/an)
+
+| Ville | Jours | Profil |
+|-------|-------|--------|
+| Istanbul | 354 | Permanent |
+| Athènes | 278 | Permanent |
+| Lisbonne | 261 | Semi-permanent |
+| ... | ... | ... |
+| Amsterdam | 111 | Contraint |
+| Copenhague | 106 | Contraint |
+
+:::
+:::
+
+::: {.fragment}
+> **3 marqueurs convergents** de régulation forte : ratio L/H ≈ 1, disponibilité < 120 j, faible part de multi-hosts.
+:::
+
+
+## Quatre profils de marché émergent {.smaller}
+
+::: {.columns}
+::: {.column width="55%"}
+
+| Cluster | Profil | Villes type |
+|---------|--------|-------------|
+| [**Premium régulé**]{.hl-blue} | Prix hauts, offre individuelle, dispo limitée | Amsterdam, Copenhague, Zurich |
+| [**Massif intermédiaire**]{style="color:#b8860b; font-weight:600"} | Volume élevé, prix moyens-hauts, mixte | Paris, Londres, Rome |
+| [**Touristique mature**]{.hl-green} | Forte pression/hab, reviews élevées | Florence, Venise, Porto |
+| [**Budget professionnel**]{.hl} | Prix bas, multi-hosts dominants | Istanbul, Prague, Barcelone |
+
+:::
+::: {.column width="45%"}
+
+### ACP — 2 axes, ~75 % de variance
+
+- **PC1** : Professionnalisation ↔ Individualisation
+- **PC2** : Prix élevés ↔ Prix budget
+
+### Variables les plus discriminantes
+
+1. % multi-host (PC1, loading 0.89)
+2. Ratio L/H (PC1)
+3. Prix médian (PC2)
+4. Disponibilité (PC1 + PC2)
+
+Le clustering hiérarchique (Ward, k = 4) sur les 8 variables standardisées produit des groupes géographiquement et économiquement cohérents.
+
+:::
+:::
+
+
+## Synthèse — 6 enseignements
+
+::: {.incremental}
+
+1. **Structure bipolaire** — Londres (97K) + Paris (84K) = **30 % de l'offre**. Puis 30 villes entre 3K et 36K.
+
+2. **Pression inégale** — Florence (34/1000 hab) et Venise (32) subissent une pression **15× Istanbul**. 7 % du parc de Florence est sur Airbnb.
+
+3. **Fracture tarifaire** — Facteur **4** entre Amsterdam (223 €) et Budapest (57 €). L'IQR Amsterdam = prix médian Budapest.
+
+4. **Professionnalisation inversée** — Barcelone 83 % multi-hosts à 108 €. Copenhague 18 % à 165 €. Corrélation **r = −0,47**.
+
+5. **Régulation lisible** — Istanbul 50 % longterm, Copenhague dispo 106j. Trois marqueurs convergents.
+
+6. **4 profils** — Premium régulé · Massif intermédiaire · Touristique mature · Budget professionnel.
+
+:::
+
+
+## Prochaines étapes {background-color="#0a4c6a"}
+
+::: {.columns}
+::: {.column width="50%"}
+
+### Approfondissements
+
+- Analyse **infra-ville** (Paris arrondissements + IRIS)
+- Merge listings complets (74 cols) pour scores, amenities
+- Analyse **temporelle** multi-snapshots 2024 → 2025
+- Modélisation prix (features → prix prédit)
+
+:::
+::: {.column width="50%"}
+
+### Livrables envisagés
+
+- Dashboard **Shiny** interactif multi-villes
+- Rapport **Quarto** détaillé (35 villes + Paris focus)
+- Carte **Folium** interactive
+- Scoring régulation par ville
+
+:::
+:::
+
+<br>
+
+::: {.center}
+**Données** : insideairbnb.com | **Stack** : Python · Quarto · Plotly · Reactable
+
+**Code source** : [github.com/vincentroue](https://github.com/vincentroue)
+:::

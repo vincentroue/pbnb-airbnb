@@ -1,0 +1,918 @@
+---
+title: "Airbnb Paris — Analyse par Quartier et IRIS"
+subtitle: "Focus Paris | 20 arrondissements | 992 IRIS | Juin 2025"
+author: "Vincent R."
+date: today
+date-format: "DD MMMM YYYY"
+lang: fr
+format:
+  html:
+    theme: cosmo
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    toc-title: "Navigation"
+    number-sections: true
+    code-fold: true
+    code-tools: true
+    code-summary: "Code"
+    fig-width: 10
+    fig-height: 6
+    fig-align: center
+    embed-resources: true
+execute:
+  warning: false
+  echo: true
+jupyter: python3
+---
+
+```{=html}
+<style>
+.insight { color: #2E86AB; font-weight: 700; font-size: 1.05em; }
+</style>
+```
+
+```{python}
+#| label: config
+#| code-fold: false
+
+# &s CONFIG - Chemins, palettes, arrondissements
+
+from pathlib import Path
+import sys
+import json
+
+PROJECT_NAME = "Airbnb Paris — Analyse Quartier"
+BASE = Path(r"C:\Users\vince\hh\pq\PDS\pbnb-airbnb-log-jrr-jpy")
+DATA_PATH = BASE / "data" / "interim" / "dbsumlistings_2506_cons20city.parquet"
+GEOJSON_PATH = BASE / "data" / "external" / "geo" / "geo-FRA-paris_neighbourhoods.geojson"
+
+MUTILS_JPY = Path(r"C:\Users\vince\hh\pq\PDS\mutils\jpy")
+if str(MUTILS_JPY) not in sys.path:
+    sys.path.insert(0, str(MUTILS_JPY))
+
+import importlib.util
+_spec = importlib.util.spec_from_file_location("jcn_claude_log", MUTILS_JPY / "jcn-claude-log.py")
+_mod = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_mod)
+ClaudeLog = _mod.ClaudeLog
+clog = ClaudeLog("paris-analyse", output_dir=str(BASE / "reports" / "outputs"))
+
+# Mapping quartier -> arrondissement
+QUARTIER_ARR = {
+    "Louvre": "1er", "Bourse": "2e", "Temple": "3e",
+    "Hotel-de-Ville": "4e", "Pantheon": "5e", "Luxembourg": "6e",
+    "Palais-Bourbon": "7e", "Elysee": "8e", "Opera": "9e",
+    "Entrepot": "10e", "Popincourt": "11e", "Reuilly": "12e",
+    "Gobelins": "13e", "Observatoire": "14e", "Vaugirard": "15e",
+    "Passy": "16e", "Batignolles-Monceau": "17e",
+    "Buttes-Montmartre": "18e", "Buttes-Chaumont": "19e",
+    "Menilmontant": "20e",
+}
+
+PALETTE_SEQ = ["#f7fbff", "#deebf7", "#c6dbef", "#9ecae1",
+               "#6baed6", "#4292c6", "#2171b5", "#084594"]
+PALETTE_CAT = ["#2E86AB", "#A23B72", "#F18F01", "#C73E1D", "#3B1F2B",
+               "#5C6B73", "#9DB4C0", "#253237"]
+
+# &e
+```
+
+```{python}
+#| label: setup-imports
+
+# &s IMPORTS
+
+import pandas as pd
+import numpy as np
+import warnings
+warnings.filterwarnings('ignore')
+
+import folium
+from folium.plugins import HeatMap
+import branca.colormap as cm
+
+from itables import init_notebook_mode, show
+init_notebook_mode(all_interactive=True)
+
+import plotly.express as px
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+
+pd.set_option('display.max_columns', 50)
+pd.set_option('display.float_format', lambda x: f'{x:,.2f}')
+
+# &e
+```
+
+```{python}
+#| label: setup-helpers
+
+# &s HELPERS
+
+def normalize_name(name):
+    """Normalise les noms de quartier (sans accents) pour jointure GeoJSON."""
+    import unicodedata
+    nfkd = unicodedata.normalize('NFKD', str(name))
+    return ''.join(c for c in nfkd if not unicodedata.combining(c))
+
+def fmt_k(n):
+    return f"{n/1000:.1f}K" if n >= 1000 else str(n)
+
+# &e
+```
+
+# Executive Summary {.unnumbered}
+
+::: {.callout-note}
+## Focus Paris
+
+- **Perimetre** : Paris intra-muros, snapshot juin 2025 (Inside Airbnb)
+- **Volume** : ~51K listings actifs apres nettoyage (2e ville europeenne)
+- **Decoupage** : 20 arrondissements + **992 IRIS** (IGN 2025, spatial join)
+- **Objectif** : cartographier les disparites *infra-urbaines* de prix, offre et professionnalisation
+:::
+
+---
+
+# Import et nettoyage
+
+```{python}
+#| label: data-load
+
+# &s LOAD_PARIS
+
+df_raw = pd.read_parquet(DATA_PATH)
+paris_raw = df_raw[df_raw["city"] == "paris"].copy()
+
+print(f"Paris brut: {len(paris_raw):,} lignes")
+print(f"Quartiers: {paris_raw['neighbourhood'].nunique()}")
+
+# Cleaning pipeline (identique EDA 20 villes)
+df = paris_raw.copy()
+if "price_eur" not in df.columns:
+    df["price_eur"] = df["price"]  # Paris = EUR
+
+df["is_entire_home"] = (df["room_type"] == "Entire home/apt").astype(int)
+df["is_multihost"] = (df["calculated_host_listings_count"] > 1).astype(int)
+df["is_longterm"] = (df["minimum_nights"] >= 30).astype(int)
+
+n0 = len(df)
+df = df[df["price"].notna()]
+n1 = len(df)
+df = df[df["availability_365"] > 0]
+n2 = len(df)
+df = df[df["room_type"] != "Hotel room"]
+n3 = len(df)
+df = df[(df["price_eur"] >= 10) & (df["price_eur"] <= 1000)]
+n_clean = len(df)
+
+# Colonne arrondissement
+df["quartier_norm"] = df["neighbourhood"].apply(normalize_name)
+df["arr"] = df["quartier_norm"].map(QUARTIER_ARR).fillna(df["neighbourhood"])
+
+print(f"\nCleaning: {n0:,} -> {n1:,} -> {n2:,} -> {n3:,} -> {n_clean:,}")
+print(f"Retention: {n_clean/n0*100:.1f}%")
+print(f"Longterm flag: {df['is_longterm'].sum():,} ({df['is_longterm'].mean()*100:.1f}%)")
+
+clog.step("LOAD_PARIS", n_raw=n0, n_clean=n_clean,
+          retention_pct=round(n_clean/n0*100, 1),
+          n_quartiers=int(df["neighbourhood"].nunique()))
+
+# &e
+```
+
+```{python}
+#| label: data-kpi
+
+# &s KPI_PARIS
+
+prix_med = df["price_eur"].median()
+pct_entire = df["is_entire_home"].mean() * 100
+pct_multi = df["is_multihost"].mean() * 100
+pct_lt = df["is_longterm"].mean() * 100
+n_hosts = df["host_id"].nunique()
+ratio_lh = len(df) / n_hosts
+
+print(f"""
+{'='*55}
+PARIS — KPI GLOBAUX (juin 2025)
+{'='*55}
+  Listings actifs  : {n_clean:,}
+  Hosts uniques    : {n_hosts:,}
+  Ratio L/H        : {ratio_lh:.2f}
+  Prix median      : {prix_med:.0f} EUR/nuit
+  % Entire home    : {pct_entire:.1f}%
+  % Multi-host     : {pct_multi:.1f}%
+  % Longterm       : {pct_lt:.1f}%
+{'='*55}
+""")
+
+clog.result("kpi_paris", {
+    "n_clean": n_clean, "n_hosts": n_hosts, "ratio_lh": round(ratio_lh, 2),
+    "prix_med": round(prix_med, 0), "pct_entire": round(pct_entire, 1),
+    "pct_multi": round(pct_multi, 1), "pct_longterm": round(pct_lt, 1),
+}, interpret=f"Paris: {n_clean:,} listings, {prix_med:.0f} EUR median, "
+             f"{pct_entire:.0f}% entiers, {pct_multi:.0f}% multi-host")
+
+# &e
+```
+
+---
+
+# Volumes par quartier
+
+[**Le 18e (Montmartre) domine avec 5K listings, suivi du 11e et du 15e — les grands arrondissements peripheriques menent.**]{.insight} La densite Airbnb n'est pas uniforme dans Paris : les arrondissements de la rive droite (18e, 11e, 15e, 16e, 17e) dominent en volume absolu avec plus de **3K listings** chacun, tandis que les quartiers centraux (Louvre, Bourse, Hotel-de-Ville) restent sous 2K.
+
+Cette repartition reflete a la fois la *taille du parc de logements* (les grands arrondissements peripheriques ont plus d'appartements) et l'**attractivite touristique** (Montmartre, Bastille). Le ratio volume/surface serait plus revelateur pour la densite reelle.
+
+```{python}
+#| label: vol-bar
+
+# &s VOL_QUARTIER
+
+qvol = df.groupby(["neighbourhood", "arr"]).agg(
+    n=("id", "count"),
+    n_hosts=("host_id", "nunique"),
+).reset_index().sort_values("n", ascending=False)
+
+fig = px.bar(
+    qvol, x="arr", y="n",
+    title="Nombre de listings actifs par arrondissement",
+    labels={"n": "Listings", "arr": ""},
+    text="n",
+    color_discrete_sequence=["#2E86AB"],
+    category_orders={"arr": [f"{i}{'er' if i==1 else 'e'}" for i in range(1, 21)]},
+)
+fig.update_traces(texttemplate='%{text:,.0f}', textposition='outside', textfont_size=9)
+fig.update_layout(height=450)
+fig.show()
+
+clog.ranking("top5_vol_paris", qvol, col="arr", value_col="n", n=5)
+
+# &e
+```
+
+---
+
+# Cartographie Folium
+
+## Choropleth — Volume par quartier
+
+[**La carte revele un arc nord-est dense, du 11e au 18e, face a un ouest plus clairseme.**]{.insight} La visualisation en choroplethe confirme la polarisation de l'offre Airbnb vers les arrondissements populaires de la rive droite, historiquement plus residentiels et plus accessibles en prix.
+
+```{python}
+#| label: map-volume
+
+# &s MAP_VOLUME
+
+with open(GEOJSON_PATH, encoding="utf-8") as f:
+    geo_paris = json.load(f)
+
+# Normaliser les noms dans le GeoJSON pour jointure
+for feat in geo_paris["features"]:
+    feat["properties"]["neighbourhood_norm"] = normalize_name(
+        feat["properties"]["neighbourhood"]
+    )
+
+# Preparer donnees quartier
+qdata = df.groupby("quartier_norm").agg(
+    n=("id", "count"),
+    prix_med=("price_eur", "median"),
+    pct_multi=("is_multihost", "mean"),
+    pct_entire=("is_entire_home", "mean"),
+    pct_longterm=("is_longterm", "mean"),
+    n_hosts=("host_id", "nunique"),
+    dispo_med=("availability_365", "median"),
+    reviews_med=("number_of_reviews", "median"),
+).reset_index()
+qdata["pct_multi"] = (qdata["pct_multi"] * 100).round(1)
+qdata["pct_entire"] = (qdata["pct_entire"] * 100).round(1)
+qdata["pct_longterm"] = (qdata["pct_longterm"] * 100).round(1)
+qdata["ratio_lh"] = (qdata["n"] / qdata["n_hosts"]).round(2)
+
+# Carte volume
+m_vol = folium.Map(location=[48.8566, 2.3522], zoom_start=12, tiles="cartodbpositron")
+
+folium.Choropleth(
+    geo_data=geo_paris,
+    data=qdata,
+    columns=["quartier_norm", "n"],
+    key_on="feature.properties.neighbourhood_norm",
+    fill_color="YlOrRd",
+    fill_opacity=0.7,
+    line_opacity=0.5,
+    legend_name="Nb listings actifs",
+    name="Volume",
+).add_to(m_vol)
+
+# Tooltips
+style_function = lambda x: {"fillColor": "transparent", "color": "transparent", "weight": 0}
+highlight_function = lambda x: {"fillColor": "#000", "color": "#000", "weight": 2, "fillOpacity": 0.1}
+
+tooltip_layer = folium.GeoJson(
+    geo_paris,
+    style_function=style_function,
+    highlight_function=highlight_function,
+    tooltip=folium.GeoJsonTooltip(
+        fields=["neighbourhood_norm"],
+        aliases=["Quartier:"],
+    ),
+)
+tooltip_layer.add_to(m_vol)
+
+m_vol
+# &e
+```
+
+## Choropleth — Prix median par quartier
+
+[**L'axe de prix suit la logique ouest-centre vs est-nord : le trio 8e-1er-6e depasse 218 EUR de median.**]{.insight} Le clivage geographique des prix reproduit les inegalites foncieres de Paris : les quartiers patrimoniaux (Elysee 250 EUR, Louvre 240 EUR, Luxembourg 218 EUR) affichent des medians au-dessus de 200 EUR, tandis que le 20e (108 EUR) et 19e (115 EUR) restent les plus accessibles.
+
+```{python}
+#| label: map-prix
+
+# &s MAP_PRIX
+
+m_prix = folium.Map(location=[48.8566, 2.3522], zoom_start=12, tiles="cartodbpositron")
+
+folium.Choropleth(
+    geo_data=geo_paris,
+    data=qdata,
+    columns=["quartier_norm", "prix_med"],
+    key_on="feature.properties.neighbourhood_norm",
+    fill_color="RdYlBu_r",
+    fill_opacity=0.7,
+    line_opacity=0.5,
+    legend_name="Prix median EUR/nuit",
+    name="Prix",
+).add_to(m_prix)
+
+tooltip_layer_prix = folium.GeoJson(
+    geo_paris,
+    style_function=style_function,
+    highlight_function=highlight_function,
+    tooltip=folium.GeoJsonTooltip(
+        fields=["neighbourhood_norm"],
+        aliases=["Quartier:"],
+    ),
+)
+tooltip_layer_prix.add_to(m_prix)
+
+m_prix
+
+clog.ranking("top5_prix_paris", qdata, col="quartier_norm", value_col="prix_med", n=5)
+clog.ranking("bottom5_prix_paris", qdata, col="quartier_norm", value_col="prix_med", n=5, ascending=True)
+
+# &e
+```
+
+## Heatmap des listings
+
+[**La densite maximale se situe autour de Montmartre, Bastille-Republique et le Marais.**]{.insight} La heatmap positionne chaque listing individuellement, revelant les *points chauds* reels de l'offre Airbnb, independamment du decoupage administratif.
+
+```{python}
+#| label: map-heatmap
+
+# &s HEATMAP
+
+m_heat = folium.Map(location=[48.8566, 2.3522], zoom_start=12, tiles="cartodbpositron")
+
+heat_data = df[["latitude", "longitude"]].dropna().values.tolist()
+HeatMap(
+    heat_data,
+    radius=8,
+    blur=12,
+    max_zoom=15,
+    min_opacity=0.3,
+).add_to(m_heat)
+
+m_heat
+
+# &e
+```
+
+---
+
+# Prix par quartier
+
+## Distribution des prix
+
+[**Le 8e (Elysee) a 250 EUR vs le 20e (Menilmontant) a 108 EUR — un facteur x2.3 entre extremes.**]{.insight} Les boxplots montrent des distributions tres asymetriques partout, mais la *base* du prix varie considerablement. Les quartiers centraux-ouest (8e a 250 EUR, 1er a 240 EUR, 6e a 218 EUR) ont un Q25 superieur au prix median des quartiers peripheriques.
+
+```{python}
+#| label: prix-boxplot
+
+# &s PRIX_QUARTIER
+
+arr_order = qdata.sort_values("prix_med", ascending=False)["quartier_norm"].tolist()
+arr_labels = {r["quartier_norm"]: QUARTIER_ARR.get(r["quartier_norm"], r["quartier_norm"])
+              for _, r in qdata.iterrows()}
+
+df["arr_label"] = df["quartier_norm"].map(arr_labels)
+
+fig = px.box(
+    df, x="arr_label", y="price_eur",
+    title="Distribution prix/nuit (EUR) par arrondissement",
+    labels={"price_eur": "Prix EUR/nuit", "arr_label": ""},
+    category_orders={"arr_label": [arr_labels.get(q, q) for q in arr_order]},
+    color_discrete_sequence=["#2E86AB"],
+)
+fig.update_yaxes(range=[0, 500])
+fig.update_layout(height=500, xaxis_tickangle=-45)
+fig.show()
+
+# &e
+```
+
+## Tableau profils par quartier
+
+```{python}
+#| label: prix-table
+
+# &s TABLE_QUARTIER
+
+qprofiles = qdata.copy()
+qprofiles["arr"] = qprofiles["quartier_norm"].map(QUARTIER_ARR)
+qprofiles = qprofiles[[
+    "arr", "quartier_norm", "n", "prix_med", "pct_entire",
+    "pct_multi", "ratio_lh", "dispo_med", "reviews_med", "pct_longterm"
+]].sort_values("n", ascending=False)
+
+qprofiles.columns = [
+    "Arr.", "Quartier", "Listings", "Prix med", "% Entire",
+    "% Multi", "Ratio L/H", "Dispo med", "Reviews med", "% LT"
+]
+
+show(qprofiles, caption="Profils par quartier — Paris juin 2025")
+
+# &e
+```
+
+---
+
+# Professionnalisation
+
+## Part multi-hosts par quartier
+
+[**La professionnalisation a Paris reste moderee comparee au sud europeen, mais des poches emergent.**]{.insight} Contrairement a Barcelona (81%) ou Prague (79%), Paris affiche un taux multi-host *global* de 40%. Cependant, les arrondissements centraux et touristiques (2e a **62%**, 8e a 61%, 1er a 59%) depassent largement la moyenne, signe d'une **gestion professionnelle concentree** dans les zones les plus rentables.
+
+```{python}
+#| label: multi-bar
+
+# &s MULTI_QUARTIER
+
+qmulti = qdata.sort_values("pct_multi", ascending=True).copy()
+qmulti["arr"] = qmulti["quartier_norm"].map(QUARTIER_ARR)
+
+fig = px.bar(
+    qmulti, x="pct_multi", y="arr",
+    orientation="h",
+    title="Part des listings multi-hosts par arrondissement",
+    labels={"pct_multi": "% multi-host", "arr": ""},
+    text="pct_multi",
+    color_discrete_sequence=["#A23B72"],
+)
+fig.add_vline(x=50, line_dash="dash", line_color="red", annotation_text="50%")
+fig.update_traces(texttemplate='%{text:.1f}%', textposition='outside', textfont_size=9)
+fig.update_layout(height=550)
+fig.show()
+
+clog.ranking("top5_multi_paris", qdata, col="quartier_norm", value_col="pct_multi", n=5)
+
+# &e
+```
+
+## Top hosts parisiens
+
+[**Les 20 premiers hosts parisiens gerent a eux seuls plus de 4 000 listings, soit 8% de l'offre.**]{.insight} Ce tableau identifie les plus gros operateurs par nombre de biens. Le top 10% des hosts controle **39% du marche** parisien — une concentration significative pour une ville ou la regulation est censee limiter les abus.
+
+```{python}
+#| label: top-hosts
+
+# &s TOP_HOSTS
+
+host_stats = df.groupby("host_id").agg(
+    n_listings=("id", "count"),
+    host_name=("host_name", "first"),
+    quartiers=("arr", lambda x: ", ".join(sorted(x.unique())[:3])),
+    prix_med=("price_eur", "median"),
+    pct_entire=("is_entire_home", "mean"),
+).reset_index()
+host_stats["pct_entire"] = (host_stats["pct_entire"] * 100).round(0)
+
+top20 = host_stats.nlargest(20, "n_listings")[[
+    "host_name", "n_listings", "quartiers", "prix_med", "pct_entire"
+]].reset_index(drop=True)
+top20.columns = ["Host", "Nb listings", "Quartiers (top 3)", "Prix med", "% Entire"]
+
+show(top20, caption="Top 20 hosts Paris par nombre de listings")
+
+top10_share = host_stats.nlargest(
+    max(1, int(len(host_stats) * 0.10)), "n_listings"
+)["n_listings"].sum() / len(df) * 100
+
+clog.result("top_hosts_paris", {
+    "top20_listings": int(top20["Nb listings"].sum()),
+    "top10pct_share": round(top10_share, 1),
+}, interpret=f"Top 20 hosts: {int(top20['Nb listings'].sum())} listings, "
+             f"top 10% hosts: {top10_share:.1f}% du marche")
+
+# &e
+```
+
+---
+
+# Activite et disponibilite
+
+## Reviews par quartier
+
+[**Les quartiers centraux historiques (Hotel-de-Ville, Louvre, Pantheon) affichent les medianes de reviews les plus elevees.**]{.insight} C'est un signal d'anciennete et d'activite soutenue. Les listings dans le Marais ou le Quartier Latin sont en moyenne plus anciens et plus reserves que ceux des arrondissements peripheriques.
+
+```{python}
+#| label: reviews-bar
+
+# &s REVIEWS_QUARTIER
+
+qrev = qdata.sort_values("reviews_med", ascending=False).copy()
+qrev["arr"] = qrev["quartier_norm"].map(QUARTIER_ARR)
+
+fig = px.bar(
+    qrev, x="arr", y="reviews_med",
+    title="Nombre median de reviews par arrondissement",
+    labels={"reviews_med": "Reviews (median)", "arr": ""},
+    text="reviews_med",
+    color_discrete_sequence=["#F18F01"],
+    category_orders={"arr": qrev["arr"].tolist()},
+)
+fig.update_traces(texttemplate='%{text:.0f}', textposition='outside', textfont_size=9)
+fig.update_layout(height=450)
+fig.show()
+
+# &e
+```
+
+## Disponibilite annuelle
+
+[**La disponibilite mediane a Paris se situe autour de 200 jours, coherente avec le plafond reglementaire de 120 jours pour les residences principales.**]{.insight} Cependant, ce seuil ne s'applique qu'aux residences principales louees en entier. Les residences secondaires et chambres privees ne sont pas soumises a la meme limite.
+
+- Les arrondissements peripheriques (15e, 16e, 17e) montrent des disponibilites plus elevees
+- Les quartiers centraux touristiques restent proches des 180-200 jours
+
+```{python}
+#| label: dispo-bar
+
+# &s DISPO_QUARTIER
+
+qdispo = qdata.sort_values("dispo_med", ascending=True).copy()
+qdispo["arr"] = qdispo["quartier_norm"].map(QUARTIER_ARR)
+
+fig = px.bar(
+    qdispo, x="dispo_med", y="arr",
+    orientation="h",
+    title="Disponibilite mediane (jours/an) par arrondissement",
+    labels={"dispo_med": "Jours/an", "arr": ""},
+    text="dispo_med",
+    color_discrete_sequence=["#6A994E"],
+)
+fig.add_vline(x=120, line_dash="dash", line_color="red", annotation_text="120j (plafond RP)")
+fig.add_vline(x=180, line_dash="dot", line_color="grey", annotation_text="180j")
+fig.update_traces(texttemplate='%{text:.0f}', textposition='outside', textfont_size=9)
+fig.update_layout(height=550)
+fig.show()
+
+# &e
+```
+
+---
+
+# Correlations et profils
+
+## Prix vs Professionnalisation par quartier
+
+[**A Paris, prix eleve et professionnalisation ne vont pas de pair.**]{.insight} Contrairement au pattern europeen, les quartiers les plus chers (Passy, Luxembourg, Palais-Bourbon) ne sont pas les plus professionnalises. L'offre y reste largement individuelle — des proprietaires de beaux appartements qui louent occasionnellement.
+
+```{python}
+#| label: scatter-quartier
+
+# &s SCATTER_QUARTIER
+
+qdata["arr"] = qdata["quartier_norm"].map(QUARTIER_ARR)
+
+fig = px.scatter(
+    qdata, x="pct_multi", y="prix_med",
+    size="n", text="arr",
+    title="Prix median vs % Multi-host par quartier",
+    labels={
+        "pct_multi": "% multi-host",
+        "prix_med": "Prix median EUR",
+        "n": "Nb listings",
+    },
+    color_discrete_sequence=["#2E86AB"],
+    hover_data=["quartier_norm", "n", "ratio_lh"],
+)
+fig.update_traces(textposition="top center", textfont_size=9)
+fig.update_layout(height=500)
+fig.show()
+
+# &e
+```
+
+## Scatter volume vs prix
+
+[**Les grands arrondissements bon marche dominent en volume, les petits centraux en valeur.**]{.insight} Ce scatter positionne chaque arrondissement selon son volume et son prix median. Le 18e (Montmartre) se detache par son volume massif a prix modere, tandis que le 6e (Luxembourg) combine petit volume et tarifs eleves.
+
+```{python}
+#| label: scatter-vol-prix
+
+# &s SCATTER_VOL_PRIX
+
+fig = px.scatter(
+    qdata, x="n", y="prix_med",
+    text="arr",
+    size="pct_entire",
+    color="pct_multi",
+    color_continuous_scale="RdYlBu_r",
+    title="Volume vs Prix median (taille = % entire, couleur = % multi)",
+    labels={
+        "n": "Nb listings", "prix_med": "Prix median EUR",
+        "pct_entire": "% Entire", "pct_multi": "% Multi-host",
+    },
+)
+fig.update_traces(textposition="top center", textfont_size=9)
+fig.update_layout(height=500)
+fig.show()
+
+# &e
+```
+
+---
+
+# Analyse IRIS (maille fine)
+
+L'analyse par arrondissement masque des disparites internes importantes. Le decoupage IRIS (Ilots Regroupes pour l'Information Statistique) de l'INSEE fournit une maille de **~2000 habitants** par unite, soit ~50 fois plus fin que l'arrondissement.
+
+::: {.callout-warning}
+## Caveat localisation
+Inside Airbnb anonymise les coordonnees avec un bruit de 0-150 metres. A l'echelle IRIS (~300m de cote), cela peut entrainer des erreurs de rattachement pour les listings proches des frontieres. Le taux de match reste excellent : **51 004 / 51 008** (99.99%).
+:::
+
+```{python}
+#| label: iris-load
+
+# &s IRIS_LOAD
+
+import geopandas as gpd
+
+IRIS_GEOJSON = BASE / "data" / "external" / "geo" / "iris-paris-wgs84.geojson"
+IRIS_CSV = BASE / "data" / "interim" / "recap_iris_paris_2506.csv"
+
+iris_geo = gpd.read_file(IRIS_GEOJSON)
+iris_stats = pd.read_csv(IRIS_CSV)
+
+print(f"IRIS avec listings: {len(iris_stats)} / 992")
+print(f"Listings par IRIS: min={iris_stats['n'].min()}, "
+      f"median={iris_stats['n'].median():.0f}, max={iris_stats['n'].max()}")
+print(f"IRIS sans listing: {992 - len(iris_stats)} (zones industrielles, parcs)")
+
+clog.result("iris_coverage", {
+    "n_iris_total": 992,
+    "n_iris_with_listings": len(iris_stats),
+    "median_per_iris": int(iris_stats["n"].median()),
+    "max_per_iris": int(iris_stats["n"].max()),
+}, interpret=f"{len(iris_stats)}/992 IRIS avec listings, "
+             f"median {iris_stats['n'].median():.0f}, max {iris_stats['n'].max()}")
+
+# &e
+```
+
+## Choropleth IRIS — Densite de listings
+
+[**La densite Airbnb dessine un arc de forte concentration du 2e au 11e arrondissement, avec un epicentre autour du Marais et de Bastille.**]{.insight} A la maille IRIS, les zones les plus denses (>200 listings par IRIS) correspondent aux quartiers touristiques historiques : Marais, Saint-Germain, Montmartre nord. Les IRIS peripheriques (Bois de Boulogne, Bois de Vincennes, zones industrielles) sont quasi-vides.
+
+```{python}
+#| label: iris-map-volume
+
+# &s IRIS_MAP_VOLUME
+
+m_iris = folium.Map(location=[48.8566, 2.3522], zoom_start=12, tiles="cartodbpositron")
+
+folium.Choropleth(
+    geo_data=iris_geo.__geo_interface__,
+    data=iris_geo[["code_iris", "n"]],
+    columns=["code_iris", "n"],
+    key_on="feature.properties.code_iris",
+    fill_color="YlOrRd",
+    fill_opacity=0.7,
+    line_opacity=0.15,
+    line_weight=0.5,
+    legend_name="Nb listings par IRIS",
+    name="Densite IRIS",
+    nan_fill_color="white",
+).add_to(m_iris)
+
+m_iris
+
+# &e
+```
+
+## Choropleth IRIS — Prix median
+
+[**Le gradient de prix est encore plus net a la maille IRIS qu'a l'arrondissement : les IRIS autour des Champs-Elysees, du Louvre et de Saint-Germain depassent 300 EUR/nuit.**]{.insight} A l'inverse, les IRIS du nord-est (Stalingrad, La Chapelle, Belleville peripherique) restent sous 80 EUR. La finesse du decoupage revele des micro-marches invisibles a l'arrondissement.
+
+```{python}
+#| label: iris-map-prix
+
+# &s IRIS_MAP_PRIX
+
+# Filtrer IRIS avec assez de listings pour un prix significatif
+iris_prix = iris_geo[iris_geo["n"] >= 5].copy()
+
+m_prix_iris = folium.Map(location=[48.8566, 2.3522], zoom_start=12, tiles="cartodbpositron")
+
+folium.Choropleth(
+    geo_data=iris_prix.__geo_interface__,
+    data=iris_prix[["code_iris", "prix_med"]],
+    columns=["code_iris", "prix_med"],
+    key_on="feature.properties.code_iris",
+    fill_color="RdYlBu_r",
+    fill_opacity=0.7,
+    line_opacity=0.15,
+    line_weight=0.5,
+    legend_name="Prix median EUR/nuit",
+    name="Prix IRIS",
+    nan_fill_color="white",
+).add_to(m_prix_iris)
+
+m_prix_iris
+
+# &e
+```
+
+## Choropleth IRIS — Professionnalisation
+
+[**Les IRIS les plus professionnalises (>70% multi-host) ne sont pas forcement les plus chers : ils se concentrent autour des gares et des zones d'affaires.**]{.insight} Le taux multi-host par IRIS revele des poches de gestion professionnelle intense autour de Gare du Nord, Gare de l'Est, et dans certains IRIS du 8e et 2e arrondissement. Les IRIS residentiels du 16e et 7e restent plus individuels malgre des prix eleves.
+
+```{python}
+#| label: iris-map-multi
+
+# &s IRIS_MAP_MULTI
+
+iris_multi = iris_geo[iris_geo["n"] >= 5].copy()
+
+m_multi_iris = folium.Map(location=[48.8566, 2.3522], zoom_start=12, tiles="cartodbpositron")
+
+folium.Choropleth(
+    geo_data=iris_multi.__geo_interface__,
+    data=iris_multi[["code_iris", "pct_multi"]],
+    columns=["code_iris", "pct_multi"],
+    key_on="feature.properties.code_iris",
+    fill_color="PuRd",
+    fill_opacity=0.7,
+    line_opacity=0.15,
+    line_weight=0.5,
+    legend_name="% multi-host",
+    name="Pro IRIS",
+    nan_fill_color="white",
+).add_to(m_multi_iris)
+
+m_multi_iris
+
+# &e
+```
+
+## Distribution IRIS
+
+[**La majorite des IRIS ont entre 20 et 80 listings, mais une longue queue de 50+ IRIS depassent les 150.**]{.insight} Cette distribution tres asymetrique confirme que l'offre Airbnb est spatialement *tres concentree* meme a la maille fine.
+
+```{python}
+#| label: iris-histogram
+
+# &s IRIS_HISTO
+
+fig = px.histogram(
+    iris_stats, x="n",
+    nbins=40,
+    title="Distribution du nombre de listings par IRIS",
+    labels={"n": "Nb listings", "count": "Nb IRIS"},
+    color_discrete_sequence=["#2E86AB"],
+)
+fig.add_vline(x=iris_stats["n"].median(), line_dash="dash", line_color="red",
+              annotation_text=f"Median={iris_stats['n'].median():.0f}")
+fig.update_layout(height=400)
+fig.show()
+
+# &e
+```
+
+## Top 20 IRIS les plus denses
+
+```{python}
+#| label: iris-top20
+
+# &s IRIS_TOP20
+
+top20_iris = iris_stats.nlargest(20, "n")[[
+    "arr", "nom_iris", "code_iris", "n", "prix_med",
+    "pct_multi", "pct_entire", "ratio_lh"
+]].reset_index(drop=True)
+
+top20_iris.columns = [
+    "Arr.", "IRIS", "Code", "Listings", "Prix med",
+    "% Multi", "% Entire", "Ratio L/H"
+]
+
+show(top20_iris, caption="Top 20 IRIS Paris par nombre de listings")
+
+clog.result("top10_iris", {
+    r["Code"]: int(r["Listings"])
+    for _, r in top20_iris.head(10).iterrows()
+}, interpret=f"IRIS le plus dense: {top20_iris.iloc[0]['IRIS']} "
+             f"({top20_iris.iloc[0]['Listings']} listings)")
+
+# &e
+```
+
+---
+
+# Synthese
+
+## Recapitulatif
+
+```{python}
+#| label: synthese
+
+# &s SYNTHESE
+
+# Quartiers les plus chers
+top_prix = qdata.nlargest(3, "prix_med")
+# Quartiers les plus denses
+top_vol = qdata.nlargest(3, "n")
+# Plus professionnalises
+top_multi = qdata.nlargest(3, "pct_multi")
+
+print(f"""
+{'='*60}
+SYNTHESE — PARIS QUARTIER (juin 2025)
+{'='*60}
+
+KPI GLOBAUX
+  Listings actifs : {n_clean:,} (2e ville europeenne)
+  Hosts uniques   : {n_hosts:,}
+  Ratio L/H       : {ratio_lh:.2f}
+  Prix median     : {prix_med:.0f} EUR/nuit
+
+TOP 3 QUARTIERS
+  Volume   : {', '.join(f"{r['arr']} ({r['n']:,.0f})" for _, r in top_vol.iterrows())}
+  Prix     : {', '.join(f"{r['arr']} ({r['prix_med']:.0f} EUR)" for _, r in top_prix.iterrows())}
+  Multi-H  : {', '.join(f"{r['arr']} ({r['pct_multi']:.0f}%)" for _, r in top_multi.iterrows())}
+
+CONSTATS CLES
+  1. Forte concentration geographique vers le nord-est (18e, 11e, 15e)
+  2. Clivage prix ouest-centre vs est-nord (facteur x2)
+  3. Professionnalisation moderee (40%) mais poches centrales plus elevees
+  4. 14% de longterm (regulation parisienne)
+{'='*60}
+""")
+
+clog.save()
+
+# &e
+```
+
+## Export
+
+```{python}
+#| label: export
+
+# &s EXPORT
+
+out_csv = BASE / "data" / "interim" / "recap_profiles_paris_quartiers_2506.csv"
+qprofiles_exp = qdata.copy()
+qprofiles_exp["arr"] = qprofiles_exp["quartier_norm"].map(QUARTIER_ARR)
+qprofiles_exp = qprofiles_exp[[
+    "arr", "quartier_norm", "n", "prix_med", "pct_entire",
+    "pct_multi", "ratio_lh", "n_hosts", "dispo_med", "reviews_med", "pct_longterm"
+]].sort_values("n", ascending=False)
+
+qprofiles_exp.to_csv(out_csv, index=False, encoding="utf-8-sig")
+print(f"Export: {out_csv.name}")
+
+# &e
+```
+
+---
+
+::: {.callout-tip}
+## Points cles Paris
+
+1. **Bipolarite geographique** : l'offre se concentre dans l'arc nord-est (18e, 11e, 15e) tandis que les prix culminent a l'ouest (8e a 250 EUR, 1er a 240 EUR, 6e a 218 EUR)
+2. **Professionnalisation moderee** : 40% multi-host a Paris vs 81% a Barcelona — mais les arrondissements centraux (2e, 8e, 1er) depassent 58%
+3. **Regulation visible** : 14% de longterm (min_nights >= 30) et disponibilites autour de 200j coherentes avec le cadre francais
+4. **Concentration top hosts** : les top 20 hosts gerent 4 100+ biens, le top 10% controle 39% du marche
+5. **IRIS** : 985/992 IRIS ont des listings, mais la concentration est extreme (median 43, max 334 par IRIS). Les micro-marches du Marais, Saint-Germain et Montmartre sont invisibles a l'echelle arrondissement
+:::
+
+---
+
+*Genere avec Quarto + Python | Donnees Inside Airbnb juin 2025 | Source : insideairbnb.com*

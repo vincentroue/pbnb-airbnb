@@ -1,0 +1,232 @@
+/*-- scss:defaults --*/
+// Theme Reveal.js v2 — Urban Institute
+// Fonts loaded via @import, rem-based sizing (no em compounding)
+
+$primary: #1696d2;
+$secondary: #5c5859;
+$success: #55b748;
+$warning: #fdbf11;
+$danger: #ec008b;
+$orange: #ca5800;
+$darkblue: #0a4c6a;
+
+$font-family-sans-serif: "Inter", -apple-system, "Segoe UI", Roboto, sans-serif;
+$font-family-monospace: "Fira Code", Consolas, monospace;
+
+$presentation-font-size-root: 30px;
+$presentation-heading-color: $primary;
+$presentation-heading-font-weight: 600;
+$body-color: #333333;
+$body-bg: #ffffff;
+$link-color: $primary;
+
+/*-- scss:rules --*/
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap');
+
+// Title slide
+#title-slide {
+  text-align: left;
+  padding: 2rem;
+
+  h1.title {
+    color: white;
+    font-size: 2.2rem;
+    font-weight: 700;
+    margin-bottom: 0.3rem;
+    line-height: 1.1;
+  }
+
+  .subtitle {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 0.8rem;
+    font-weight: 400;
+  }
+
+  .author, .date {
+    color: rgba(255, 255, 255, 0.75);
+    font-size: 0.55rem;
+  }
+}
+
+// Headings
+.reveal h2 {
+  font-size: 1.25rem;
+  border-bottom: 3px solid $primary;
+  padding-bottom: 0.15rem;
+  margin-bottom: 0.4rem;
+}
+
+.reveal h3 {
+  font-size: 0.6rem;
+  color: $secondary;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-top: 0.4rem;
+  margin-bottom: 0.15rem;
+}
+
+// Body text — rem prevents compounding
+.reveal p, .reveal li {
+  font-size: 0.58rem;
+  line-height: 1.5;
+}
+
+.reveal ul, .reveal ol {
+  margin-left: 0.4rem;
+}
+
+.reveal li {
+  margin-bottom: 0.12rem;
+}
+
+// Tables — independent rem sizing (NOT relative to parent)
+.reveal table {
+  font-size: 0.48rem;
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.15rem 0;
+}
+
+.reveal table thead th {
+  background-color: rgba($primary, 0.08);
+  border-bottom: 2px solid $primary;
+  padding: 0.3rem 0.5rem;
+  text-align: left;
+  font-weight: 600;
+}
+
+.reveal table tbody td {
+  padding: 0.22rem 0.5rem;
+  border-bottom: 1px solid #eee;
+}
+
+.reveal table tbody tr:hover {
+  background-color: rgba($primary, 0.04);
+}
+
+// Accent classes
+.hl { color: $danger; font-weight: 600; }
+.hl-blue { color: $primary; font-weight: 600; }
+.hl-orange { color: $orange; font-weight: 600; }
+.hl-green { color: $success; font-weight: 600; }
+
+// Source note (caption under charts)
+.source-note {
+  font-size: 0.35rem;
+  color: #999;
+  margin-top: 0.3rem;
+  font-style: italic;
+}
+
+.center { text-align: center; }
+
+// Big number slides
+.r-fit-text {
+  font-weight: 700;
+  color: $primary;
+}
+
+[data-background-color="#1696d2"] .r-fit-text { color: white; }
+
+[data-background-color="#1696d2"] h2 {
+  color: white;
+  border-bottom-color: rgba(255, 255, 255, 0.3);
+}
+
+[data-background-color="#1696d2"] p,
+[data-background-color="#1696d2"] li {
+  color: rgba(255, 255, 255, 0.95);
+}
+
+// Dark blue slides
+[data-background-color="#0a4c6a"] h2 {
+  color: white;
+  border-bottom-color: rgba(255, 255, 255, 0.3);
+}
+
+[data-background-color="#0a4c6a"] p,
+[data-background-color="#0a4c6a"] li,
+[data-background-color="#0a4c6a"] h3 {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+[data-background-color="#0a4c6a"] a { color: $warning; }
+
+// Light gray slides
+[data-background-color="#f8f9fa"] h2 { border-bottom-color: $primary; }
+
+// Callouts
+.reveal .callout {
+  font-size: 0.48rem;
+  padding: 0.35rem 0.6rem;
+  margin: 0.15rem 0;
+  border-radius: 4px;
+}
+
+.reveal .callout-warning {
+  background-color: rgba($warning, 0.1);
+  border-left: 3px solid $warning;
+}
+
+.reveal .callout-note {
+  background-color: rgba($primary, 0.08);
+  border-left: 3px solid $primary;
+}
+
+.reveal .callout-important {
+  background-color: rgba($danger, 0.08);
+  border-left: 3px solid $danger;
+}
+
+.reveal .callout .callout-title {
+  font-size: 0.52rem;
+  font-weight: 600;
+}
+
+// Blockquotes
+.reveal blockquote {
+  border-left: 3px solid $primary;
+  padding-left: 0.7rem;
+  font-style: italic;
+  color: $secondary;
+  font-size: 0.55rem;
+  margin: 0.3rem 0;
+}
+
+// Fragments
+.reveal .fragment { transition: all 0.3s ease; }
+
+// Footer / slide number
+.reveal .footer { font-size: 0.33rem; color: #aaa; }
+.reveal .slide-number { font-size: 0.38rem; color: #aaa; }
+
+// Columns
+.reveal .columns { gap: 1rem; }
+
+// Smaller class — still rem
+.reveal .smaller p, .reveal .smaller li { font-size: 0.48rem; }
+.reveal .smaller table { font-size: 0.42rem; }
+
+// Incremental
+.reveal .incremental li { margin-bottom: 0.2rem; }
+
+// Plotly / output cells
+.reveal .cell-output-display { margin: 0.15rem 0; }
+
+// Tabset panels (interactive element)
+.reveal .panel-tabset .nav-link {
+  font-size: 0.45rem;
+  padding: 0.15rem 0.4rem;
+}
+
+.reveal .panel-tabset .nav-link.active {
+  color: $primary;
+  border-bottom: 2px solid $primary;
+}
+
+// OJS inputs
+.reveal .ojs-input {
+  font-size: 0.5rem;
+}

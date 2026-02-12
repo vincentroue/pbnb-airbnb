@@ -1,0 +1,355 @@
+/*-- scss:defaults --*/
+// ============================================================
+// THEME HTML - Urban Institute + Lumo tricks
+// Source: pucfpds-jrr-jquarto-jpy v2.0
+// Usage: theme: [cosmo, config/theme-html.scss]
+// ============================================================
+
+// === PALETTE URBAN INSTITUTE ===
+$primary: #1696d2;        // Bleu Urban principal
+$secondary: #5c5859;      // Gris texte secondaire
+$success: #55b748;        // Vert validation
+$warning: #fdbf11;        // Jaune attention
+$danger: #db2b27;         // Rouge erreur
+
+// Couleurs complémentaires Urban
+$cyan-dark: #0a4c6a;      // Bleu foncé
+$cyan-light: #73bfe2;     // Bleu clair
+$gray-light: #d2d2d2;     // Gris clair
+$gray-lighter: #f8f9fa;   // Gris très clair (backgrounds)
+
+// === TEXTE ET FOND ===
+$body-color: #333333;
+$body-bg: #ffffff;
+$headings-color: $primary;
+
+// === LIENS ===
+$link-color: $primary;
+$link-hover-color: $cyan-dark;
+
+// === TYPOGRAPHIE ===
+$font-family-sans-serif: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+$font-family-monospace: "Fira Code", "JetBrains Mono", Consolas, monospace;
+$headings-font-weight: 600;
+$font-size-base: 1rem;
+
+// === CODE BLOCKS ===
+$code-bg: $gray-lighter;
+$code-color: $danger;
+
+/*-- scss:rules --*/
+
+// ============================================================
+// SECTION 1 : ESPACEMENTS (inspiré Lumo)
+// ============================================================
+
+// Espacement titres - donne du "souffle" au document
+h1 {
+  margin-top: 2.5rem;
+  margin-bottom: 1rem;
+  font-size: 1.8rem;
+}
+h2 {
+  margin-top: 2.5rem;
+  margin-bottom: 0.8rem;
+  font-size: 1.4rem;
+  color: $secondary;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid $gray-light;
+}
+h3 {
+  margin-top: 1.8rem;
+  margin-bottom: 0.5rem;
+  font-size: 1.15rem;
+  color: $secondary;
+  font-style: italic;
+  font-weight: 500;
+}
+h4 {
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 1rem;
+}
+
+// Premier titre après TOC - pas de marge excessive
+.quarto-title + section > h2:first-child,
+#quarto-content > section:first-child > h2:first-child {
+  margin-top: 1rem;
+}
+
+// ============================================================
+// SECTION 2 : GREY SECTIONS (trick Lumo clé)
+// ============================================================
+
+// Utilisation dans QMD : ::: {.grey-section}
+// Contenu avec fond gris
+// :::
+.grey-section {
+  background-color: $gray-lighter;
+  padding: 2rem 1.5rem;
+  margin: 2rem -1rem;
+  border-radius: 4px;
+}
+
+// Variante highlight (accent couleur)
+.highlight-section {
+  background-color: rgba($primary, 0.05);
+  border-left: 4px solid $primary;
+  padding: 1.5rem;
+  margin: 1.5rem 0;
+}
+
+// ============================================================
+// SECTION 3 : SÉPARATEURS
+// ============================================================
+
+// Séparateur horizontal stylé (hr ou ***)
+hr {
+  border: none;
+  height: 1px;
+  background: linear-gradient(to right, transparent, $gray-light, transparent);
+  margin: 2.5rem 0;
+}
+
+// Séparateur plus visible
+hr.thick {
+  height: 2px;
+  background: linear-gradient(to right, transparent, $primary, transparent);
+}
+
+// ============================================================
+// SECTION 4 : BLOCKQUOTES ET CALLOUTS
+// ============================================================
+
+blockquote {
+  border-left: 4px solid $primary;
+  padding-left: 1rem;
+  margin-left: 0;
+  color: $secondary;
+  font-style: italic;
+}
+
+// Callouts Quarto
+div.callout.callout {
+  border: none;
+  padding: 0.6em 1em;
+  border-left: 4px solid;
+  border-radius: 0;
+}
+
+.callout-note {
+  border-left-color: $primary !important;
+  background-color: rgba($primary, 0.05);
+}
+
+.callout-tip {
+  border-left-color: $success !important;
+  background-color: rgba($success, 0.05);
+}
+
+.callout-warning {
+  border-left-color: $warning !important;
+  background-color: rgba($warning, 0.05);
+}
+
+.callout-important, .callout-caution {
+  border-left-color: $danger !important;
+  background-color: rgba($danger, 0.05);
+}
+
+// ============================================================
+// SECTION 5 : CODE
+// ============================================================
+
+// Code inline
+code {
+  background-color: $gray-lighter;
+  padding: 0.15em 0.4em;
+  border-radius: 3px;
+  color: $danger;
+  font-size: 0.9em;
+}
+
+// Code blocks
+pre.sourceCode {
+  border-left: 3px solid $primary;
+  padding-left: 1rem;
+  background-color: $gray-lighter;
+  border-radius: 0 4px 4px 0;
+}
+
+// Bouton "Show code" plus discret
+.code-fold summary {
+  color: $secondary;
+  font-size: 0.85em;
+}
+
+// ============================================================
+// SECTION 6 : TABLES
+// ============================================================
+
+.table {
+  --bs-table-striped-bg: rgba($primary, 0.03);
+  font-size: 0.9rem;
+}
+
+// Reactable pleine largeur
+.reactable {
+  width: 100% !important;
+  font-size: 0.9rem;
+}
+
+// Plotly pleine largeur
+.plotly {
+  width: 100% !important;
+}
+
+// Tables DataTables/DT plus compactes
+table.dataTable tbody td {
+  padding: 6px 10px;
+  font-size: 0.85rem;
+}
+
+table.dataTable thead th {
+  background-color: $gray-lighter;
+  border-bottom: 2px solid $primary;
+}
+
+// ============================================================
+// SECTION 7 : TOC (Table of Contents)
+// ============================================================
+
+.sidebar nav[role="doc-toc"] {
+  border-left: 2px solid $primary;
+  padding-left: 0.5rem;
+}
+
+.sidebar nav[role="doc-toc"] a {
+  color: $secondary;
+  text-decoration: none;
+}
+
+.sidebar nav[role="doc-toc"] a:hover,
+.sidebar nav[role="doc-toc"] a.active {
+  color: $primary;
+}
+
+// ============================================================
+// SECTION 8 : FIGURES ET IMAGES
+// ============================================================
+
+figure {
+  margin: 1.5rem 0;
+}
+
+figcaption {
+  color: $secondary;
+  font-size: 0.85rem;
+  font-style: italic;
+  margin-top: 0.5rem;
+}
+
+// Images centrées par défaut
+.quarto-figure-center > figure > img {
+  display: block;
+  margin: 0 auto;
+}
+
+// ============================================================
+// SECTION 9 : PANEL TABSETS
+// ============================================================
+
+.panel-tabset .nav-tabs {
+  border-bottom: 2px solid $gray-light;
+}
+
+.panel-tabset .nav-link {
+  color: $secondary;
+  border: none;
+  padding: 0.5rem 1rem;
+}
+
+.panel-tabset .nav-link.active {
+  color: $primary;
+  border-bottom: 2px solid $primary;
+  background: transparent;
+}
+
+.panel-tabset .nav-link:hover {
+  color: $primary;
+}
+
+// ============================================================
+// SECTION 10 : UTILITAIRES
+// ============================================================
+
+// Texte petit pour notes/sources
+.small-text, .source-text {
+  font-size: 0.8rem;
+  color: $secondary;
+}
+
+// Centrage
+.center {
+  text-align: center;
+}
+
+// Mise en évidence
+.highlight {
+  background-color: rgba($warning, 0.2);
+  padding: 0.1em 0.3em;
+  border-radius: 2px;
+}
+
+// Badge/tag
+.badge-urban {
+  background-color: $primary;
+  color: white;
+  padding: 0.2em 0.6em;
+  border-radius: 3px;
+  font-size: 0.8em;
+}
+
+// ============================================================
+// SECTION 11 : LARGEUR ÉTENDUE (gros plots, matrices)
+// ============================================================
+
+// Conteneur principal plus large (défaut ~900px → 1200px)
+.quarto-container {
+  max-width: 1200px;
+}
+
+// Classe pour forcer pleine largeur (usage: ::: {.full-width})
+.full-width {
+  width: 100vw;
+  margin-left: calc(-50vw + 50%);
+  padding: 1rem 2rem;
+}
+
+// Classe pour largeur étendue sans déborder (usage: ::: {.wide})
+.wide {
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+// Matrices de corrélation - forcer lisibilité
+.corr-matrix {
+  overflow-x: auto;
+  font-size: 0.85rem;
+}
+
+// ============================================================
+// SECTION 12 : PRINT/EXPORT PDF (optionnel)
+// ============================================================
+
+@media print {
+  .full-width, .wide {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .sidebar {
+    display: none;
+  }
+}
