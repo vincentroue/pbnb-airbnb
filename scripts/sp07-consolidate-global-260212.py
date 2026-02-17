@@ -81,8 +81,8 @@ COUNTRY_CONTINENT = {
     "LVA": "Europe",
 }
 
-# Population et logements approximatifs (2024, agglomération)
-# Sources: Eurostat, UN WUP 2024, Wikipedia, national stats
+# Population et logements (metro comme fallback, overridé par city_reference_data.py)
+# Sources: city_reference_data.py (city proper) > Eurostat, UN WUP 2024 (metro)
 CITY_META = {
     # --- Europe (35 villes) ---
     "london": {"pop": 9_648_000, "housing": 3_600_000, "lat": 51.5074, "lon": -0.1278},
@@ -160,6 +160,18 @@ CITY_META = {
     # --- Africa ---
     "cape-town": {"pop": 4_800_000, "housing": 1_500_000, "lat": -33.9249, "lon": 18.4241},
 }
+
+# Override CITY_META pop/housing with city_reference_data (city proper, not metro)
+from city_reference_data import CITY_DATA
+for city_key, ref in CITY_DATA.items():
+    # Map manchester→greater-manchester for Inside Airbnb naming
+    meta_key = "greater-manchester" if city_key == "manchester" else city_key
+    if meta_key in CITY_META:
+        CITY_META[meta_key]["pop"] = ref["pop"]
+        CITY_META[meta_key]["housing"] = ref["housing"]
+    else:
+        # City in reference data but not in CITY_META → add with coords from CITY_META or defaults
+        CITY_META[meta_key] = {"pop": ref["pop"], "housing": ref["housing"], "lat": 0, "lon": 0}
 # &e
 
 # &s &LOAD_CITIES

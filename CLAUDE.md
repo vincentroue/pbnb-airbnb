@@ -204,34 +204,93 @@ sys.path.insert(0, r"C:\Users\vince\hh\pq\PDS\mutils\jpy")
 
 ## Reports (reports/)
 
-| Fichier | Contenu |
-|---------|---------|
-| `eda-20cities-260203.qmd` | EDA Quarto Python 20 villes, 5 axes, plotly+itables |
-| `paris-analyse-260203.qmd` | Analyse Paris, arrondissements + IRIS |
-| `map-europe-20cities-260203.py` | Carte Folium 20 villes Europe |
-| `theme-urban.scss` | Theme SCSS Urban Institute |
+### Document taxonomy (6 types)
+| Type | Préfixe | echo | Objectif |
+|------|---------|------|----------|
+| RAPPORT | `rpt-pbnb-rapport-` | false | Analyse rédigée insight-first |
+| SYNTHESE | `rpt-pbnb-synth-` | false | Vue d'ensemble courte, KPI cards |
+| SYNTHCOMMART | `rpt-pbnb-synthcommart-` | false | Article blog-style |
+| NOTEBOOK | `rpt-pbnb-edanbk-` | code-fold | EDA exploratoire, code reproductible |
+| DASHBOARD | `rpt-pbnb-dash-` | false | Interactif, widgets |
+| METHNBK | `rpt-pbnb-methnbk-` | code-fold | Annexe méthodologique |
 
-**Stack EDA** : pandas, plotly, seaborn, itables, folium, geopandas
+Convention : `rpt-pbnb-{type}-{scope}-{YYMMDD}.qmd` (scope: ALL, europe, franceparis)
+
+### Reports actifs
+| Fichier | Type | Contenu |
+|---------|------|---------|
+| `rpt-pbnb-synth-monde-260214.qmd` | SYNTHESE | 64 villes, carte scattergeo, KPI cards |
+| `rpt-pbnb-synth-europe-260214.qmd` | SYNTHESE | 36 marchés, ACP+clustering |
+| `rpt-pbnb-rapport-ALL-260207.qmd` | RAPPORT | Monde + Europe (~2300L, 89 chunks) |
+| `rpt-pbnb-edanbk-ALL-260215.qmd` | NOTEBOOK | EDA descriptive (distributions, corrélations) |
+| `rpt-pbnb-dash-ALL-260211.qmd` | DASHBOARD | Observable JS, 64 villes |
+| `rpt-pbnb-rapport-franceparis-260215.qmd` | RAPPORT | France 3 villes, arrondissements, IRIS, INSEE |
+| `rpt-pbnb-dash-franceparis-260215.qmd` | DASHBOARD | MapLibre multicouche, IRIS+OSM, Paris |
+
+### Blueprint Dashboard France
+**Référence** : `reports/rgd-guide/gdblueprint-dash-franceparis-260216.md`
+- MapLibre choroplèthe IRIS + heatmap + points, 3 villes (Paris/Lyon/Bordeaux)
+- Tableau OJS z-score violet/vert (inspiré 0table.js ptod), ddict-airbnb.json
+- Benchmark 8 villes, KPI briques header, Top 200 hosts
+- 5 phases: données (sp09) → helper table → dashboard v3 → multi-villes → polish
+
+### Architecture 3 niveaux géographiques
+1. **Monde** (64 villes) — benchmarking continental, scattergeo
+2. **Europe** (36 marchés) — ACP + clustering Ward k=4, régulation
+3. **France/Paris** — IRIS, INSEE, Paris+Lyon+Bordeaux (rapport + dashboard MapLibre)
+
+**Stack** : pandas, plotly, seaborn, reactable, FactoMineR, folium, geopandas
 
 **Templates source** : `pucfpds-jrr-jquarto-jpy/tpl-templates-nbk/tpl-nbk-eda-dae-jPY-jquarto-fd.qmd`
 
-### Convention titres narratifs (QMD)
+### Conventions rédactionnelles (OBLIGATOIRE)
 
-**Format idée-force** : Titre insight seul sur sa ligne, puis ligne vide, puis développement.
+**Référence complète** : `reports/rgd-guide/gdconv-redaction-rapports-260216.md`
 
-```markdown
-## Section titre
+#### Titres de graphiques (fig_title — 2 lignes)
 
-[**Idée-force percutante en une phrase sans point**]{.insight}
-
-Développement du paragraphe explicatif qui détaille l'observation...
+```python
+fig.update_layout(title=fig_title(N,
+    "Insight narratif percutant sans point final",           # L1: bold noir 16px
+    "Variable mesurée — Scope — Source : InsideAirbnb 2025")) # L2: gris 14px
 ```
 
-**Règles** :
-- Titre en gras dans span `.insight` (bleu, 1.05em)
-- Pas de point final dans le titre insight
-- Ligne vide obligatoire entre insight et développement
+- **L1** = idée-force journalistique (≠ descriptif technique)
+  - ✅ "Londres et Paris concentrent 3× le volume moyen européen"
+  - ❌ "Barplot des listings par ville"
+- **L2** = métadonnées : variable · scope · source · date (séparées par ` — `)
+- Numérotation manuelle continue (1 par section)
+
+#### Idées-force texte (`.insight`)
+
+```markdown
+[**Phrase insight percutante sans point final**]{.insight}
+
+Développement du paragraphe explicatif...
+```
+
+- Double marquage `[**gras**]{.insight}` (bleu bold)
+- Pas de point final, ligne vide après, 1 par section
 - Accents français dans tout le texte narratif
+
+#### Sources / notes sous graphiques
+
+```html
+<div class="figure-source">Source : Inside Airbnb, juin 2025 · Calculs auteur</div>
+<div class="figure-note">Note : prix filtrés 10-1000 €/nuit, hors hôtels</div>
+```
+
+#### Éléments CSS (theme-insee.scss)
+
+| Classe | Usage |
+|--------|-------|
+| `.chapeau` | Intro rapport (border-bottom cyan) |
+| `.kpi-card-grid` + `.kpi-card` | KPI cards (accent-orange/green/magenta) |
+| `.encadre` / `.encadre-accent` | Boîtes méthodologie / focus |
+| `.grey-section` | Fond gris alternance |
+| `.figure-source` / `.figure-note` | Sources et notes sous graphiques |
+| `.note-lecture` | Note de lecture compacte |
+| `main hr` (---) | Trait court bleu centré 120px |
 
 ## Benchmarks (zuprj/)
 

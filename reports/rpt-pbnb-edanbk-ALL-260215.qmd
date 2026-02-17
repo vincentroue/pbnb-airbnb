@@ -1,0 +1,920 @@
+---
+title: "EDA — Notebook exploratoire"
+subtitle: "64 villes, 30 pays, 4 continents — Inside Airbnb juin 2025"
+author: "Vincent R."
+date: today
+date-format: "DD MMMM YYYY"
+categories: ["Notebook EDA"]
+number-sections: false
+format:
+  html:
+    theme: [cosmo, config/theme-html.scss]
+    toc: true
+    toc-location: left
+    toc-depth: 3
+    code-fold: true
+    code-summary: "Code"
+    code-tools: true
+    fig-width: 10
+    fig-height: 6
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+<!-- Notebook EDA exploratoire (rpt-pbnb-edanbk-ALL-260215)
+     Type : NOTEBOOK (code visible, code-fold, exploratoire)
+     Companion : rpt-pbnb-rapport-ALL-260207.qmd (rapport propre)
+     Données : Inside Airbnb juin 2025, dbsumlistings_2506_cons_global.parquet
+     Objectif : exploration données, stats descriptives, nettoyage, distributions
+-->
+
+::: {.callout-note}
+## Objectif
+
+Ce notebook est le **compagnon technique** du rapport d'analyse. Il documente :
+
+- L'exploration initiale des données (structure, types, valeurs manquantes)
+- Les distributions et statistiques descriptives de chaque variable clé
+- Les choix de nettoyage et leur impact
+- Les corrélations, pair plots et analyses bivariées
+- Les étapes de construction des indicateurs dérivés
+
+**Données** : `dbsumlistings_2506_cons_global.parquet` · 64 villes · ~789K listings nettoyés
+:::
+
+# Setup {.unnumbered}
+
+```{r}
+#| label: setup-reticulate
+#| include: false
+
+library(reticulate)
+use_python("C:/ScoopApps/apps/python/current/python.exe", required = TRUE)
+```
+
+```{python}
+#| label: setup
+#| code-fold: false
+
+from pathlib import Path
+import sys
+import pandas as pd
+import numpy as np
+import warnings
+warnings.filterwarnings('ignore')
+
+import plotly.express as px
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+# Helpers
+MUTILS_JPY = Path(r"C:\Users\vince\hh\pq\PDS\mutils\jpy")
+if str(MUTILS_JPY) not in sys.path:
+    sys.path.insert(0, str(MUTILS_JPY))
+
+import importlib.util
+_spec_graph = importlib.util.spec_from_file_location("jcn_graph", MUTILS_JPY / "jcn-graph.py")
+_mod = importlib.util.module_from_spec(_spec_graph)
+_spec_graph.loader.exec_module(_mod)
+_mod.init_style()
+_mod.patch_plotly_reticulate()
+
+COL_CYAN = _mod.COL_CYAN
+COL_ORANGE = _mod.COL_ORANGE
+COL_GREEN = _mod.COL_GREEN
+COL_MAGENTA = _mod.COL_MAGENTA
+
+# Données
+BASE = Path(r"C:\Users\vince\hh\pq\PDS\pbnb-airbnb-log-jrr-jpy")
+df = pd.read_parquet(BASE / "data" / "interim" / "dbsumlistings_2506_cons_global.parquet")
+print(f"Chargé : {len(df):,} lignes × {df.shape[1]} colonnes")
+print(f"Villes : {df['city'].nunique()} · Pays : {df['country_code'].nunique()}")
+```
+
+---
+
+# Structure des données
+
+## Schema et types
+
+```{python}
+#| label: schema
+
+print(f"Shape : {df.shape}")
+print(f"\nTypes :")
+print(df.dtypes.value_counts())
+print(f"\nColonnes ({df.shape[1]}) :")
+for i, col in enumerate(df.columns):
+    print(f"  {i+1:2d}. {col:40s} {str(df[col].dtype):10s} — {df[col].nunique():,} uniques")
+```
+
+## Valeurs manquantes
+
+```{python}
+#| label: missing-values
+
+missing = df.isnull().sum()
+missing_pct = (missing / len(df) * 100).round(1)
+missing_df = pd.DataFrame({"n_missing": missing, "pct": missing_pct})
+missing_df = missing_df[missing_df["n_missing"] > 0].sort_values("pct", ascending=False)
+
+if len(missing_df) > 0:
+    print(f"Colonnes avec valeurs manquantes ({len(missing_df)}/{df.shape[1]}) :\n")
+    for col, row in missing_df.iterrows():
+        bar = "█" * int(row["pct"] / 2)
+        print(f"  {col:40s} {row['n_missing']:>8,.0f} ({row['pct']:5.1f}%) {bar}")
+else:
+    print("Aucune valeur manquante.")
+```
+
+## Aperçu données (head + tail)
+
+```{python}
+#| label: head-tail
+
+print(df.head(5))
+print(df.tail(5))
+```
+
+---
+
+# Statistiques descriptives
+
+## Variables numériques — describe()
+
+```{python}
+#| label: describe-numeric
+
+num_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+print(f"{len(num_cols)} variables numériques\n")
+print(df[num_cols].describe().T.round(2))
+```
+
+## Variables catégorielles — value_counts
+
+```{python}
+#| label: describe-categorical
+
+cat_cols = df.select_dtypes(include=["object", "category"]).columns.tolist()
+print(f"{len(cat_cols)} variables catégorielles\n")
+
+for col in cat_cols:
+    n_unique = df[col].nunique()
+    print(f"\n{'='*60}")
+    print(f"{col} — {n_unique} modalités")
+    if n_unique <= 20:
+        print(df[col].value_counts().to_string())
+    else:
+        print(f"  Top 10 :")
+        print(df[col].value_counts().head(10).to_string())
+        print(f"  ... ({n_unique - 10} autres)")
+```
+
+## Répartition par ville et continent
+
+```{python}
+#| label: city-counts
+#| output: asis
+
+city_counts = (df.groupby(["continent", "country_code", "city"])
+               .size().reset_index(name="n")
+               .sort_values("n", ascending=False))
+
+fig = px.bar(city_counts.sort_values("n"), x="n", y="city", orientation="h",
+             color="continent", color_discrete_map=_mod.CONTINENT_COLORS,
+             height=1200, title="Nombre de listings par ville")
+fig.update_layout(yaxis=dict(categoryorder="total ascending"), margin=dict(l=160))
+fig.show()
+```
+
+---
+
+# Distributions des variables clés
+
+## Prix (price_eur)
+
+```{python}
+#| label: dist-prix
+
+if "price_eur" in df.columns:
+    prix = df["price_eur"].dropna()
+    print(f"Prix EUR : n={len(prix):,}, min={prix.min():.0f}, max={prix.max():.0f}")
+    print(f"  mean={prix.mean():.1f}, median={prix.median():.1f}, std={prix.std():.1f}")
+    print(f"  Q1={prix.quantile(0.25):.0f}, Q3={prix.quantile(0.75):.0f}")
+    print(f"  Skewness={prix.skew():.2f}, Kurtosis={prix.kurtosis():.2f}")
+```
+
+```{python}
+#| label: fig-dist-prix
+#| output: asis
+
+if "price_eur" in df.columns:
+    fig = px.histogram(df[df["price_eur"] <= 500], x="price_eur", nbins=100,
+                       color="continent", color_discrete_map=_mod.CONTINENT_COLORS,
+                       title="Distribution des prix (≤ 500 EUR)",
+                       labels={"price_eur": "Prix (EUR/nuit)"})
+    fig.update_layout(barmode="overlay", height=400)
+    fig.update_traces(opacity=0.6)
+    fig.show()
+```
+
+## Disponibilité (availability_365)
+
+```{python}
+#| label: dist-dispo
+
+if "availability_365" in df.columns:
+    dispo = df["availability_365"]
+    print(f"Disponibilité : n={len(dispo):,}, min={dispo.min()}, max={dispo.max()}")
+    print(f"  mean={dispo.mean():.0f}, median={dispo.median():.0f}")
+    print(f"  % dispo=0 : {(dispo==0).sum():,} ({(dispo==0).mean()*100:.1f}%)")
+    print(f"  % dispo>300 : {(dispo>300).sum():,} ({(dispo>300).mean()*100:.1f}%)")
+```
+
+```{python}
+#| label: fig-dist-dispo
+#| output: asis
+
+if "availability_365" in df.columns:
+    fig = px.histogram(df, x="availability_365", nbins=50,
+                       title="Distribution de la disponibilité (jours/an)",
+                       labels={"availability_365": "Jours disponibles / 365"})
+    fig.update_layout(height=400)
+    fig.show()
+```
+
+## Minimum nights
+
+```{python}
+#| label: dist-minnights
+
+if "minimum_nights" in df.columns:
+    mn = df["minimum_nights"]
+    print(f"Minimum nights : min={mn.min()}, max={mn.max()}, median={mn.median()}")
+    print(f"  % longterm (≥30) : {(mn>=30).sum():,} ({(mn>=30).mean()*100:.1f}%)")
+    print(f"  % =1 nuit : {(mn==1).sum():,} ({(mn==1).mean()*100:.1f}%)")
+    print(f"  % ≤3 nuits : {(mn<=3).sum():,} ({(mn<=3).mean()*100:.1f}%)")
+```
+
+## Reviews per month
+
+```{python}
+#| label: dist-reviews
+
+if "reviews_per_month" in df.columns:
+    rpm = df["reviews_per_month"].dropna()
+    print(f"Reviews/mois : n={len(rpm):,}, mean={rpm.mean():.2f}, median={rpm.median():.2f}")
+    print(f"  % = 0 : {(rpm==0).sum():,} ({(rpm==0).mean()*100:.1f}%)")
+    print(f"  % > 5 : {(rpm>5).sum():,} ({(rpm>5).mean()*100:.1f}%)")
+```
+
+```{python}
+#| label: fig-dist-reviews
+#| output: asis
+
+if "reviews_per_month" in df.columns:
+    rpm_clip = df[df["reviews_per_month"].notna() & (df["reviews_per_month"] <= 10)]
+    fig = px.histogram(rpm_clip, x="reviews_per_month", nbins=50,
+                       color="continent", color_discrete_map=_mod.CONTINENT_COLORS,
+                       title="Distribution reviews/mois (≤ 10 rpm)",
+                       labels={"reviews_per_month": "Reviews par mois"})
+    fig.update_layout(barmode="overlay", height=400)
+    fig.update_traces(opacity=0.6)
+    fig.show()
+```
+
+## Number of reviews (total)
+
+```{python}
+#| label: dist-nb-reviews
+
+if "number_of_reviews" in df.columns:
+    nr = df["number_of_reviews"]
+    print(f"Nombre total de reviews par listing :")
+    print(f"  n={len(nr):,}, mean={nr.mean():.0f}, median={nr.median():.0f}, max={nr.max():,}")
+    print(f"  % = 0 reviews : {(nr==0).sum():,} ({(nr==0).mean()*100:.1f}%)")
+    print(f"  % ≥ 100 reviews : {(nr>=100).sum():,} ({(nr>=100).mean()*100:.1f}%)")
+    print(f"  % ≥ 500 reviews : {(nr>=500).sum():,} ({(nr>=500).mean()*100:.1f}%)")
+```
+
+```{python}
+#| label: fig-dist-nb-reviews
+#| output: asis
+
+if "number_of_reviews" in df.columns:
+    fig = px.histogram(df[df["number_of_reviews"] <= 200], x="number_of_reviews", nbins=80,
+                       title="Distribution nombre total de reviews (≤ 200)",
+                       labels={"number_of_reviews": "Nombre de reviews"})
+    fig.update_layout(height=400)
+    fig.show()
+```
+
+```{python}
+#| label: fig-reviews-par-ville
+#| output: asis
+
+if "reviews_per_month" in df.columns:
+    rpm_city = (df.groupby(["city", "continent"])["reviews_per_month"]
+                .median().reset_index(name="rpm_med")
+                .sort_values("rpm_med", ascending=True))
+
+    fig = px.bar(rpm_city, x="rpm_med", y="city", orientation="h",
+                 color="continent", color_discrete_map=_mod.CONTINENT_COLORS,
+                 title="Reviews/mois médian par ville",
+                 labels={"rpm_med": "Reviews/mois (médiane)", "city": ""},
+                 height=1000)
+    fig.update_layout(margin=dict(l=160))
+    fig.show()
+```
+
+::: {.callout-warning}
+## Notes moyennes (review_scores) — non disponibles
+
+Les scores de notation (`review_scores_rating`, `review_scores_accuracy`, `review_scores_cleanliness`, etc.) ne sont disponibles que dans `listings.csv.gz` (74 colonnes), pas dans les sumlistings (18 colonnes) utilisées ici. Exploitation possible en v2 via merge sur `id`.
+:::
+
+---
+
+# Analyse pré-nettoyage — Données brutes et outliers
+
+::: {.callout-note}
+## Pourquoi analyser AVANT le nettoyage ?
+
+Le pipeline retire ~30-35% des données. Il est essentiel de comprendre **ce qu'on exclut** : s'agit-il de bruit ou de signal ? Cette section documente les distributions brutes et identifie les outliers.
+:::
+
+## Comparaison avant / après nettoyage
+
+```{python}
+#| label: before-after-cleaning
+
+# Appliquer le cleaning pour comparer
+df_raw = df.copy()
+n_raw = len(df_raw)
+
+# Étapes cumulées
+df_c = df_raw[df_raw["price"].notna() & (df_raw["price"] > 0)].copy()
+df_c = df_c[df_c["availability_365"] > 0]
+df_c = df_c[df_c["room_type"] != "Hotel room"]
+if "price_eur" in df_c.columns:
+    df_c = df_c[(df_c["price_eur"] >= 10) & (df_c["price_eur"] <= 1000)]
+
+print(f"Avant nettoyage : {n_raw:>10,} listings")
+print(f"Après nettoyage : {len(df_c):>10,} listings")
+print(f"Exclus          : {n_raw - len(df_c):>10,} ({(n_raw-len(df_c))/n_raw*100:.1f}%)")
+
+print(f"\nProfil des exclus :")
+df_excl = df_raw[~df_raw.index.isin(df_c.index)]
+if "price" in df_excl.columns:
+    print(f"  Prix null/0    : {(df_excl['price'].isna() | (df_excl['price']==0)).sum():,}")
+if "availability_365" in df_excl.columns:
+    print(f"  Dispo = 0      : {(df_excl['availability_365']==0).sum():,}")
+if "room_type" in df_excl.columns:
+    print(f"  Hotel room     : {(df_excl['room_type']=='Hotel room').sum():,}")
+```
+
+```{python}
+#| label: fig-before-after-prix
+#| output: asis
+
+if "price_eur" in df.columns:
+    fig = make_subplots(rows=1, cols=2, subplot_titles=["AVANT nettoyage (brut)", "APRÈS nettoyage"],
+                        horizontal_spacing=0.08)
+
+    # Avant : tous les prix non-null, cap à 2000 pour lisibilité
+    raw_prix = df_raw["price_eur"].dropna()
+    raw_prix_clip = raw_prix[raw_prix <= 2000]
+    fig.add_trace(go.Histogram(x=raw_prix_clip, nbinsx=100, marker_color=COL_ORANGE,
+                               opacity=0.7, name="Brut"), row=1, col=1)
+
+    # Après
+    clean_prix = df_c["price_eur"]
+    fig.add_trace(go.Histogram(x=clean_prix, nbinsx=100, marker_color=COL_CYAN,
+                               opacity=0.7, name="Nettoyé"), row=1, col=2)
+
+    fig.update_layout(title="Distribution des prix — avant vs après nettoyage",
+                      height=400, showlegend=True)
+    fig.update_xaxes(title_text="Prix EUR/nuit", row=1, col=1)
+    fig.update_xaxes(title_text="Prix EUR/nuit", row=1, col=2)
+    fig.show()
+```
+
+## Identification des outliers — prix extrêmes
+
+```{python}
+#| label: outliers-prix
+
+if "price_eur" in df.columns:
+    prix = df["price_eur"].dropna()
+    q1, q3 = prix.quantile(0.25), prix.quantile(0.75)
+    iqr = q3 - q1
+    lower = q1 - 1.5 * iqr
+    upper = q3 + 1.5 * iqr
+
+    print(f"Détection outliers IQR (méthode Tukey) :")
+    print(f"  Q1 = {q1:.0f}, Q3 = {q3:.0f}, IQR = {iqr:.0f}")
+    print(f"  Borne basse = {max(0, lower):.0f}, Borne haute = {upper:.0f}")
+    print(f"  Outliers bas  (< {max(0, lower):.0f}€) : {(prix < lower).sum():,} ({(prix < lower).mean()*100:.1f}%)")
+    print(f"  Outliers haut (> {upper:.0f}€) : {(prix > upper).sum():,} ({(prix > upper).mean()*100:.1f}%)")
+
+    print(f"\nDistribution des prix extrêmes (> 1000 EUR) :")
+    extreme = prix[prix > 1000]
+    if len(extreme) > 0:
+        print(f"  n = {len(extreme):,} ({len(extreme)/len(prix)*100:.2f}%)")
+        print(f"  Médiane = {extreme.median():.0f}€, Max = {extreme.max():,.0f}€")
+        # Top 10 villes avec le plus d'extrêmes
+        top_ext = (df[df["price_eur"] > 1000].groupby("city").size()
+                   .sort_values(ascending=False).head(10))
+        print(f"\n  Top 10 villes (prix > 1000€) :")
+        for city, n in top_ext.items():
+            print(f"    {city:20s} {n:>6,}")
+```
+
+## Outliers — disponibilité et minimum nights
+
+```{python}
+#| label: outliers-dispo-minnights
+
+print("Profils atypiques — disponibilité :")
+if "availability_365" in df.columns:
+    dispo = df["availability_365"]
+    print(f"  Dispo = 0 (retirés/bookés)  : {(dispo==0).sum():>8,} ({(dispo==0).mean()*100:.1f}%)")
+    print(f"  Dispo = 365 (jamais bookés) : {(dispo==365).sum():>8,} ({(dispo==365).mean()*100:.1f}%)")
+    print(f"  Dispo 1-30 jours            : {((dispo>0)&(dispo<=30)).sum():>8,} ({((dispo>0)&(dispo<=30)).mean()*100:.1f}%)")
+
+print(f"\nProfils atypiques — minimum nights :")
+if "minimum_nights" in df.columns:
+    mn = df["minimum_nights"]
+    print(f"  Min nights = 0              : {(mn==0).sum():>8,} ({(mn==0).mean()*100:.1f}%)")
+    print(f"  Min nights ≥ 30 (longterm)  : {(mn>=30).sum():>8,} ({(mn>=30).mean()*100:.1f}%)")
+    print(f"  Min nights ≥ 90             : {(mn>=90).sum():>8,} ({(mn>=90).mean()*100:.1f}%)")
+    print(f"  Min nights ≥ 365            : {(mn>=365).sum():>8,} ({(mn>=365).mean()*100:.1f}%)")
+    print(f"  Max min_nights              : {mn.max():,} jours")
+
+    # Top villes longterm
+    lt_city = (df[df["minimum_nights"] >= 30].groupby("city").size() /
+               df.groupby("city").size() * 100).sort_values(ascending=False).head(10)
+    print(f"\n  Top 10 villes % longterm (min_nights ≥ 30) :")
+    for city, pct in lt_city.items():
+        print(f"    {city:20s} {pct:>5.1f}%")
+```
+
+```{python}
+#| label: fig-outliers-boxplot
+#| output: asis
+
+# Boxplots multi-variables pour visualiser les outliers
+fig = make_subplots(rows=1, cols=3, subplot_titles=["Prix EUR (log)", "Disponibilité", "Min nights (log)"],
+                    horizontal_spacing=0.06)
+
+if "price_eur" in df.columns:
+    prix_log = np.log10(df["price_eur"].dropna().clip(lower=1))
+    fig.add_trace(go.Box(y=prix_log, name="Prix", marker_color=COL_CYAN,
+                         boxpoints="outliers"), row=1, col=1)
+
+if "availability_365" in df.columns:
+    fig.add_trace(go.Box(y=df["availability_365"], name="Dispo", marker_color=COL_GREEN,
+                         boxpoints="outliers"), row=1, col=2)
+
+if "minimum_nights" in df.columns:
+    mn_log = np.log10(df["minimum_nights"].clip(lower=1))
+    fig.add_trace(go.Box(y=mn_log, name="Min nights", marker_color=COL_ORANGE,
+                         boxpoints="outliers"), row=1, col=3)
+
+fig.update_layout(title="Boxplots — Détection visuelle des outliers (3 variables clés)",
+                  height=450, showlegend=False)
+fig.update_yaxes(title_text="log₁₀(prix EUR)", row=1, col=1)
+fig.update_yaxes(title_text="jours/an", row=1, col=2)
+fig.update_yaxes(title_text="log₁₀(min nights)", row=1, col=3)
+fig.show()
+```
+
+---
+
+# Nettoyage — Pipeline et impact
+
+::: {.callout-tip}
+## Pipeline de nettoyage appliqué
+
+1. **Prix non null** → exclut ~25% (inactifs/retirés)
+2. **Disponibilité > 0** → exclut ~5% supplémentaires
+3. **Exclure Hotel room** → ~1%
+4. **Prix EUR 10–1 000** → ~3% aberrants
+5. **Flag `is_longterm`** (min_nights ≥ 30) — NON exclu
+
+Taux de rétention global : ~65-70%
+:::
+
+```{python}
+#| label: cleaning-impact
+
+# Simuler les étapes de cleaning pour mesurer l'impact
+n_raw = len(df)
+steps = []
+
+if "price" in df.columns:
+    mask_price = df["price"].notna() & (df["price"] > 0)
+    steps.append(("Prix non null", mask_price.sum(), n_raw - mask_price.sum()))
+    df_c = df[mask_price]
+else:
+    df_c = df.copy()
+
+if "availability_365" in df_c.columns:
+    mask_dispo = df_c["availability_365"] > 0
+    steps.append(("Disponibilité > 0", mask_dispo.sum(), len(df_c) - mask_dispo.sum()))
+    df_c = df_c[mask_dispo]
+
+if "room_type" in df_c.columns:
+    mask_hotel = df_c["room_type"] != "Hotel room"
+    steps.append(("Exclure Hotel room", mask_hotel.sum(), len(df_c) - mask_hotel.sum()))
+    df_c = df_c[mask_hotel]
+
+if "price_eur" in df_c.columns:
+    mask_prix = (df_c["price_eur"] >= 10) & (df_c["price_eur"] <= 1000)
+    steps.append(("Prix EUR 10-1000", mask_prix.sum(), len(df_c) - mask_prix.sum()))
+    df_c = df_c[mask_prix]
+
+print(f"{'Étape':<25s} {'Restant':>10s} {'Exclu':>10s} {'% exclu':>8s}")
+print("-" * 55)
+for name, kept, removed in steps:
+    print(f"{name:<25s} {kept:>10,} {removed:>10,} {removed/n_raw*100:>7.1f}%")
+print("-" * 55)
+print(f"{'TOTAL':<25s} {len(df_c):>10,} {n_raw - len(df_c):>10,} {(n_raw-len(df_c))/n_raw*100:>7.1f}%")
+```
+
+---
+
+# Boxplots comparatifs par ville
+
+```{python}
+#| label: fig-boxplot-prix
+#| output: asis
+
+if "price_eur" in df.columns:
+    top_cities = df.groupby("city")["price_eur"].count().nlargest(20).index
+    df_top = df[df["city"].isin(top_cities) & (df["price_eur"] <= 500)]
+
+    fig = px.box(df_top, x="price_eur", y="city",
+                 color="continent", color_discrete_map=_mod.CONTINENT_COLORS,
+                 title="Distribution prix par ville (top 20 en volume, ≤ 500€)",
+                 labels={"price_eur": "Prix EUR/nuit", "city": ""},
+                 height=700)
+    fig.update_layout(yaxis=dict(categoryorder="total ascending"))
+    fig.show()
+```
+
+---
+
+# Corrélations
+
+```{python}
+#| label: fig-corr-matrix
+
+# Agréger par ville pour corrélations inter-villes
+kpi_path = BASE / "data" / "interim" / "kpi_global_by_city_2506.csv"
+if kpi_path.exists():
+    kpi = pd.read_csv(kpi_path)
+    corr_cols = [c for c in ["n_listings", "listings_1000hab", "prix_med",
+                              "pct_entire", "pct_multi", "dispo_med",
+                              "pct_longterm", "reviews_med"] if c in kpi.columns]
+    if len(corr_cols) >= 4:
+        corr = kpi[corr_cols].corr(method="spearman")
+        fig, ax = plt.subplots(figsize=(10, 8))
+        sns.heatmap(corr, annot=True, fmt=".2f", cmap="RdBu_r", center=0,
+                    square=True, ax=ax, vmin=-1, vmax=1)
+        ax.set_title("Corrélations Spearman — KPIs par ville (64 villes)")
+        plt.tight_layout()
+        plt.show()
+    else:
+        print(f"Colonnes disponibles : {kpi.columns.tolist()}")
+else:
+    print(f"Fichier KPI non trouvé : {kpi_path}")
+```
+
+---
+
+# Pair plots — variables clés
+
+```{python}
+#| label: fig-pairplot
+
+if kpi_path.exists():
+    kpi = pd.read_csv(kpi_path)
+    pair_cols = [c for c in ["listings_1000hab", "prix_med", "pct_entire",
+                              "pct_multi", "dispo_med"] if c in kpi.columns]
+    if len(pair_cols) >= 3 and "continent" in kpi.columns:
+        g = sns.pairplot(kpi[pair_cols + ["continent"]], hue="continent",
+                         palette=_mod.CONTINENT_COLORS, diag_kind="kde",
+                         plot_kws=dict(alpha=0.6, s=40))
+        g.figure.suptitle("Pair plot — 5 KPIs × 64 villes, couleur = continent", y=1.01)
+        plt.tight_layout()
+        plt.show()
+```
+
+---
+
+# Synthèse des variables
+
+```{python}
+#| label: variable-synthesis
+
+if kpi_path.exists():
+    kpi = pd.read_csv(kpi_path)
+    synth_cols = [c for c in kpi.columns if kpi[c].dtype in ["float64", "int64"]]
+    synth = kpi[synth_cols].describe().T
+    synth["cv"] = (synth["std"] / synth["mean"] * 100).round(1)
+    synth["skew"] = kpi[synth_cols].skew().round(2)
+    synth = synth[["count", "mean", "std", "cv", "min", "25%", "50%", "75%", "max", "skew"]]
+    print("Synthèse des variables numériques (64 villes) :\n")
+    print(synth.round(2))
+    print(f"\nVariables à forte dispersion (CV > 100%) :")
+    high_cv = synth[synth["cv"] > 100].index.tolist()
+    for v in high_cv:
+        print(f"  - {v} (CV = {synth.loc[v, 'cv']:.0f}%)")
+```
+
+---
+
+# ACP — Analyse en composantes principales
+
+::: {.callout-note}
+## Objectif
+
+Explorer la structure multidimensionnelle des 64 marchés Airbnb via une ACP sur les KPIs clés.
+Identifier les axes de différenciation principaux et regrouper les villes en profils homogènes (clustering Ward).
+:::
+
+## Variables retenues et standardisation
+
+```{python}
+#| label: acp-prep
+
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+from scipy.cluster.hierarchy import linkage, fcluster
+
+kpi = pd.read_csv(BASE / "data" / "interim" / "kpi_global_by_city_2506.csv")
+
+# Variables actives pour l'ACP (exclure identifiants, pop brute, doublons moy/med)
+acp_vars = ["listings_1000hab", "entire_1000hsg", "prix_med", "prix_iqr",
+            "pct_entire", "pct_multi", "pct_longterm", "ratio_lh",
+            "pct_hosts_50pct", "dispo_med", "reviews_med", "rpm_med"]
+
+X = kpi[acp_vars].copy()
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+print(f"ACP sur {X.shape[0]} villes × {X.shape[1]} variables actives")
+print(f"\nVariables retenues :")
+for v in acp_vars:
+    print(f"  - {v:25s}  (σ={X[v].std():.2f}, CV={X[v].std()/X[v].mean()*100:.0f}%)")
+```
+
+## Screeplot — Variance expliquée
+
+```{python}
+#| label: fig-screeplot
+#| output: asis
+
+pca = PCA(n_components=min(len(acp_vars), X.shape[0]))
+coords = pca.fit_transform(X_scaled)
+
+var_exp = pca.explained_variance_ratio_ * 100
+cum_var = np.cumsum(var_exp)
+
+fig = go.Figure()
+fig.add_trace(go.Bar(x=[f"PC{i+1}" for i in range(len(var_exp))],
+                     y=var_exp, name="% variance",
+                     marker_color=COL_CYAN, opacity=0.7))
+fig.add_trace(go.Scatter(x=[f"PC{i+1}" for i in range(len(var_exp))],
+                         y=cum_var, name="% cumulé",
+                         mode="lines+markers", marker_color=COL_ORANGE,
+                         line=dict(width=2)))
+# Ligne seuil 80%
+fig.add_hline(y=80, line_dash="dash", line_color="#999",
+              annotation_text="80%", annotation_position="bottom right")
+fig.update_layout(
+    title=_mod.fig_title(1, "Screeplot — Variance expliquée par composante",
+                         f"ACP sur {len(acp_vars)} variables × {X.shape[0]} villes"),
+    xaxis_title="Composante", yaxis_title="% variance expliquée",
+    height=420, showlegend=True, legend=dict(x=0.7, y=0.5))
+fig.show()
+```
+
+```{python}
+#| label: acp-variance-summary
+
+print(f"Variance expliquée par les premières composantes :")
+for i in range(min(5, len(var_exp))):
+    bar = "█" * int(var_exp[i] / 2)
+    print(f"  PC{i+1}: {var_exp[i]:5.1f}% (cumulé: {cum_var[i]:5.1f}%) {bar}")
+print(f"\n→ {int(cum_var[0])+ int(cum_var[1]) - int(cum_var[0])} premières composantes : {cum_var[1]:.1f}% de la variance")
+n_80 = np.argmax(cum_var >= 80) + 1
+print(f"→ {n_80} composantes nécessaires pour 80% de la variance")
+```
+
+## Contributions des variables aux axes
+
+```{python}
+#| label: fig-loadings
+#| output: asis
+
+loadings = pd.DataFrame(pca.components_.T, index=acp_vars,
+                        columns=[f"PC{i+1}" for i in range(pca.n_components_)])
+
+fig = go.Figure()
+for i, pc in enumerate(["PC1", "PC2"]):
+    vals = loadings[pc].sort_values()
+    colors = [COL_CYAN if v >= 0 else COL_ORANGE for v in vals]
+    fig.add_trace(go.Bar(y=vals.index, x=vals.values, orientation="h",
+                         name=pc, marker_color=colors if i == 0 else None,
+                         visible=True if i == 0 else "legendonly"))
+fig.update_layout(
+    title=_mod.fig_title(2, "Contributions des variables — PC1 et PC2",
+                         "Loadings (corrélation variable-composante)"),
+    xaxis_title="Loading", height=450, margin=dict(l=180),
+    barmode="group", showlegend=True)
+fig.show()
+```
+
+```{python}
+#| label: loadings-table
+
+print("Loadings (PC1 à PC4) :")
+print(loadings[["PC1", "PC2", "PC3", "PC4"]].round(3).to_string())
+```
+
+## Biplot — Projection des villes (PC1 × PC2)
+
+```{python}
+#| label: fig-biplot
+#| output: asis
+
+kpi["PC1"] = coords[:, 0]
+kpi["PC2"] = coords[:, 1]
+
+fig = px.scatter(kpi, x="PC1", y="PC2", color="continent",
+                 color_discrete_map=_mod.CONTINENT_COLORS,
+                 hover_name="city", hover_data=["country_code", "listings_1000hab", "prix_med"],
+                 text="city")
+fig.update_traces(textposition="top center", textfont_size=8, marker_size=8)
+
+# Flèches variables (loadings × scale factor)
+scale = max(abs(coords[:, 0]).max(), abs(coords[:, 1]).max()) * 0.8
+for j, var in enumerate(acp_vars):
+    fig.add_annotation(
+        x=loadings.iloc[j, 0] * scale, y=loadings.iloc[j, 1] * scale,
+        ax=0, ay=0, xref="x", yref="y", axref="x", ayref="y",
+        showarrow=True, arrowhead=2, arrowsize=1.2, arrowwidth=1.5,
+        arrowcolor="#888")
+    fig.add_annotation(
+        x=loadings.iloc[j, 0] * scale * 1.12,
+        y=loadings.iloc[j, 1] * scale * 1.12,
+        text=var, showarrow=False, font=dict(size=9, color="#555"))
+
+fig.update_layout(
+    title=_mod.fig_title(3, "Biplot — Projection des 64 villes (PC1 × PC2)",
+                         f"PC1 ({var_exp[0]:.1f}%) × PC2 ({var_exp[1]:.1f}%) = {cum_var[1]:.1f}% variance"),
+    height=650, width=900, margin=dict(l=60, r=60))
+fig.show()
+```
+
+## Clustering Ward — Profils de marchés
+
+```{python}
+#| label: clustering-ward
+
+# Clustering hiérarchique Ward sur composantes principales (PC1-PC4)
+n_pc = min(4, len(var_exp))
+Z = linkage(coords[:, :n_pc], method="ward")
+
+# Découpe en k clusters — test k=3 à k=6, critère silhouette
+from sklearn.metrics import silhouette_score
+
+print("Choix du nombre de clusters (silhouette) :")
+best_k, best_sil = 3, -1
+for k in range(3, 7):
+    labels = fcluster(Z, k, criterion="maxclust")
+    sil = silhouette_score(coords[:, :n_pc], labels)
+    marker = " ← best" if sil > best_sil else ""
+    if sil > best_sil:
+        best_k, best_sil = k, sil
+    print(f"  k={k} : silhouette = {sil:.3f}{marker}")
+
+k_final = best_k
+kpi["cluster"] = fcluster(Z, k_final, criterion="maxclust")
+print(f"\n→ Retenu : k={k_final} clusters (silhouette = {best_sil:.3f})")
+print(f"\nRépartition :")
+for cl in sorted(kpi["cluster"].unique()):
+    cities = kpi[kpi["cluster"] == cl]["city"].tolist()
+    print(f"  Cluster {cl} ({len(cities)} villes) : {', '.join(cities[:8])}{'...' if len(cities) > 8 else ''}")
+```
+
+```{python}
+#| label: fig-clusters-biplot
+#| output: asis
+
+fig = px.scatter(kpi, x="PC1", y="PC2", color=kpi["cluster"].astype(str),
+                 hover_name="city", text="city",
+                 hover_data=["continent", "listings_1000hab", "prix_med"],
+                 color_discrete_sequence=[COL_CYAN, COL_ORANGE, COL_GREEN, COL_MAGENTA, "#fdbf11", "#5c5859"])
+fig.update_traces(textposition="top center", textfont_size=8, marker_size=9)
+fig.update_layout(
+    title=_mod.fig_title(4, f"Clustering Ward — {k_final} profils de marchés (PC1 × PC2)",
+                         "Projection ACP colorée par cluster"),
+    height=600, width=900, legend_title="Cluster")
+fig.show()
+```
+
+## Profils moyens par cluster
+
+```{python}
+#| label: cluster-profiles
+
+profile_vars = ["listings_1000hab", "prix_med", "pct_entire", "pct_multi",
+                "pct_longterm", "dispo_med", "reviews_med", "ratio_lh"]
+
+profiles = kpi.groupby("cluster")[profile_vars].median().round(1)
+profiles.insert(0, "n_villes", kpi.groupby("cluster").size())
+
+# Affichage
+print(f"Profils médians par cluster (k={k_final}) :\n")
+print(profiles)
+
+# Interprétation automatique par cluster
+print("\nInterprétation :")
+for cl in sorted(profiles.index):
+    p = profiles.loc[cl]
+    traits = []
+    if p["prix_med"] > profiles["prix_med"].median():
+        traits.append("prix élevés")
+    else:
+        traits.append("prix modérés")
+    if p["listings_1000hab"] > profiles["listings_1000hab"].median():
+        traits.append("forte pression")
+    else:
+        traits.append("pression modérée")
+    if p["pct_longterm"] > 20:
+        traits.append("longterm important")
+    if p["pct_multi"] > profiles["pct_multi"].median():
+        traits.append("professionnalisé")
+    print(f"  Cluster {cl} ({int(p['n_villes'])} villes) : {', '.join(traits)}")
+```
+
+## Dendrogramme
+
+```{python}
+#| label: fig-dendrogramme
+
+from scipy.cluster.hierarchy import dendrogram
+
+fig_dend, ax = plt.subplots(figsize=(14, 6))
+dendrogram(Z, labels=kpi["city"].values, leaf_rotation=90, leaf_font_size=7,
+           color_threshold=Z[-(k_final-1), 2], ax=ax)
+ax.set_title(f"Dendrogramme Ward — {len(kpi)} villes (coupe k={k_final})")
+ax.set_ylabel("Distance")
+ax.axhline(y=Z[-(k_final-1), 2], color="red", linestyle="--", alpha=0.5)
+plt.tight_layout()
+plt.show()
+```
+
+---
+
+# Tests statistiques
+
+## Kruskal-Wallis par continent
+
+```{python}
+#| label: kruskal-wallis
+
+from scipy.stats import kruskal
+
+test_vars = ["listings_1000hab", "prix_med", "pct_entire", "pct_multi",
+             "pct_longterm", "dispo_med", "reviews_med"]
+
+print(f"Tests de Kruskal-Wallis — Variable ~ Continent ({kpi['continent'].nunique()} groupes)\n")
+print(f"{'Variable':<25s} {'H stat':>8s} {'p-value':>10s} {'Signif':>8s}")
+print("-" * 55)
+for var in test_vars:
+    groups = [g[var].dropna().values for _, g in kpi.groupby("continent")]
+    groups = [g for g in groups if len(g) >= 2]
+    if len(groups) >= 2:
+        h_stat, p_val = kruskal(*groups)
+        sig = "***" if p_val < 0.001 else "**" if p_val < 0.01 else "*" if p_val < 0.05 else "ns"
+        print(f"{var:<25s} {h_stat:>8.2f} {p_val:>10.4f} {sig:>8s}")
+```
+
+---
+
+::: {.callout-tip}
+## Prochaines étapes
+
+- [ ] Analyse longterm et régulation par ville
+- [ ] Distributions spatiales (latitude/prix, population/pression)
+- [ ] Analyse temporelle multi-snapshots
+- [ ] Modélisation prix (features → prix prédit)
+:::

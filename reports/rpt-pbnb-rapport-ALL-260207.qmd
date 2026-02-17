@@ -1,0 +1,2429 @@
+---
+title: "Airbnb : les marchés mondiaux de la location courte durée"
+subtitle: "Analyse comparée — 64 villes, 30 pays, 4 continents · Inside Airbnb juin 2025"
+author: "Vincent R."
+date: today
+date-format: "DD MMMM YYYY"
+categories: ["Rapport d'analyse"]
+number-sections: false
+execute:
+  warning: false
+---
+
+
+```{r}
+#| label: setup-reticulate
+#| include: false
+
+# Configurer reticulate pour Python Scoop (packages installés)
+library(reticulate)
+use_python("C:/ScoopApps/apps/python/current/python.exe", required = TRUE)
+
+# Note : NE PAS utiliser jupyter_compat = TRUE, corrompt le rendu après ~7 figures
+
+# Charger helpers R (setup → tables → graphiques)
+source("C:/Users/vince/hh/pq/PDS/mutils/jrr/jcn-setup.R")
+source("C:/Users/vince/hh/pq/PDS/mutils/jrr/jcn-table.R")
+source("C:/Users/vince/hh/pq/PDS/mutils/jrr/jcn-graph.R")
+```
+
+```{python}
+#| label: config
+#| echo: false
+#| code-fold: false
+
+# &s CONFIG - Chemins, palettes, taux de change
+
+from pathlib import Path
+import sys
+
+PROJECT_NAME = "Airbnb 64 Villes Monde"
+BASE = Path(r"C:\Users\vince\hh\pq\PDS\pbnb-airbnb-log-jrr-jpy")
+DATA_PATH = BASE / "data" / "interim" / "dbsumlistings_2506_cons_global.parquet"
+
+MUTILS_JPY = Path(r"C:\Users\vince\hh\pq\PDS\mutils\jpy")
+if str(MUTILS_JPY) not in sys.path:
+    sys.path.insert(0, str(MUTILS_JPY))
+
+# Claude Log — capture metriques pour relecture
+import importlib.util
+_spec = importlib.util.spec_from_file_location("jcn_claude_log", MUTILS_JPY / "jcn-claude-log.py")
+_mod = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_mod)
+ClaudeLog = _mod.ClaudeLog
+clog = ClaudeLog("eda-bnb-global", output_dir=str(BASE / "reports" / "outputs"))
+
+# Taux conversion vers EUR (approx mi-2025)
+FX_EUR = {
+    # Europe (hors zone euro)
+    "GBR": 1.17, "HUN": 0.0026, "TUR": 0.028, "DNK": 0.134, "CZE": 0.040,
+    "NOR": 0.085, "SWE": 0.087, "CHE": 1.06, "LVA": 1.0,
+    # Americas
+    "USA": 0.92, "CAN": 0.67, "BRA": 0.17, "MEX": 0.052, "ARG": 0.001, "CHL": 0.0010,
+    # Asia-Pacific
+    "JPN": 0.0062, "AUS": 0.60, "SGP": 0.69, "CHN": 0.13, "TWN": 0.029, "THA": 0.027,
+    # Africa
+    "ZAF": 0.050,
+}
+
+# Noms de villes en français (64 villes)
+CITY_FR = {
+    # Europe
+    "london": "Londres", "paris": "Paris", "rome": "Rome",
+    "istanbul": "Istanbul", "lisbon": "Lisbonne", "madrid": "Madrid",
+    "athens": "Athènes", "barcelona": "Barcelone", "copenhagen": "Copenhague",
+    "budapest": "Budapest", "florence": "Florence", "vienna": "Vienne",
+    "prague": "Prague", "berlin": "Berlin", "bordeaux": "Bordeaux",
+    "venice": "Venise", "amsterdam": "Amsterdam", "brussels": "Bruxelles",
+    "dublin": "Dublin", "lyon": "Lyon", "milan": "Milan", "porto": "Porto",
+    "oslo": "Oslo", "naples": "Naples", "malaga": "Malaga", "valencia": "Valence",
+    "sevilla": "Séville", "greater-manchester": "Manchester (métro)",
+    "munich": "Munich", "edinburgh": "Édimbourg", "stockholm": "Stockholm",
+    "thessaloniki": "Thessalonique", "bologna": "Bologne",
+    "bergamo": "Bergame", "zurich": "Zurich", "riga": "Riga",
+    # USA
+    "new-york-city": "New York", "los-angeles": "Los Angeles",
+    "chicago": "Chicago", "san-francisco": "San Francisco",
+    "washington-dc": "Washington DC", "boston": "Boston", "seattle": "Seattle",
+    "austin": "Austin", "san-diego": "San Diego", "nashville": "Nashville",
+    "denver": "Denver", "portland": "Portland", "dallas": "Dallas",
+    "new-orleans": "La Nouvelle-Orléans",
+    # Canada
+    "toronto": "Toronto", "vancouver": "Vancouver", "montreal": "Montréal",
+    # Asia-Pacific
+    "tokyo": "Tokyo", "sydney": "Sydney", "melbourne": "Melbourne",
+    "brisbane": "Brisbane", "hong-kong": "Hong Kong", "singapore": "Singapour",
+    "taipei": "Taipei", "bangkok": "Bangkok",
+    # Americas (hors USA/CAN)
+    "mexico-city": "Mexico", "rio-de-janeiro": "Rio de Janeiro",
+    "santiago": "Santiago", "buenos-aires": "Buenos Aires",
+    # Africa
+    "cape-town": "Le Cap",
+}
+
+# Couleurs par continent
+CONTINENT_COLORS = {
+    "Europe": "#1696d2",      # Bleu Urban
+    "Americas": "#ca5800",    # Orange
+    "Asia-Pacific": "#55b748", # Vert
+    "Africa": "#ec008b",      # Magenta
+}
+
+# &e
+```
+
+```{python}
+#| label: setup-imports
+#| echo: false
+
+# &s IMPORTS
+
+import pandas as pd
+import numpy as np
+import warnings
+warnings.filterwarnings('ignore')
+
+# Pas d'itables — on utilise reactable (R) pour les tableaux
+# Les DataFrames sont exportés en CSV puis lus par chunks R
+
+import plotly.express as px
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+import plotly.io as pio
+
+# Fix Plotly 6 + reticulate + Quarto website (bug reticulate #1540/#1468)
+# _repr_html_ silencieusement droppé après ~7 figures par reticulate
+# Solution : print() HTML (toujours capté par knitr) + output:asis global
+# Suppression repr sur Figure → empêche auto-prints intermédiaires
+go.Figure.__repr__ = lambda self: ""
+go.Figure.__str__ = lambda self: ""
+go.Figure._repr_html_ = lambda self: ""
+
+_plotly_cdn_loaded = [False]
+import re as _re
+def _patched_show(self, *args, **kwargs):
+    include_js = "cdn" if not _plotly_cdn_loaded[0] else False
+    _plotly_cdn_loaded[0] = True
+    # Supprimer tout whitespace entre balises : to_html() indente le HTML,
+    # pandoc interprète >4 espaces en début de ligne comme code block → tout sur 1 ligne
+    html = self.to_html(full_html=False, include_plotlyjs=include_js)
+    html = _re.sub(r'>\s+<', '><', html).strip()
+    print(html)
+go.Figure.show = _patched_show
+
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+# Import helpers Python Urban Institute (jcn-graph importe jcn-setup)
+import importlib.util
+_spec_graph = importlib.util.spec_from_file_location("jcn_graph", MUTILS_JPY / "jcn-graph.py")
+_mod_graph = importlib.util.module_from_spec(_spec_graph)
+_spec_graph.loader.exec_module(_mod_graph)
+
+# Couleurs et palettes depuis helper
+COL_CYAN = _mod_graph.COL_CYAN
+COL_YELLOW = _mod_graph.COL_YELLOW
+COL_SPACEGRAY = _mod_graph.COL_SPACEGRAY
+COL_GREEN = _mod_graph.COL_GREEN
+COL_MAGENTA = _mod_graph.COL_MAGENTA
+COL_ORANGE = _mod_graph.COL_ORANGE
+COL_DARKBLUE = _mod_graph.COL_DARKBLUE
+COL_GRAY = _mod_graph.COL_GRAY
+PAL_URBAN = _mod_graph.PAL_URBN_CAT
+LABEL_SIZE = _mod_graph.LABEL_SIZE
+SUBTITLE_SIZE = _mod_graph.SUBTITLE_SIZE
+
+# Initialiser styles Plotly + Matplotlib
+_mod_graph.init_style()
+
+def fig_title(fig, title, subtitle=None, fig_num=None):
+    """Ajoute un titre formaté avec numéro de figure grisé."""
+    if fig_num:
+        title_text = f"<span style='color:#999999;font-weight:500'>Figure {fig_num} —</span> <b>{title}</b>"
+    else:
+        title_text = f"<b>{title}</b>"
+    if subtitle:
+        title_text += f"<br><span style='font-size:{SUBTITLE_SIZE}px;color:{COL_SPACEGRAY};font-weight:normal'>{subtitle}</span>"
+    fig.update_layout(title=dict(text=title_text))
+    return fig
+
+pd.set_option('display.max_columns', 50)
+pd.set_option('display.float_format', lambda x: f'{x:,.2f}')
+
+# &e
+```
+
+```{python}
+#| label: setup-functions
+#| echo: false
+
+# &s HELPERS
+
+def detect_outliers_iqr(series, k=1.5):
+    """Detecte outliers via methode IQR."""
+    Q1, Q3 = series.quantile([0.25, 0.75])
+    IQR = Q3 - Q1
+    return (series < Q1 - k * IQR) | (series > Q3 + k * IQR)
+
+def city_order(df, col="city", by="n"):
+    """Ordre villes par effectif decroissant."""
+    if by == "n":
+        return df[col].value_counts().index.tolist()
+    return df.groupby(col)[by].median().sort_values(ascending=False).index.tolist()
+
+def fmt_k(n):
+    """Formatte nombre en K."""
+    return f"{n/1000:.1f}K" if n >= 1000 else str(n)
+
+def city_fr(name):
+    """Traduit nom de ville en français."""
+    return CITY_FR.get(name.lower(), name.replace("-", " ").title())
+
+def add_city_fr(df, col="city"):
+    """Ajoute colonne city_fr au DataFrame."""
+    df = df.copy()
+    df["city_fr"] = df[col].apply(city_fr)
+    return df
+
+def add_city_label(df, col_city="city", col_country="country_code"):
+    """Ajoute colonne city_label = CODE-Ville (ex: FRA-Paris)."""
+    df = df.copy()
+    df["city_label"] = df[col_country] + "-" + df[col_city].apply(city_fr)
+    return df
+
+def top_bottom(data, value_col, n=12):
+    """Selectionne top N et bottom N par valeur (pour graphiques lisibles)."""
+    s = data.sort_values(value_col, ascending=False)
+    if len(s) <= n * 2 + 4:
+        return s.sort_values(value_col, ascending=True)
+    top = s.head(n)
+    bottom = s.tail(n)
+    return pd.concat([bottom, top])
+
+def city_color(row):
+    """Couleur par continent, France surlignée en jaune."""
+    if row.get("country_code") == "FRA":
+        return COL_YELLOW
+    return CONTINENT_COLORS.get(row.get("continent", "Europe"), COL_CYAN)
+
+def apply_colors(data, col_country="country_code", col_continent="continent"):
+    """Applique couleurs continent au DataFrame (France en jaune)."""
+    return data.apply(
+        lambda r: COL_YELLOW if r[col_country] == "FRA"
+        else CONTINENT_COLORS.get(r.get(col_continent, "Europe"), COL_CYAN), axis=1
+    )
+
+N_CITIES = 64  # Nombre total de villes dans le panel
+
+from plotly.subplots import make_subplots
+
+def plot_bar_top_bottom(data, value_col, n=12, title="", subtitle="", fig_num=None,
+                         avg_value=None, avg_europe=None, text_col=None, height=800):
+    """Barres horizontales top N / bottom N avec make_subplots(rows=2), axes X partagés.
+    text_col: colonne avec labels texte pré-formatés. Si None, utilise value_col arrondi."""
+    s = data.sort_values(value_col, ascending=False)
+    if len(s) <= n * 2 + 4:
+        top = s.copy()
+        bottom = pd.DataFrame()
+    else:
+        top = s.head(n)
+        bottom = s.tail(n)
+    has_bottom = len(bottom) > 0
+    top = top.sort_values(value_col, ascending=True)
+    if has_bottom:
+        bottom = bottom.sort_values(value_col, ascending=False)
+
+    n_rows = 2 if has_bottom else 1
+    fig = make_subplots(
+        rows=n_rows, cols=1, shared_xaxes=True, vertical_spacing=0.08,
+        row_heights=[0.55, 0.45] if has_bottom else [1.0],
+        subplot_titles=[f"Top {n}", f"Bottom {n}"] if has_bottom else None,
+    )
+
+    legend_added = set()
+    panels = [(top, 1)] + ([(bottom, 2)] if has_bottom else [])
+    for panel_data, row in panels:
+        for _, r in panel_data.iterrows():
+            cont = r.get("continent", "")
+            is_fra = r.get("country_code") == "FRA"
+            legend_name = "France" if is_fra else cont
+            color = COL_YELLOW if is_fra else CONTINENT_COLORS.get(cont, COL_CYAN)
+            show = legend_name not in legend_added
+            if show:
+                legend_added.add(legend_name)
+            txt = str(r[text_col]) if text_col else f"{r[value_col]:,.1f}" if r[value_col] >= 100 else f"{r[value_col]:.1f}"
+            fig.add_trace(go.Bar(
+                x=[r[value_col]], y=[r["label"]],
+                orientation="h", marker_color=color, name=legend_name,
+                showlegend=show,
+                text=[txt], textposition="outside",
+                textfont=dict(size=LABEL_SIZE),
+            ), row=row, col=1)
+
+    if avg_value is not None:
+        for row in range(1, n_rows + 1):
+            fig.add_vline(x=avg_value, line_dash="dash", line_color=COL_MAGENTA,
+                          annotation_text=f"Moy. monde {avg_value:,.1f}" if row == 1 else "",
+                          annotation_position="top right", row=row, col=1)
+    if avg_europe is not None:
+        for row in range(1, n_rows + 1):
+            fig.add_vline(x=avg_europe, line_dash="dot", line_color="#55b748",
+                          annotation_text=f"Moy. Europe {avg_europe:,.1f}" if row == 1 else "",
+                          annotation_position="bottom right", row=row, col=1)
+
+    fig_title(fig, title, subtitle=subtitle, fig_num=fig_num)
+    fig.update_layout(
+        height=height, barmode="overlay",
+        yaxis=dict(tickfont=dict(size=LABEL_SIZE)),
+        margin=dict(l=150, r=100, t=100),
+        legend=dict(orientation="h", y=1.02, x=0.5, xanchor="center"),
+    )
+    if has_bottom:
+        fig.update_layout(yaxis2=dict(tickfont=dict(size=LABEL_SIZE)))
+    for ann in fig.layout.annotations:
+        ann.update(font=dict(size=13, color="#999999"))
+    return fig
+
+def add_legend_continents(fig):
+    """Ajoute des traces invisibles pour légende continent + France."""
+    for cont, color in CONTINENT_COLORS.items():
+        fig.add_trace(go.Scatter(
+            x=[None], y=[None], mode="markers",
+            marker=dict(size=10, color=color), name=cont, showlegend=True,
+        ))
+    fig.add_trace(go.Scatter(
+        x=[None], y=[None], mode="markers",
+        marker=dict(size=10, color=COL_YELLOW), name="France", showlegend=True,
+    ))
+    return fig
+
+# &e
+```
+
+# Cadrage {.unnumbered}
+
+::: {.callout-note}
+## Question centrale
+
+**Comment se structurent les marchés Airbnb à l'échelle mondiale, et quels facteurs — prix, pression touristique, professionnalisation, régulation — différencient les 64 principales villes ?**
+
+**Périmètre** : 64 villes · 30 pays · 4 continents · **~790 000 listings** actifs (juin 2025)
+
+**Sources** : Inside Airbnb (scraping plateforme) · Population et logements (Eurostat, instituts nationaux, UN WUP)
+
+**Questions directrices** :
+
+1. *Volumes et géographie* — Où se concentre l'offre Airbnb dans le monde ? L'Europe domine-t-elle toujours ?
+2. *Pression sur les territoires* — Quelles villes subissent la plus forte pression par habitant et par logement ?
+3. *Prix et fractures* — Quelle ampleur l'écart tarifaire entre continents ? Quels facteurs l'expliquent ?
+4. *Professionnalisation* — Les marchés les plus professionnalisés sont-ils aussi les plus chers ?
+5. *Régulation* — Les politiques locales (durée minimale, quotas) laissent-elles des traces mesurables ?
+6. *Typologies* — Peut-on dégager des profils-types de marchés au-delà des continents ?
+:::
+
+::: {.grey-section}
+**Données** : Inside Airbnb juin 2025 · 64 villes / 30 pays / 4 continents · sumlistings + population
+
+**Pipeline** : Prix non null → Dispo > 0 → Excl. hôtels → Prix 10-1000 EUR · Taux rétention **~76 %**
+
+**Exclusions** : Régions non comparables (Sicile, Crète, Mallorca, Hawaii...) · Seuil 3K listings minimum
+:::
+
+### Parcours de lecture {.unnumbered}
+
+::: {.callout-tip collapse="false"}
+## Sommaire détaillé
+
+**Partie 1 — Panorama mondial** : description des 64 marchés selon 5 axes
+
+1. [**Géographie et pression territoriale**](#sec-geo) — De Rio à Tokyo, 790 000 listings sur 4 continents · Porto (55 L/1000 hab) sous pression maximale
+2. [**Volumes et concentration**](#sec-volumes) — Londres-Paris-Rio dominent, mais la hiérarchie se renverse rapportée à la population
+3. [**Niveaux de prix**](#sec-prix) — Un facteur 6 entre Amsterdam (223 EUR) et Bangkok (37 EUR) · fracture continentale
+4. [**Professionnalisation de l'offre**](#sec-pro) — Tokyo (91 % multi-hosts) vs Copenhague (16 %) · corrélation inverse avec les prix
+5. [**Activité et temporalité**](#sec-activite) — Istanbul 354 jours de dispo vs Copenhague 106 · New York 82 % de longterm
+
+**Partie 2 — Analyse multidimensionnelle** : des indicateurs aux profils-types
+
+6. [**Corrélations**](#sec-corr) — Prix et professionnalisation quasi-indépendants au niveau listing · patterns émergents à l'échelle ville
+7. [**Quatre profils-types**](#sec-typo) — ACP + clustering Ward : Premium régulé, Massif intermédiaire, Touristique mature, Budget professionnel
+:::
+
+---
+
+# Méthodologie {.unnumbered}
+
+## Source et périmètre {.unnumbered}
+
+Cette étude exploite les données ouvertes du projet **Inside Airbnb** ([insideairbnb.com](http://insideairbnb.com)), qui collecte et publie périodiquement les annonces visibles sur la plateforme Airbnb dans les principales villes mondiales. Le snapshot retenu est celui de **juin 2025**, le plus récent disponible au moment de l'analyse.
+
+Le périmètre couvre **64 villes réparties sur 30 pays et 4 continents** (Europe, Amériques, Asie-Pacifique, Afrique), sélectionnées selon deux critères : disponibilité des données Inside Airbnb et seuil minimum de **3 000 listings bruts**. Les régions et îles (Sicile, Crète, Mallorca, Hawaii...) ainsi que les comtés/zones régionales ont été exclus car non comparables à des marchés urbains. Le panel résultant représente environ **790 000 listings actifs** après nettoyage.
+
+Deux niveaux de granularité coexistent dans Inside Airbnb :
+
+- **Sumlistings** (18 colonnes) : fichier léger avec les variables clés (prix, type, disponibilité, reviews). C'est la base principale de cette EDA.
+- **Listings complets** (74 colonnes) : fichier détaillé incluant descriptions, équipements, scores — utilisé ponctuellement pour des analyses complémentaires.
+
+Les données de **population** et de **logements** proviennent de sources croisées : Eurostat et `city_reference_data.py` (commune propre) pour les villes européennes, estimations métropolitaines (UN WUP 2023-2024, instituts nationaux) pour le reste du monde. Le biais de dénominateur reste présent pour les petites villes européennes (Florence, Venise) où la commune est bien plus petite que l'aire fonctionnelle, et pour les métropoles mondiales où la définition de l'aire urbaine varie.
+
+## Pipeline de nettoyage {.unnumbered}
+
+Le nettoyage séquentiel vise à ne conserver que les **listings actifs et comparables** :
+
+| Étape | Règle | Justification | Impact typique |
+|-------|-------|---------------|----------------|
+| 1 | Prix non null | Les listings sans prix sont inactifs ou retirés (80 % ont disponibilité = 0) | ~25 % exclus |
+| 2 | Disponibilité > 0 | Les listings avec 0 jour disponible sont effectivement retirés du marché | ~5 % |
+| 3 | Exclure Hotel room | Les hôtels faussent la comparaison avec le marché locatif | ~1 % |
+| 4 | Prix EUR 10-1000 | Les prix extrêmes sont des erreurs de saisie ou des listings atypiques | ~3 % |
+| 5 | Flag `is_longterm` | min_nights ≥ 30 — **non exclu**, flaggé comme indicateur de régulation | 0 % (flag) |
+
+Le **taux de rétention global** est d'environ **76 %** de la base brute. La conversion en euros utilise les taux de change mi-2025 pour les 21 pays hors zone euro (USD, GBP, JPY, AUD, CAD, BRL, etc.).
+
+## Indicateurs construits {.unnumbered}
+
+Les indicateurs sont calculés à deux niveaux : **listing** (variables individuelles) et **ville** (agrégations).
+
+**Niveau listing** (colonnes ajoutées) :
+
+- `price_eur` : prix converti en EUR via taux de change fixe
+- `is_entire_home` : 1 si Entire home/apt, 0 sinon
+- `is_multihost` : 1 si le host gère plus d'un listing (`calculated_host_listings_count > 1`)
+- `is_longterm` : 1 si `minimum_nights ≥ 30` (proxy de régulation)
+
+**Niveau ville** (agrégations) :
+
+- **Pression touristique** : listings / 1 000 habitants et listings / 1 000 logements
+- **Ratio L/H** : nombre de listings / nombre de hosts uniques (proxy de professionnalisation)
+- **Concentration** : % de hosts nécessaires pour couvrir 50 % de l'offre (Gini-like)
+- **Profils de disponibilité** : répartition en 4 catégories (<30j, 30-90j, 90-180j, >180j)
+
+## Approche analytique {.unnumbered}
+
+L'analyse suit une progression en **5 axes** :
+
+1. **Volumes et structure** — Taille des marchés, ratio listings/hosts, composition par type de logement, impact des contraintes longterm
+2. **Prix et positionnement** — Niveaux, dispersion (IQR), différentiel par type de logement
+3. **Professionnalisation** — Distribution des portefeuilles hosts, concentration de l'offre (top 1 %, top 10 %, seuil 50 %)
+4. **Activité et disponibilité** — Reviews comme proxy d'ancienneté, profils de disponibilité annuelle
+5. **Synthèse multidimensionnelle** — Matrice de corrélation, ACP (2 composantes), clustering hiérarchique (Ward)
+
+## Limites et précautions {.unnumbered}
+
+- **Biais de scraping** : Inside Airbnb ne capture que les annonces *visibles* à un instant donné. Les annonces pausées, supprimées ou en brouillon ne sont pas incluses.
+- **Population métropolitaine** : Les ratios par habitant utilisent l'aire métropolitaine, ce qui sous-estime la pression pour les petites communes (Florence, Venise) et la surestime pour les grandes agglomérations (Paris, Londres).
+- **Prix affichés ≠ prix payés** : Le prix listé peut différer du prix final (frais de ménage, réductions longue durée, tarification dynamique).
+- **Snapshot unique** : Un seul point temporel (juin 2025) ne permet pas d'analyser la saisonnalité ni les tendances.
+- **Comparabilité réglementaire** : Les régimes juridiques diffèrent fortement entre pays (licence obligatoire, plafond de nuitées, zonage), ce qui rend les comparaisons directes fragiles sans contextualisation.
+
+---
+
+# Import et nettoyage
+
+```{python}
+#| label: data-import
+
+# &s LOAD
+df_raw = pd.read_parquet(DATA_PATH)
+
+print(f"Dataset: {PROJECT_NAME}")
+print(f"Source: {DATA_PATH.name}")
+print(f"Dimensions: {df_raw.shape[0]:,} lignes x {df_raw.shape[1]} colonnes")
+print(f"Memoire: {df_raw.memory_usage(deep=True).sum() / 1024**2:.1f} MB")
+print(f"Villes: {df_raw['city'].nunique()} | Pays: {df_raw['country_code'].nunique()}")
+# &e
+```
+
+```{python}
+#| label: data-preview-export
+#| output: false
+#| echo: false
+
+# Export pour reactable
+df_raw.head(50).to_csv(BASE / "reports" / "ytest" / "temp_preview.csv", index=False, encoding="utf-8-sig")
+```
+
+```{r}
+#| label: data-preview
+
+df_preview <- read.csv("C:/Users/vince/hh/pq/PDS/pbnb-airbnb-log-jrr-jpy/reports/ytest/temp_preview.csv", fileEncoding = "UTF-8")
+rt_styled(df_preview, page_size = 15, compact = TRUE)
+```
+
+## Pipeline de nettoyage {.unnumbered}
+
+Le nettoyage suit la méthodologie définie dans `gdmeth-indic-airbnb-260109.md`. L'étape la plus impactante est l'exclusion des **listings sans prix**, qui correspondent à des annonces *inactives ou retirées* (80% ont une disponibilité à zéro).
+
+```{python}
+#| label: data-cleaning
+#| output: false
+#| echo: false
+
+# &s CLEAN_PIPELINE
+
+df = df_raw.copy()
+
+# Conversion prix EUR si pas deja fait
+if "price_eur" not in df.columns:
+    df["price_eur"] = df.apply(
+        lambda r: r["price"] * FX_EUR.get(r["country_code"], 1.0)
+        if pd.notna(r["price"]) else None, axis=1
+    )
+
+# Flags binaires
+if "is_entire_home" not in df.columns:
+    df["is_entire_home"] = (df["room_type"] == "Entire home/apt").astype(int)
+if "is_multihost" not in df.columns:
+    df["is_multihost"] = (df["calculated_host_listings_count"] > 1).astype(int)
+
+# Flag longterm AVANT exclusion (regulation, pas filtre)
+df["is_longterm"] = (df["minimum_nights"] >= 30).astype(int)
+
+# Pipeline sequentiel avec compteurs
+n0 = len(df)
+steps = []
+
+df = df[df["price"].notna()]
+steps.append(("Prix non null", n0 - len(df), len(df)))
+
+n_before = len(df)
+df = df[df["availability_365"] > 0]
+steps.append(("Disponibilite > 0", n_before - len(df), len(df)))
+
+n_before = len(df)
+df = df[df["room_type"] != "Hotel room"]
+steps.append(("Exclure Hotel room", n_before - len(df), len(df)))
+
+n_before = len(df)
+df = df[(df["price_eur"] >= 10) & (df["price_eur"] <= 1000)]
+steps.append(("Prix EUR 10-1000", n_before - len(df), len(df)))
+
+print(f"{'Etape':<25} {'Exclus':>10} {'Restant':>10}")
+print("-" * 50)
+print(f"{'Base brute':<25} {'':>10} {n0:>10,}")
+for step, excl, rest in steps:
+    print(f"{step:<25} {excl:>10,} {rest:>10,}")
+print("-" * 50)
+print(f"{'TOTAL EXCLUS':<25} {n0 - len(df):>10,} {len(df):>10,}")
+print(f"\nTaux retention: {len(df)/n0*100:.1f}%")
+print(f"Dont is_longterm (flag, non exclu): {df['is_longterm'].sum():,} ({df['is_longterm'].mean()*100:.1f}%)")
+
+# Log pipeline cleaning
+clog.step("LOAD_RAW", n_rows=n0, n_cols=df_raw.shape[1],
+          n_cities=int(df_raw["city"].nunique()), n_countries=int(df_raw["country_code"].nunique()))
+_nb = n0
+for step_name, n_excl, n_rest in steps:
+    clog.cleaning_step(step_name, n_before=_nb, n_after=n_rest)
+    _nb = n_rest
+clog.step("CLEAN_FINAL", n_clean=len(df), retention_pct=round(len(df)/n0*100, 1),
+          n_longterm=int(df["is_longterm"].sum()), pct_longterm=round(df["is_longterm"].mean()*100, 1))
+clog.distribution("prix_eur", df["price_eur"], label="Prix EUR/nuit (nettoye)")
+
+# &e
+```
+
+## Statistiques descriptives {.unnumbered}
+
+```{python}
+#| label: gt-desc-stats
+#| output: asis
+#| echo: false
+
+# &s GT_DESC_STATS
+from great_tables import GT, md, style, loc
+
+# Variables numériques clés
+vars_desc = ["price_eur", "availability_365", "minimum_nights",
+             "number_of_reviews", "reviews_per_month", "calculated_host_listings_count"]
+labels = {
+    "price_eur": "Prix (EUR/nuit)",
+    "availability_365": "Disponibilité (jours/an)",
+    "minimum_nights": "Nuits minimum",
+    "number_of_reviews": "Nb avis (total)",
+    "reviews_per_month": "Avis / mois",
+    "calculated_host_listings_count": "Listings / host",
+}
+
+desc = df[vars_desc].describe().T
+desc = desc.reset_index().rename(columns={"index": "Variable"})
+desc = desc[["Variable", "count", "mean", "std", "min", "25%", "50%", "75%", "max"]]
+desc.columns = ["Variable", "N", "Moyenne", "Écart-type", "Min", "Q1", "Médiane", "Q3", "Max"]
+desc["Variable"] = desc["Variable"].map(labels)
+
+table = (
+    GT(desc)
+    .tab_header(
+        title="Statistiques descriptives des listings actifs",
+        subtitle=md(f"**{len(df):,} listings** — {df['city'].nunique()} villes, {df['country_code'].nunique()} pays — juin 2025")
+    )
+    .fmt_number(columns=["Moyenne", "Écart-type", "Min", "Q1", "Médiane", "Q3", "Max"], decimals=1)
+    .fmt_integer(columns="N")
+    .tab_style(
+        style=style.text(weight="bold"),
+        locations=loc.body(columns="Variable")
+    )
+    .tab_source_note("Source : Inside Airbnb, juin 2025 — après pipeline de nettoyage")
+    .opt_row_striping()
+)
+print(table.as_raw_html(all_important=True))
+# &e
+```
+
+---
+
+# Partie 1 — Panorama mondial : 64 villes sur 4 continents {.unnumbered}
+
+Cette première partie dresse le portrait descriptif des marchés Airbnb à l'échelle mondiale. En parcourant successivement la géographie de l'offre, les volumes, les niveaux de prix, la professionnalisation des hosts et l'activité des plateformes, elle révèle les **grandes fractures** — entre continents, entre villes patrimoniales et métropoles mondiales, entre marchés matures et émergents.
+
+### Vue d'ensemble par continent
+
+[**L'Europe concentre 57 % des listings mondiaux mais l'Asie-Pacifique affiche la professionnalisation la plus extrême, les Amériques les prix les plus élevés**]{.insight}
+
+Avant d'examiner chaque indicateur ville par ville, le tableau ci-dessous synthétise les profils continentaux. Ces moyennes agrégées masquent la variabilité intra-continent (que l'analyse par ville dévoilera), mais dessinent les grandes lignes de la structuration mondiale.
+
+```{python}
+#| label: continent-overview
+#| output: asis
+#| echo: false
+
+# &s CONTINENT_OVERVIEW - Vue agrégée par continent
+cont_agg = df.groupby("continent").agg(
+    n_villes=("city", "nunique"),
+    n_listings=("city", "size"),
+    prix_med=("price_eur", "median"),
+    pct_entire=("is_entire_home", lambda x: x.mean() * 100),
+    pct_multi=("is_multihost", lambda x: x.mean() * 100),
+    dispo_med=("availability_365", "median"),
+    pct_longterm=("is_longterm", lambda x: x.mean() * 100),
+).reset_index()
+
+# Part en % du total
+cont_agg["pct_total"] = (cont_agg["n_listings"] / cont_agg["n_listings"].sum() * 100).round(1)
+
+# Ordonner par volume
+cont_agg = cont_agg.sort_values("n_listings", ascending=False)
+
+# Format tableau HTML
+rows_html = ""
+for _, r in cont_agg.iterrows():
+    rows_html += f"""<tr>
+      <td><strong>{r['continent']}</strong></td>
+      <td>{int(r['n_villes'])}</td>
+      <td>{int(r['n_listings']):,}</td>
+      <td>{r['pct_total']:.0f} %</td>
+      <td>{r['prix_med']:.0f} EUR</td>
+      <td>{r['pct_entire']:.0f} %</td>
+      <td>{r['pct_multi']:.0f} %</td>
+      <td>{r['dispo_med']:.0f} j</td>
+      <td>{r['pct_longterm']:.0f} %</td>
+    </tr>"""
+
+# Ligne mondiale
+rows_html += f"""<tr style="border-top: 2px solid #333; font-weight: 600;">
+  <td>Monde (64 villes)</td>
+  <td>{df['city'].nunique()}</td>
+  <td>{len(df):,}</td>
+  <td>100 %</td>
+  <td>{df['price_eur'].median():.0f} EUR</td>
+  <td>{df['is_entire_home'].mean()*100:.0f} %</td>
+  <td>{df['is_multihost'].mean()*100:.0f} %</td>
+  <td>{df['availability_365'].median():.0f} j</td>
+  <td>{df['is_longterm'].mean()*100:.0f} %</td>
+</tr>"""
+
+html = f"""<div class="grey-section">
+<table style="width:100%; border-collapse:collapse; font-size:0.9em;">
+<thead>
+<tr style="border-bottom: 2px solid #333;">
+  <th style="text-align:left;">Continent</th>
+  <th>Villes</th><th>Listings</th><th>Part</th>
+  <th>Prix méd.</th><th>% Entire</th><th>% Multi-host</th>
+  <th>Dispo méd.</th><th>% Longterm</th>
+</tr>
+</thead>
+<tbody>{rows_html}</tbody>
+</table>
+<p class="figure-source">Source : Inside Airbnb, juin 2025 — après pipeline de nettoyage</p>
+</div>"""
+print(html)
+
+# &e
+```
+
+Quatre dynamiques continentales se dessinent dès cette vue d'ensemble : l'Europe mature et variée, les Amériques polarisées entre premium (USA) et budget (LatAm), l'Asie-Pacifique hyper-professionnalisée à prix modérés, et l'Afrique émergente (un seul marché significatif : Le Cap).
+
+## Géographie et pression territoriale : 64 marchés sur 4 continents {#sec-geo}
+
+### Carte des 64 villes mondiales
+
+[**De Rio à Tokyo, 790 000 listings répartis sur 64 villes et 30 pays — la taille des bulles révèle la domination Londres-Paris-Rio**]{.insight}
+
+Cette carte positionne les 64 marchés étudiés avec une taille de bulle proportionnelle au volume de listings et une couleur par continent. Elle permet de visualiser la **géographie mondiale de l'offre Airbnb** *(figure ci-dessous)*.
+
+```{python}
+#| label: map-world
+#| output: asis
+#| echo: false
+
+# &s MAP_WORLD
+# Agrégation par ville pour la carte
+map_data = df.groupby(["city", "country_code"]).agg(
+    n=("id", "count"),
+    lat=("city_lat", "first"),
+    lon=("city_lon", "first"),
+    pop=("city_pop", "first"),
+    continent=("continent", "first"),
+).reset_index()
+map_data = add_city_fr(map_data)
+map_data["listings_per_1000hab"] = (map_data["n"] / map_data["pop"] * 1000).round(1)
+map_data["bubble_size"] = np.sqrt(map_data["n"]) / 8
+map_data["color"] = apply_colors(map_data)
+
+# Carte scatter_geo monde
+fig = go.Figure()
+for cont, color in CONTINENT_COLORS.items():
+    sub = map_data[map_data["continent"] == cont]
+    if len(sub) == 0:
+        continue
+    # France override
+    colors = [COL_YELLOW if cc == "FRA" else color for cc in sub["country_code"]]
+    fig.add_trace(go.Scattergeo(
+        lon=sub["lon"], lat=sub["lat"],
+        text=sub["city_fr"],
+        name=cont,
+        customdata=np.stack([sub["n"], sub["listings_per_1000hab"], sub["country_code"]], axis=-1),
+        hovertemplate="<b>%{text}</b> (%{customdata[2]})<br>Listings: %{customdata[0]:,.0f}<br>Par 1000 hab: %{customdata[1]:.1f}<extra></extra>",
+        marker=dict(
+            size=sub["bubble_size"], sizemin=6, sizemode="diameter",
+            color=colors, line=dict(width=1, color="white"), opacity=0.85,
+        ),
+        mode="markers",
+    ))
+
+fig.update_geos(
+    showland=True, landcolor="#f8f8f8",
+    showocean=True, oceancolor="#e3f2fd",
+    showcountries=True, countrycolor="#bdbdbd",
+    showcoastlines=True, coastlinecolor="#9e9e9e",
+    projection_type="natural earth",
+)
+
+fig_title(fig, "Carte des 64 villes mondiales",
+          subtitle="Taille proportionnelle au volume — couleur par continent — France en jaune", fig_num=1)
+fig.update_layout(height=600, width=1200, margin=dict(t=80, l=10, r=10, b=20),
+                  legend=dict(orientation="h", y=-0.05))
+fig.show()
+# &e
+```
+
+### Pression touristique
+
+[**Porto compte 55 listings pour 1 000 habitants, Lisbonne 38, Bordeaux et Florence ~31 — une pression 140 fois supérieure à celle de Singapour**]{.insight}
+
+Le nombre brut de listings ne suffit pas pour mesurer la *pression Airbnb* sur un territoire. Rapporté à la population (commune) et au parc de logements, le classement change radicalement. Porto, avec 232 000 habitants, affiche **55 listings pour 1 000 habitants** — un ratio 140 fois supérieur à Singapour (0,4). Lisbonne (38), Bordeaux (31,5) et Florence (31) complètent le podium des villes sous forte pression touristique relative, devant Bergame (28), Venise (27) et Paris (24).
+
+Le ratio **listings / logements** est encore plus parlant pour mesurer l'impact sur le marché locatif résidentiel : Porto atteint 96 L/1000 logements, Lisbonne 64, Florence 56. Les villes européennes patrimoniales et touristiques dominent ce classement, tandis que les métropoles mondiales (Tokyo, New York, Singapour) montrent une pénétration relative très faible malgré des volumes importants.
+
+Trois constats structurent cette analyse :
+
+- Les villes européennes de taille moyenne (Porto, Lisbonne, Bordeaux, Florence) subissent la plus forte pression relative
+- Les grandes métropoles mondiales (Tokyo, New York, Singapour) se retrouvent en bas du classement relatif malgré des volumes importants
+- Le ratio par logement est un meilleur indicateur d'impact sur le marché immobilier que le ratio par habitant
+
+```{python}
+#| label: ax0-pression-calc
+#| output: false
+#| echo: false
+
+# &s PRESSION_CALC
+# Agrégation avec population et logements
+pression = df.groupby(["country_code", "city"]).agg(
+    n=("id", "count"),
+    pop=("city_pop", "first"),
+    housing=("city_housing", "first"),
+    continent=("continent", "first"),
+).reset_index()
+pression = add_city_fr(pression)
+pression["listings_1000hab"] = (pression["n"] / pression["pop"] * 1000).round(1)
+pression["listings_1000housing"] = (pression["n"] / pression["housing"] * 1000).round(1)
+
+# Moyenne pondérée monde
+avg_1000hab = pression["n"].sum() / pression["pop"].sum() * 1000
+avg_1000housing = pression["n"].sum() / pression["housing"].sum() * 1000
+
+# Moyenne pondérée Europe
+pression_eur = pression[pression["continent"] == "Europe"]
+avg_eur_1000hab = pression_eur["n"].sum() / pression_eur["pop"].sum() * 1000
+avg_eur_1000housing = pression_eur["n"].sum() / pression_eur["housing"].sum() * 1000
+
+# Labels CODE-Ville + couleurs continent
+pression["label"] = pression["country_code"] + "-" + pression["city_fr"]
+pression["color"] = apply_colors(pression)
+
+# Export CSV pour reactable
+pression[["continent", "country_code", "city_fr", "n", "pop", "housing", "listings_1000hab", "listings_1000housing"]].rename(
+    columns={"continent": "Continent", "country_code": "Pays", "city_fr": "Ville", "n": "Listings",
+             "pop": "Population", "housing": "Logements",
+             "listings_1000hab": "L_1000hab", "listings_1000housing": "L_1000log"}
+).to_csv(BASE / "reports" / "ytest" / "temp_pression.csv", index=False, encoding="utf-8-sig")
+
+# Log pression
+clog.ranking("top5_pression_hab", pression, col="city", value_col="listings_1000hab", n=5)
+clog.ranking("top5_pression_housing", pression, col="city", value_col="listings_1000housing", n=5)
+clog.result("pression_averages", {
+    "avg_1000hab": round(avg_1000hab, 1),
+    "avg_1000housing": round(avg_1000housing, 1),
+}, interpret=f"Moyenne {N_CITIES} villes: {avg_1000hab:.1f}/1000hab, {avg_1000housing:.1f}/1000 logements")
+# &e
+```
+
+::: {.panel-tabset}
+
+### Par habitant
+
+```{python}
+#| label: ax0-pression-hab
+#| output: asis
+#| echo: false
+
+# &s PRESSION_HAB
+fig = plot_bar_top_bottom(
+    pression, "listings_1000hab", n=12,
+    title="Pression touristique : listings pour 1 000 habitants",
+    subtitle=f"Top/bottom 12 sur {N_CITIES} villes — couleur par continent · lignes moy. monde et Europe",
+    fig_num=2, avg_value=avg_1000hab, avg_europe=avg_eur_1000hab, height=750,
+)
+fig.show()
+# &e
+```
+
+### Par logement
+
+```{python}
+#| label: ax0-pression-housing
+#| output: asis
+#| echo: false
+
+# &s PRESSION_HOUSING
+fig = plot_bar_top_bottom(
+    pression, "listings_1000housing", n=12,
+    title="Pression immobilière : listings pour 1 000 logements",
+    subtitle=f"Top/bottom 12 sur {N_CITIES} villes — couleur par continent · lignes moy. monde et Europe",
+    fig_num=3, avg_value=avg_1000housing, avg_europe=avg_eur_1000housing, height=750,
+)
+fig.show()
+# &e
+```
+
+### Table formatée
+
+```{r}
+#| label: ax0-pression-table
+
+df_pression <- read.csv("C:/Users/vince/hh/pq/PDS/pbnb-airbnb-log-jrr-jpy/reports/ytest/temp_pression.csv", fileEncoding = "UTF-8")
+stats_hab <- compute_bar_stats(df_pression$L_1000hab)
+stats_log <- compute_bar_stats(df_pression$L_1000log)
+
+rt_styled(
+  df_pression,
+  columns = list(
+    Continent = colDef(minWidth = 80),
+    Pays = colDef(minWidth = 50),
+    Ville = colDef(minWidth = 100, style = list(fontWeight = "500")),
+    Listings = colDef(format = colFormat(separators = TRUE, digits = 0)),
+    Population = colDef(format = colFormat(separators = TRUE, digits = 0)),
+    Logements = colDef(format = colFormat(separators = TRUE, digits = 0)),
+    L_1000hab = colDef(name = "L/1000 hab", cell = bar_simple(stats_hab$p98, fill = "#1696d2"), minWidth = 130),
+    L_1000log = colDef(name = "L/1000 log", cell = bar_simple(stats_log$p98, fill = "#ec008b"), minWidth = 130)
+  ),
+  defaultSorted = list(L_1000hab = "desc"),
+  searchable = TRUE,
+  page_size = 20
+)
+```
+
+:::
+
+---
+
+## Volumes et concentration : qui domine le marché mondial ? {#sec-volumes}
+
+### Taille relative des marchés
+
+[**Londres (61K), Paris (51K) et Rio (38K) dominent le classement mondial, mais la hiérarchie change quand on rapporte à la population**]{.insight}
+
+Le marché Airbnb mondial présente une structure **fortement concentrée**. Trois métropoles dépassent les 35 000 listings actifs, puis un peloton s'étale entre 3 000 et 35 000 — un écart de 1 à 25 entre les plus petits marchés et Londres.
+
+Le trio Londres-Paris-Rio représente à lui seul **19 % de l'offre totale** des 64 villes étudiées. L'Europe domine avec 36 villes et 57 % des listings, suivie par les Amériques (19 villes, 28 %). L'Asie-Pacifique (8 villes) apporte 12 % du volume global.
+
+Trois constats résument cette répartition :
+
+- Londres, Paris et Rio cumulent **150 000 listings**, soit près de 20 % du total mondial
+- L'Europe concentre la majorité des marchés mais les Amériques pèsent en volume individuel
+- Les marchés asiatiques (Tokyo, Bangkok, Melbourne) émergent avec des profils atypiques
+
+Ces écarts de taille posent la question de la structure de l'offre : les grands marchés sont-ils plus professionnalisés ?
+
+```{python}
+#| label: ax1-volumes-calc
+#| output: false
+#| echo: false
+
+# &s VOL_CALC
+vol = df.groupby(["country_code", "city"]).agg(
+    n=("id", "count"),
+    n_hosts=("host_id", "nunique"),
+    continent=("continent", "first"),
+).reset_index()
+vol = add_city_fr(vol)
+vol = add_city_label(vol)
+
+# Couleurs continent + labels
+vol["color"] = apply_colors(vol)
+vol["label"] = vol["country_code"] + "-" + vol["city_fr"]
+avg_vol = vol["n"].mean()
+vol["ratio_lh"] = (vol["n"] / vol["n_hosts"]).round(2)
+vol_eur = vol[vol["continent"] == "Europe"]
+avg_vol_eur = vol_eur["n"].mean()
+
+# Export CSV pour reactable
+vol[["continent", "country_code", "city_fr", "n", "n_hosts", "ratio_lh"]].rename(
+    columns={"continent": "Continent", "country_code": "Pays", "city_fr": "Ville",
+             "n": "Listings", "n_hosts": "Hosts", "ratio_lh": "Ratio_LH"}
+).to_csv(BASE / "reports" / "ytest" / "temp_volumes.csv", index=False, encoding="utf-8-sig")
+
+# Log volumes
+clog.ranking("top5_volume", vol, col="city", value_col="n", n=5)
+clog.ranking("bottom5_volume", vol, col="city", value_col="n", n=5, ascending=True)
+
+all_vols = {r["city"]: {"n": int(r["n"]), "n_hosts": int(r["n_hosts"]), "ratio_lh": float(r["ratio_lh"])}
+            for _, r in vol.iterrows()}
+clog.result("all_city_volumes", all_vols,
+            interpret=f"{N_CITIES} villes: total {vol['n'].sum():,} listings, "
+                      f"range {vol['n'].min():,}-{vol['n'].max():,}, "
+                      f"Top3 = {vol.nlargest(3, 'n')['n'].sum():,} "
+                      f"({vol.nlargest(3, 'n')['n'].sum()/vol['n'].sum()*100:.0f}%)")
+
+room_global = df.groupby("room_type").size()
+room_pct = (room_global / len(df) * 100).round(1)
+clog.result("room_type_global", room_pct.to_dict(),
+            interpret=f"Entire {room_pct.get('Entire home/apt', 0):.1f}%, "
+                      f"Private {room_pct.get('Private room', 0):.1f}%, "
+                      f"Shared {room_pct.get('Shared room', 0):.1f}%")
+# &e
+```
+
+::: {.panel-tabset}
+
+### Graphique
+
+```{python}
+#| label: ax1-volumes
+#| output: asis
+#| echo: false
+
+# &s VOL_BAR
+vol["text_n"] = vol["n"].apply(lambda v: f"{v:,.0f}")
+fig = plot_bar_top_bottom(
+    vol, "n", n=12,
+    title="Nombre de listings actifs par ville",
+    subtitle=f"Top/bottom 12 sur {N_CITIES} villes — lignes moy. monde et Europe",
+    fig_num=4, avg_value=avg_vol, avg_europe=avg_vol_eur, text_col="text_n", height=750,
+)
+fig.show()
+# &e
+```
+
+### Table formatée
+
+```{r}
+#| label: ax1-volumes-table
+
+df_vol <- read.csv("C:/Users/vince/hh/pq/PDS/pbnb-airbnb-log-jrr-jpy/reports/ytest/temp_volumes.csv", fileEncoding = "UTF-8")
+stats_n <- compute_bar_stats(df_vol$Listings)
+
+rt_styled(
+  df_vol,
+  columns = list(
+    Continent = colDef(minWidth = 80),
+    Pays = colDef(minWidth = 50),
+    Ville = colDef(minWidth = 100, style = list(fontWeight = "500")),
+    Listings = colDef(cell = bar_simple(stats_n$p98, fill = "#1696d2"), minWidth = 140),
+    Hosts = colDef(format = colFormat(separators = TRUE, digits = 0)),
+    Ratio_LH = colDef(name = "Ratio L/H", format = colFormat(digits = 2))
+  ),
+  defaultSorted = list(Listings = "desc"),
+  searchable = TRUE,
+  page_size = 20
+)
+```
+
+:::
+
+
+### Ratio Listings / Hosts
+
+[**Tokyo affiche 4,5 listings par host quand Copenhague reste à 1,1 — un écart de professionnalisation de 1 à 4**]{.insight}
+
+Le ratio listings/hosts mesure la concentration de l'offre : un ratio proche de 1 signale un marché *d'hôtes individuels*, un ratio supérieur à 2 indique une offre structurée par des **gestionnaires multi-biens** *(figure ci-contre)*.
+
+Tokyo (4,5), Hong Kong (4,2), Singapour et Taipei (4,2) affichent les ratios les plus extrêmes, révélant des marchés largement dominés par des opérateurs professionnels. En Europe, Barcelone (3,2), Prague (3,0) et Porto (2,7) dépassent le seuil de 2,5. À l'inverse, Copenhague (1,1) et Amsterdam (1,2) restent proches de 1 — reflet direct de leur *régulation stricte*.
+
+Trois constats structurent cette analyse :
+
+- L'Asie-Pacifique domine avec les ratios les plus élevés (Tokyo, Bangkok, Taipei, Singapour)
+- Les marchés régulés européens restent sous 1,5 (Copenhague, Amsterdam, Bordeaux)
+- Ce ratio corrèle fortement avec le taux de multi-hosts — les deux indicateurs convergent
+
+```{python}
+#| label: ax1-ratio-lh
+#| output: asis
+#| echo: false
+
+# &s RATIO_LH
+avg_ratio = vol["ratio_lh"].mean()
+avg_ratio_eur = vol_eur["ratio_lh"].mean()
+vol["text_ratio"] = vol.apply(lambda r: f"{r['ratio_lh']:.2f}  ({r['n']:,.0f})", axis=1)
+fig = plot_bar_top_bottom(
+    vol, "ratio_lh", n=12,
+    title="Ratio Listings / Hosts",
+    subtitle=f"Top/bottom 12 sur {N_CITIES} — ratio + (volume) — lignes moy. monde et Europe",
+    fig_num=5, text_col="text_ratio", height=750,
+)
+fig.add_vline(x=1.5, line_dash="dash", line_color=COL_MAGENTA, annotation_text="Seuil 1.5")
+fig.add_vline(x=avg_ratio, line_dash="dot", line_color=COL_ORANGE,
+              annotation_text=f"Moy. monde {avg_ratio:.2f}", annotation_position="bottom right")
+fig.add_vline(x=avg_ratio_eur, line_dash="dot", line_color="#55b748",
+              annotation_text=f"Moy. Europe {avg_ratio_eur:.2f}", annotation_position="top left")
+fig.update_layout(margin=dict(r=120))
+fig.show()
+# &e
+```
+
+### Structure par type de logement
+
+[**Hong Kong et Singapour résistent avec plus de 50 % de chambres privées, quand Thessalonique et Athènes dépassent 93 % d'entiers**]{.insight}
+
+La structure de l'offre oppose des marchés quasi-exclusivement professionnels à des villes où le *partage de logement* reste ancré. Sur les 64 villes étudiées, la majorité affiche plus de 70 % de logements entiers — mais Hong Kong (59 % de private rooms), Singapour (51 %) et Dublin (46 %) conservent un modèle mixte, suivi de New York (42 %).
+
+Trois profils se dessinent. Thessalonique (98 %), Athènes (94 %) et Budapest (93 %) dépassent 93 % d'entiers, signe d'une offre intégralement dédiée à la location touristique. À l'inverse, les grandes métropoles asiatiques et anglo-saxonnes maintiennent une part significative de chambres privées. Le type *shared room* a quasiment disparu partout (moins de 1 %).
+
+Cette prédominance des logements entiers s'accompagne-t-elle de contraintes réglementaires sur la durée de séjour ?
+
+```{python}
+#| label: ax1-room-type
+#| output: asis
+#| echo: false
+
+# &s ROOM_STRUCTURE
+# Calculer structure par ville
+room = df.groupby(["city", "room_type"]).size().reset_index(name="n")
+room_total = room.groupby("city")["n"].sum().reset_index(name="total")
+room = room.merge(room_total)
+room["pct"] = (room["n"] / room["total"] * 100).round(1)
+
+# Ajouter country_code depuis df
+city_country = df.groupby("city")[["country_code", "continent"]].first().reset_index()
+room = room.merge(city_country, on="city")
+room = add_city_fr(room)
+room["label"] = room["country_code"] + "-" + room["city_fr"]
+
+# Top/bottom 12 par % Entire home
+entire_pct = room[room["room_type"] == "Entire home/apt"][["city", "pct", "label"]].copy()
+entire_tb = top_bottom(entire_pct, "pct", n=12)
+display_cities = entire_tb["city"].tolist()
+room_display = room[room["city"].isin(display_cities)]
+
+order_labels = entire_tb["label"].tolist()
+
+fig = px.bar(
+    room_display, y="label", x="pct",
+    color="room_type",
+    orientation="h",
+    labels={"pct": "%", "label": "", "room_type": "Type"},
+    category_orders={"label": order_labels},
+    color_discrete_sequence=PAL_URBAN,
+)
+fig_title(fig, "Structure par type de logement",
+          subtitle=f"Top/bottom 12 sur {N_CITIES} — part de chaque type (%)", fig_num=6)
+fig.update_layout(
+    height=750,
+    barmode="stack",
+    yaxis=dict(tickfont=dict(size=LABEL_SIZE)),
+    margin=dict(l=140),
+    legend=dict(orientation="h", y=1.05),
+)
+fig.show()
+# &e
+```
+
+### Impact longterm (min_nights >= 30)
+
+[**New York impose 30 nuits minimum sur 82 % de ses listings, Istanbul sur 50 % — un marqueur direct de la régulation locale**]{.insight}
+
+Le seuil de 30 nuits minimum reflète généralement une **contrainte réglementaire** plutôt qu'un choix commercial. New York atteint le record avec **82 %** de longterm, suivi de Singapour (59 %), Montréal (54 %) et Istanbul (50 %). Barcelone atteint **42 %**, Los Angeles et San Francisco dépassent 45 %.
+
+À l'échelle mondiale, les marchés asiatiques (Singapour, Bangkok) montrent aussi une forte proportion de longterm, probablement liée à des modèles de location mensuelle. À l'inverse, de nombreuses villes européennes et australiennes restent sous 5 %.
+
+Ces contraintes réglementaires impactent-elles les niveaux de prix pratiqués ?
+
+```{python}
+#| label: ax1-longterm
+#| output: asis
+#| echo: false
+
+# &s LONGTERM_FLAG
+lt = df.groupby(["country_code", "city"]).agg(
+    n=("id", "count"),
+    n_longterm=("is_longterm", "sum"),
+    continent=("continent", "first"),
+).reset_index()
+lt["pct_longterm"] = (lt["n_longterm"] / lt["n"] * 100).round(1)
+lt = add_city_fr(lt)
+lt["label"] = lt["country_code"] + "-" + lt["city_fr"]
+lt["color"] = apply_colors(lt)
+
+avg_lt = lt["pct_longterm"].mean()
+lt["text_lt"] = lt["pct_longterm"].apply(lambda v: f"{v:.1f}%")
+fig = plot_bar_top_bottom(
+    lt, "pct_longterm", n=12,
+    title="Part des listings long-terme",
+    subtitle=f"Top/bottom 12 sur {N_CITIES} — min 30 nuits — couleur par continent",
+    fig_num=7, avg_value=avg_lt, text_col="text_lt", height=750,
+)
+fig.show()
+# &e
+```
+
+---
+
+## Niveaux de prix : une fracture tarifaire continentale {#sec-prix}
+
+### Prix par ville et positionnement
+
+[**Un facteur 6 sépare Amsterdam (223 EUR) de Bangkok (37 EUR), dessinant une fracture tarifaire entre continents**]{.insight}
+
+La hiérarchie des prix épouse la géographie mondiale. Amsterdam (223 EUR) domine nettement, suivi d'Édimbourg (193) et San Diego (185). Les villes américaines et l'Europe du Nord forment un segment premium au-dessus de 150 EUR/nuit. À l'autre bout du spectre, Bangkok (37 EUR), Hong Kong (50 EUR) et Rio (52 EUR) proposent des tarifs six fois inférieurs.
+
+L'Europe occupe une position intermédiaire très dispersée : Amsterdam et Copenhague dépassent 155 EUR quand Budapest (57) et Istanbul (69) restent sous 70 EUR. La *dispersion intra-ville* suit la même logique : les marchés chers sont aussi plus **hétérogènes**.
+
+Les écarts de prix se résument en trois ordres de grandeur :
+
+- **Segment premium** (>150 EUR) : Amsterdam, Édimbourg, San Diego, Boston, Seattle, Copenhague, Paris, Londres
+- **Peloton intermédiaire** (80-150 EUR) : grandes capitales européennes, Australie, Canada
+- **Marchés budget** (<60 EUR) : Asie du Sud-Est, Amérique latine, Europe de l'Est (Riga, Budapest)
+
+Ces niveaux de prix varient-ils selon le type de logement proposé ?
+
+```{python}
+#| label: ax2-prix-calc
+#| output: false
+#| echo: false
+
+# &s PRIX_CALC
+# Stats boxplot
+prix_stats = df.groupby(["country_code", "city"])["price_eur"].agg(
+    q1=lambda x: x.quantile(0.25),
+    median="median",
+    q3=lambda x: x.quantile(0.75),
+    lowerfence=lambda x: max(x.min(), x.quantile(0.25) - 1.5 * (x.quantile(0.75) - x.quantile(0.25))),
+    upperfence=lambda x: min(x.max(), x.quantile(0.75) + 1.5 * (x.quantile(0.75) - x.quantile(0.25)), 250),
+).reset_index()
+# Ajouter continent
+city_cont = df.groupby("city")["continent"].first().reset_index()
+prix_stats = prix_stats.merge(city_cont, on="city")
+prix_stats = add_city_fr(prix_stats)
+prix_stats = add_city_label(prix_stats)
+prix_stats = prix_stats.sort_values("median", ascending=True)
+prix_stats["color"] = apply_colors(prix_stats)
+avg_prix_med = prix_stats["median"].mean()
+avg_prix_med_eur = prix_stats[prix_stats["continent"] == "Europe"]["median"].mean()
+
+# Stats tableau
+prix = df.groupby(["country_code", "city"])["price_eur"].agg(
+    ["median", "mean", lambda x: x.quantile(0.25), lambda x: x.quantile(0.75)]
+).round(0)
+prix.columns = ["median", "mean", "Q25", "Q75"]
+prix["IQR"] = prix["Q75"] - prix["Q25"]
+prix = prix.reset_index().sort_values("median", ascending=False)
+prix = prix.merge(city_cont, on="city")
+prix = add_city_fr(prix)
+
+# Export pour reactable
+prix[["continent", "country_code", "city_fr", "median", "mean", "Q25", "Q75", "IQR"]].rename(
+    columns={"continent": "Continent", "country_code": "Pays", "city_fr": "Ville"}
+).to_csv(BASE / "reports" / "ytest" / "temp_prix.csv", index=False, encoding="utf-8-sig")
+# &e
+```
+
+::: {.panel-tabset}
+
+### Distribution
+
+```{python}
+#| label: ax2-prix-boxplot
+#| output: asis
+#| echo: false
+
+# &s PRIX_BOXPLOT
+# Top/bottom 12 par prix median
+prix_display = top_bottom(prix_stats, "median", n=12)
+
+fig = go.Figure()
+for _, row in prix_display.iterrows():
+    fig.add_trace(go.Box(
+        y=[row["city_label"]],
+        x0=0,
+        name=row["city_label"],
+        q1=[row["q1"]], median=[row["median"]], q3=[row["q3"]],
+        lowerfence=[row["lowerfence"]], upperfence=[row["upperfence"]],
+        marker_color=row["color"],
+        fillcolor=row["color"],
+        line_color=row["color"],
+        boxpoints=False,
+        showlegend=False,
+        orientation="h",
+    ))
+fig_title(fig, "Distribution des prix par ville",
+          subtitle=f"Top/bottom 12 sur {N_CITIES} — EUR/nuit — boxplots tronqués à 250 EUR", fig_num=8)
+fig.add_vline(x=avg_prix_med, line_dash="dash", line_color=COL_MAGENTA,
+              annotation_text=f"Moy. monde {avg_prix_med:.0f}€", annotation_position="top right")
+fig.add_vline(x=avg_prix_med_eur, line_dash="dot", line_color="#55b748",
+              annotation_text=f"Moy. Europe {avg_prix_med_eur:.0f}€", annotation_position="bottom right")
+fig.update_xaxes(range=[0, 250])
+fig.update_yaxes(categoryorder="array", categoryarray=prix_display["city_label"].tolist())
+fig.update_layout(
+    xaxis_title="Prix EUR/nuit",
+    height=750,
+    margin=dict(l=140),
+    yaxis=dict(tickfont=dict(size=LABEL_SIZE)),
+)
+fig.show()
+# &e
+```
+
+### Table formatée
+
+```{r}
+#| label: ax2-prix-table
+
+df_prix <- read.csv("C:/Users/vince/hh/pq/PDS/pbnb-airbnb-log-jrr-jpy/reports/ytest/temp_prix.csv", fileEncoding = "UTF-8")
+stats_med <- compute_bar_stats(df_prix$median)
+
+rt_styled(
+  df_prix,
+  columns = list(
+    Continent = colDef(minWidth = 80),
+    Pays = colDef(minWidth = 50),
+    Ville = colDef(minWidth = 100, style = list(fontWeight = "500")),
+    median = colDef(name = "Médiane", header = header_unit("Médiane", "EUR"),
+                    cell = bar_simple(stats_med$p98, fill = "#fdbf11"), minWidth = 130),
+    mean = colDef(name = "Moyenne", header = header_unit("Moyenne", "EUR"), format = colFormat(digits = 0)),
+    Q25 = colDef(header = header_unit("Q25", "EUR"), format = colFormat(digits = 0)),
+    Q75 = colDef(header = header_unit("Q75", "EUR"), format = colFormat(digits = 0)),
+    IQR = colDef(header = header_unit("IQR", "EUR"), format = colFormat(digits = 0))
+  ),
+  defaultSorted = list(median = "desc"),
+  searchable = TRUE,
+  page_size = 20
+)
+```
+
+:::
+
+### Dispersion des prix
+
+[**L'écart interquartile à Amsterdam (150 EUR) dépasse le prix médian de Budapest — les marchés chers sont aussi les plus hétérogènes**]{.insight}
+
+Les villes en haut à droite du nuage combinent tarifs élevés *et* forte hétérogénéité — signe d'une **offre polarisée** entre petit budget et segment luxe *(figure ci-contre)*. Amsterdam et San Diego se détachent avec des IQR supérieurs à 150 EUR, quand Budapest et Riga restent sous 50 EUR.
+
+Cette relation prix-dispersion soulève la question de la *pertinence du prix médian seul* comme indicateur : à Amsterdam, l'IQR de 150 EUR rend la comparaison avec Budapest (IQR de ~35 EUR) peu lisible.
+
+```{python}
+#| label: ax2-prix-dispersion
+#| output: asis
+#| echo: false
+
+# &s PRIX_IQR
+prix["color"] = apply_colors(prix)
+
+# Identifier outliers hors cadre (prix > 350 ou IQR > 250)
+outliers = prix[(prix["median"] > 350) | (prix["IQR"] > 250)]
+inliers = prix[(prix["median"] <= 350) & (prix["IQR"] <= 250)]
+
+fig = go.Figure()
+fig.add_trace(go.Scatter(
+    x=inliers["median"], y=inliers["IQR"],
+    mode="markers+text",
+    text=inliers["city_fr"],
+    textposition="top center",
+    textfont=dict(size=LABEL_SIZE, color="#333"),
+    marker=dict(color=inliers["color"], size=12),
+))
+fig_title(fig, "Prix médian vs Dispersion", subtitle="Zoom cluster principal — hors cadre annotés", fig_num=9)
+
+# Annotation outliers en haut à droite
+if len(outliers) > 0:
+    outlier_text = "Hors cadre : " + " — ".join(
+        [f"{r['city_fr']} ({r['median']:.0f}€, IQR {r['IQR']:.0f})"
+         for _, r in outliers.iterrows()]
+    )
+    fig.add_annotation(
+        text=outlier_text,
+        x=1, y=1,
+        xref="paper", yref="paper",
+        xanchor="right", yanchor="top",
+        showarrow=False,
+        font=dict(size=11, color=COL_SPACEGRAY),
+        bgcolor="rgba(255,255,255,0.8)",
+        borderpad=4,
+    )
+
+fig.update_layout(
+    height=500,
+    xaxis_title="Prix médian EUR",
+    yaxis_title="Écart interquartile EUR",
+    xaxis=dict(range=[0, 350]),
+    yaxis=dict(range=[0, 250]),
+    showlegend=False,
+)
+fig.show()
+# &e
+```
+
+### Prix par type de logement
+
+[**Le premium *entire home* varie de x1,5 à x3 selon la ville — Amsterdam et Venise maximisent l'écart**]{.insight}
+
+Le *premium entire home* n'est pas uniforme : il atteint un facteur 3 dans les villes touristiques chères (Venise, Amsterdam), et se réduit à 1,5 dans les villes où les chambres privées sont déjà bien équipées (Berlin, Dublin) *(figure ci-contre)*. Cette variabilité suggère que le type de logement n'explique qu'une partie des écarts de prix — la localisation et le standing jouent un rôle complémentaire.
+
+```{python}
+#| label: ax2-prix-roomtype
+#| output: asis
+#| echo: false
+
+# &s PRIX_ROOM
+df_entire = df[df["room_type"] == "Entire home/apt"]
+df_private = df[df["room_type"] == "Private room"]
+
+entire_med = df_entire.groupby(["country_code", "city"])["price_eur"].median().reset_index(name="entire_med")
+private_med = df_private.groupby(["country_code", "city"])["price_eur"].median().reset_index(name="private_med")
+
+prix_room = entire_med.merge(private_med, on=["country_code", "city"], how="left")
+prix_room = add_city_fr(prix_room)
+prix_room["label"] = prix_room["country_code"] + "-" + prix_room["city_fr"]
+
+# Top/bottom 12 par prix entier
+prix_room_display = top_bottom(prix_room, "entire_med", n=12)
+
+fig = go.Figure()
+fig.add_trace(go.Bar(
+    y=prix_room_display["label"], x=prix_room_display["entire_med"],
+    orientation="h",
+    name="Logement entier", marker_color=PAL_URBAN[0]
+))
+fig.add_trace(go.Bar(
+    y=prix_room_display["label"], x=prix_room_display["private_med"],
+    orientation="h",
+    name="Chambre privée", marker_color=PAL_URBAN[1]
+))
+fig_title(fig, "Prix médian par type de logement",
+          subtitle=f"Top/bottom 12 sur {N_CITIES} — entier vs privé (EUR/nuit)", fig_num=10)
+fig.update_layout(
+    barmode="group",
+    height=750,
+    xaxis_title="Prix médian EUR/nuit",
+    yaxis=dict(tickfont=dict(size=LABEL_SIZE)),
+    margin=dict(l=140),
+    legend=dict(orientation="h", y=1.05),
+)
+fig.show()
+# &e
+```
+
+---
+
+## Professionnalisation de l'offre : profils et stratégies des hosts {#sec-pro}
+
+### Distribution des listings par host
+
+[**À Barcelone et Prague, près de 50 % des hosts gèrent 2 listings ou plus — contre 15 % à Copenhague**]{.insight}
+
+La distribution des hosts par taille de portefeuille distingue les marchés *à forte atomisation* des marchés où les opérateurs professionnels pèsent lourd *(figure ci-contre)*. Barcelone et Prague se détachent : près de la moitié de leurs hosts gèrent au moins 2 annonces. À l'inverse, Copenhague et Amsterdam conservent plus de 85 % de mono-hosts, reflet d'une offre encore *individuelle et peu concentrée*.
+
+Trois constats structurent cette analyse :
+
+- Les hosts avec **50+ listings** représentent moins de 1 % des propriétaires, mais gèrent 5 à 15 % de l'offre
+- Le passage de 1 à 2 listings est le *seuil critique* de professionnalisation — c'est là que les écarts se creusent
+- Les villes avec régulation forte (Berlin, Amsterdam) limitent mécaniquement les multi-hosts
+
+Quelle part de l'offre totale ces multi-hosts contrôlent-ils réellement ?
+
+```{python}
+#| label: ax3-host-distrib
+#| output: asis
+#| echo: false
+
+# &s HOST_DISTRIB
+# Calculer distribution hosts par ville
+host_counts = df.groupby(["city", "host_id"]).size().reset_index(name="n_listings")
+
+bins = [0, 1, 2, 5, 10, 50, 9999]
+labels_h = ["1", "2", "3-5", "6-10", "11-50", "50+"]
+host_counts["cat"] = pd.cut(host_counts["n_listings"], bins=bins, labels=labels_h)
+
+cat_city = host_counts.groupby(["city", "cat"]).size().reset_index(name="n_hosts")
+cat_total = cat_city.groupby("city")["n_hosts"].sum().reset_index(name="total")
+cat_city = cat_city.merge(cat_total)
+cat_city["pct"] = (cat_city["n_hosts"] / cat_city["total"] * 100).round(1)
+
+city_country = df.groupby("city")[["country_code", "continent"]].first().reset_index()
+cat_city = cat_city.merge(city_country, on="city")
+cat_city = add_city_fr(cat_city)
+cat_city["label"] = cat_city["country_code"] + "-" + cat_city["city_fr"]
+
+# Top/bottom 12 par % multi-host
+order_multi = df.groupby("city")["is_multihost"].mean().sort_values(ascending=False)
+tb_cities = list(order_multi.head(12).index) + list(order_multi.tail(12).index)
+tb_cities = list(dict.fromkeys(tb_cities))
+cat_display = cat_city[cat_city["city"].isin(tb_cities)]
+
+city_to_label = {c: f"{city_country[city_country['city']==c]['country_code'].iloc[0]}-{city_fr(c)}"
+                 for c in order_multi.index if c in tb_cities}
+order_labels = [city_to_label[c] for c in order_multi.index if c in tb_cities][::-1]
+
+fig = px.bar(
+    cat_display, y="label", x="pct",
+    color="cat",
+    orientation="h",
+    labels={"pct": "% hosts", "label": "", "cat": "Nb listings"},
+    category_orders={"label": order_labels, "cat": labels_h},
+    color_discrete_sequence=PAL_URBAN,
+)
+fig_title(fig, "Distribution hosts par nombre de listings",
+          subtitle=f"Top/bottom 12 sur {N_CITIES} — portefeuille hosts", fig_num=11)
+fig.update_layout(
+    height=750,
+    barmode="stack",
+    yaxis=dict(tickfont=dict(size=LABEL_SIZE)),
+    margin=dict(l=140),
+    legend=dict(orientation="h", y=1.05),
+)
+fig.show()
+# &e
+```
+
+### Concentration de l'offre
+
+[**0,6 % des hosts suffisent pour 50 % de l'offre à Barcelone, contre 48 % à Copenhague — un écart de 1 à 80**]{.insight}
+
+L'indicateur le plus parlant de concentration : *quel pourcentage de hosts faut-il pour atteindre la moitié de l'offre ?* À Barcelone, **0,6 % des opérateurs suffisent** — un noyau ultra-concentré de 47 hosts sur 7 000. À Copenhague, il en faut **48 %**, soit plus de 3 000 hosts — signe d'une offre atomisée où chaque propriétaire compte *(figure ci-dessous)*.
+
+Les villes italiennes (Florence, Venise) et ibériques (Barcelone, Prague) montrent les plus fortes concentrations. Copenhague et Amsterdam restent les marchés les plus *égalitaires*, où l'offre se répartit entre des milliers de petits propriétaires.
+
+Trois constats structurent cette analyse :
+
+- À Barcelone, les **10 premiers hosts** gèrent près de **20 %** de l'offre totale
+- À Copenhague, les **10 premiers hosts** ne représentent que **2 %** du marché
+- Le **top 10 % des hosts** contrôle entre 16 % (Copenhague) et 81 % (Barcelone) selon la ville
+
+```{python}
+#| label: ax3-concentration-calc
+#| output: false
+#| echo: false
+
+# &s CONCENTRATION_CALC
+def concentration_metrics(group):
+    """Calcule les métriques de concentration par ville."""
+    host_listings = group.groupby("host_id").size().sort_values(ascending=False)
+    total = host_listings.sum()
+    n_hosts = len(host_listings)
+
+    top10_abs = host_listings.head(10).sum()
+    top1pct = host_listings.head(max(1, int(n_hosts * 0.01))).sum()
+    top10pct = host_listings.head(max(1, int(n_hosts * 0.10))).sum()
+
+    # Hosts nécessaires pour 50% de l'offre
+    cumsum = host_listings.cumsum()
+    hosts_for_50 = (cumsum <= total * 0.5).sum() + 1
+
+    # Pourcentage d'hosts nécessaires pour 50%
+    pct_hosts_for_50 = round(hosts_for_50 / n_hosts * 100, 1) if n_hosts > 0 else 0
+
+    return pd.Series({
+        "total_listings": total,
+        "n_hosts": n_hosts,
+        "top10_n": top10_abs,
+        "top10_pct": round(top10_abs / total * 100, 1),
+        "top1pct_pct": round(top1pct / total * 100, 1),
+        "top10pct_pct": round(top10pct / total * 100, 1),
+        "hosts_for_50pct": hosts_for_50,
+        "pct_hosts_for_50": pct_hosts_for_50,
+    })
+
+conc = df.groupby(["country_code", "city"]).apply(concentration_metrics, include_groups=False).reset_index()
+city_cont = df.groupby("city")["continent"].first().reset_index()
+conc = conc.merge(city_cont, on="city")
+conc = conc.sort_values("pct_hosts_for_50", ascending=True)
+conc = add_city_fr(conc)
+conc["label"] = conc["country_code"] + "-" + conc["city_fr"]
+conc["color"] = apply_colors(conc)
+
+# Export pour tableau reactable
+conc_table = conc[["country_code", "city_fr", "total_listings", "n_hosts",
+                   "pct_hosts_for_50", "hosts_for_50pct", "top10_n", "top10_pct", "top1pct_pct", "top10pct_pct"]].copy()
+conc_table.columns = ["Pays", "Ville", "Listings", "Hosts", "Pct_hosts_50",
+                      "Hosts_50pct", "Top10_n", "Top10_pct", "Top1pct_pct", "Top10pct_pct"]
+conc_table = conc_table.sort_values("Pct_hosts_50", ascending=True)
+conc_table.to_csv(BASE / "reports" / "ytest" / "temp_concentration.csv", index=False, encoding="utf-8-sig")
+# &e
+```
+
+::: {.panel-tabset}
+
+### Graphique
+
+```{python}
+#| label: ax3-concentration
+#| output: asis
+#| echo: false
+
+# &s CONCENTRATION_CHART
+conc["text_conc"] = conc.apply(lambda r: f"{r['pct_hosts_for_50']:.1f}% ({int(r['hosts_for_50pct']):,})", axis=1)
+fig = plot_bar_top_bottom(
+    conc, "pct_hosts_for_50", n=12,
+    title="Concentration : % hosts nécessaires pour 50 % de l'offre",
+    subtitle=f"Top/bottom 12 sur {N_CITIES} — couleur par continent",
+    fig_num=12, text_col="text_conc", height=750,
+)
+fig.update_layout(margin=dict(r=120))
+fig.show()
+# &e
+```
+
+<div class="note-lecture">
+**Lecture** : À Barcelone, seulement 47 hosts suffisent à couvrir la moitié des 22 000 listings. Les 10 plus gros opérateurs y gèrent 4 200 annonces (19 % du marché). Source : Inside Airbnb juin 2025.
+</div>
+
+### Table formatée
+
+```{r}
+#| label: ax3-concentration-table
+
+df_conc <- read.csv("C:/Users/vince/hh/pq/PDS/pbnb-airbnb-log-jrr-jpy/reports/ytest/temp_concentration.csv", fileEncoding = "UTF-8")
+
+rt_styled(
+  df_conc,
+  columnGroups = list(
+    col_group("Volume", c("Listings", "Hosts")),
+    col_group("Seuil 50%", c("Pct_hosts_50", "Hosts_50pct")),
+    col_group("Concentration", c("Top10_n", "Top10_pct", "Top1pct_pct", "Top10pct_pct"))
+  ),
+  columns = list(
+    Pays = colDef(minWidth = 50),
+    Ville = colDef(minWidth = 100, style = list(fontWeight = "500")),
+    Listings = colDef(format = colFormat(separators = TRUE, digits = 0)),
+    Hosts = colDef(format = colFormat(separators = TRUE, digits = 0)),
+    Pct_hosts_50 = colDef(name = "% hosts", header = header_unit("% hosts", "→50% offre"),
+                          cell = bar_pct(fill = "#0a4c6a"), minWidth = 100),
+    Hosts_50pct = colDef(name = "N hosts", header = header_unit("N hosts", "→50% offre"),
+                         format = colFormat(separators = TRUE, digits = 0)),
+    Top10_n = colDef(name = "Top 10", header = header_unit("Top 10", "listings"),
+                     format = colFormat(separators = TRUE, digits = 0)),
+    Top10_pct = colDef(name = "Top 10", header = header_unit("Top 10", "% offre"),
+                       cell = bar_pct(fill = "#ec008b"), minWidth = 100),
+    Top1pct_pct = colDef(name = "Top 1%", header = header_unit("Top 1%", "% offre"),
+                         cell = bar_pct(fill = "#1696d2"), minWidth = 100),
+    Top10pct_pct = colDef(name = "Top 10%", header = header_unit("Top 10%", "% offre"),
+                          cell = bar_pct(fill = "#1696d2"), minWidth = 100)
+  ),
+  defaultSorted = list(Pct_hosts_50 = "asc"),
+  searchable = TRUE,
+  page_size = 20
+)
+```
+
+:::
+
+---
+
+## Activité et temporalité : reviews, disponibilité, modèles d'exploitation {#sec-activite}
+
+### Reviews comme proxy d'activité
+
+[**Venise cumule 49 reviews médianes quand Istanbul plafonne à 2 malgré 25K listings — un écart qui révèle l'ancienneté des marchés**]{.insight}
+
+Le nombre de reviews totales sert de proxy à l'**ancienneté et à l'activité cumulée** du listing. Venise, Budapest et Prague affichent les médianes les plus élevées (35-49 reviews), signe de marchés matures où les annonces ont eu le temps d'accumuler des évaluations *(figure ci-contre)*. Ces trois villes combinent reviews élevées et prix bas — un profil de *destinations établies à forte rotation touristique*.
+
+À l'inverse, Istanbul (2 reviews) et Londres (6 reviews) présentent des médianes étonnamment faibles malgré des volumes importants. Pour Istanbul, cela s'explique par l'explosion récente du marché et les contraintes *longterm* qui limitent les séjours courts. Pour Londres, la taille du marché dilue mécaniquement la médiane — beaucoup de nouvelles annonces sans historique.
+
+Trois constats résument cette analyse :
+
+- Venise atteint **49 reviews médianes**, suivie de Budapest (35) et Prague (34)
+- Istanbul affiche seulement **2 reviews médianes** malgré 25 000 listings — marché récent ou saisonnier
+- Le ratio reviews/mois discrimine mieux l'activité *récente* que le cumul historique
+
+Ces écarts d'activité se reflètent-ils dans les niveaux de disponibilité annuelle ?
+
+```{python}
+#| label: ax4-reviews
+#| output: asis
+#| echo: false
+
+# &s REVIEWS
+reviews = df.groupby("city").agg(
+    reviews_med=("number_of_reviews", "median"),
+    rpm_med=("reviews_per_month", lambda x: x.dropna().median()),
+).reset_index().sort_values("reviews_med", ascending=False)
+reviews = add_city_fr(reviews)
+
+# Top 20 pour lisibilité sur axe X
+reviews_display = reviews.head(20)
+
+fig = go.Figure()
+fig.add_trace(go.Bar(
+    x=reviews_display["city_fr"], y=reviews_display["reviews_med"],
+    name="Reviews total (médiane)", marker_color=PAL_URBAN[0]
+))
+fig.add_trace(go.Scatter(
+    x=reviews_display["city_fr"], y=reviews_display["rpm_med"],
+    name="Reviews/mois (médiane)", yaxis="y2",
+    marker=dict(color=PAL_URBAN[1], size=10),
+    mode="markers+lines",
+))
+fig_title(fig, "Activité par ville",
+          subtitle=f"Top 20 sur {N_CITIES} — reviews total et reviews/mois (médianes)", fig_num=13)
+fig.update_layout(
+    yaxis=dict(title="Nb reviews total (médiane)"),
+    yaxis2=dict(title="Reviews/mois (médiane)", overlaying="y", side="right"),
+    height=500, xaxis_tickangle=-45,
+)
+fig.show()
+# &e
+```
+
+### Disponibilité annuelle
+
+[**Istanbul affiche 354 jours de disponibilité médiane, Copenhague seulement 106 — un écart de 1 à 3 qui reflète les modèles d'exploitation**]{.insight}
+
+La disponibilité annuelle distingue les listings saisonniers des biens mis en location **à l'année**. Un seuil de 180 jours — souvent cité comme plafond réglementaire français — sert de repère *(figure ci-contre)*.
+
+Istanbul (354 jours), Athènes (278) et Lisbonne (261) dépassent largement ce seuil, signe d'une offre *permanente* dédiée au tourisme. Ces marchés fonctionnent comme des quasi-hôtels, avec des annonces disponibles toute l'année. À l'opposé, Copenhague (106 jours) et Amsterdam (111) présentent les médianes les plus basses — conséquence directe de régulations limitant le nombre de nuitées annuelles. Les trois villes françaises (Paris, Bordeaux, Lyon) se situent autour de 180-210 jours, cohérentes avec le plafond légal de 120 jours pour les résidences principales.
+
+Trois profils de disponibilité se dégagent :
+
+- Istanbul, Athènes, Lisbonne : **250+ jours** — offre permanente, quasi-hôtelière
+- Rome, Barcelone, Florence : **180-250 jours** — offre mixte, entre saisonnier et permanent
+- Copenhague, Amsterdam, Dublin : **moins de 180 jours** — offre contrainte par la régulation
+
+Comment ces profils se répartissent-ils en catégories plus fines ?
+
+```{python}
+#| label: ax4-disponibilite
+#| output: asis
+#| echo: false
+
+# &s DISPO
+# Pré-calculer les stats boxplot
+dispo_stats = df.groupby(["country_code", "city"])["availability_365"].agg(
+    q1=lambda x: x.quantile(0.25),
+    median="median",
+    q3=lambda x: x.quantile(0.75),
+    lowerfence=lambda x: max(x.min(), x.quantile(0.25) - 1.5 * (x.quantile(0.75) - x.quantile(0.25))),
+    upperfence=lambda x: min(x.max(), x.quantile(0.75) + 1.5 * (x.quantile(0.75) - x.quantile(0.25))),
+).reset_index()
+dispo_stats = dispo_stats.merge(df.groupby("city")["continent"].first().reset_index(), on="city")
+dispo_stats = add_city_fr(dispo_stats)
+dispo_stats = add_city_label(dispo_stats)
+dispo_stats["color"] = apply_colors(dispo_stats)
+dispo_stats = dispo_stats.sort_values("median", ascending=True)
+
+# Top/bottom 12
+dispo_display = top_bottom(dispo_stats, "median", n=12)
+
+fig = go.Figure()
+for _, row in dispo_display.iterrows():
+    fig.add_trace(go.Box(
+        y=[row["city_label"]],
+        x0=0,
+        name=row["city_label"],
+        q1=[row["q1"]], median=[row["median"]], q3=[row["q3"]],
+        lowerfence=[row["lowerfence"]], upperfence=[row["upperfence"]],
+        marker_color=row["color"],
+        fillcolor=row["color"],
+        line_color=row["color"],
+        boxpoints=False,
+        showlegend=False,
+        orientation="h",
+    ))
+avg_dispo = dispo_stats["median"].mean()
+avg_dispo_eur = dispo_stats[dispo_stats["continent"] == "Europe"]["median"].mean()
+fig_title(fig, "Disponibilité annuelle par ville",
+          subtitle=f"Top/bottom 12 sur {N_CITIES} — seuil 180j + moy. monde/Europe", fig_num=14)
+fig.add_vline(x=180, line_dash="dash", line_color=COL_MAGENTA, annotation_text="180 jours")
+fig.add_vline(x=avg_dispo, line_dash="dot", line_color=COL_ORANGE,
+              annotation_text=f"Moy. monde {avg_dispo:.0f}j", annotation_position="bottom right")
+fig.add_vline(x=avg_dispo_eur, line_dash="dot", line_color="#55b748",
+              annotation_text=f"Moy. Europe {avg_dispo_eur:.0f}j", annotation_position="top left")
+fig.update_yaxes(categoryorder="array", categoryarray=dispo_display["city_label"].tolist())
+fig.update_layout(
+    xaxis_title="Jours disponibles /365",
+    height=750,
+    margin=dict(l=140),
+    yaxis=dict(tickfont=dict(size=LABEL_SIZE)),
+)
+fig.show()
+# &e
+```
+
+### Profils de disponibilité
+
+[**Plus de 60 % des listings d'Istanbul sont disponibles toute l'année, contre 25 % à Copenhague — une polarisation nette des modèles d'exploitation**]{.insight}
+
+La catégorisation en quatre tranches (<30j, 30-90j, 90-180j, >180j) révèle des *profils d'offre* distincts *(figure ci-contre)*. Les villes méditerranéennes et orientales (Istanbul, Athènes, Lisbonne) concentrent plus de la moitié de leurs annonces dans la catégorie *permanent* (>180 jours), signe d'une offre dédiée au tourisme sans contrainte calendaire.
+
+Les villes nord-européennes régulées (Copenhague, Amsterdam) présentent le profil inverse : forte proportion de listings <90 jours, cohérente avec les plafonds de nuitées imposés. Entre ces deux extrêmes, un groupe de villes *mixtes* (Rome, Paris, Berlin) équilibre offre saisonnière et permanente.
+
+Trois constats structurent cette répartition :
+
+- Istanbul, Athènes, Lisbonne : plus de **50 % de listings >180 jours** — offre permanente dominante
+- Copenhague, Amsterdam, Dublin : plus de **40 % de listings <90 jours** — offre contrainte
+- Rome, Paris, Berlin : profil équilibré entre les deux catégories extrêmes
+
+Ces différences de structure se traduisent-elles dans les corrélations entre indicateurs ?
+
+```{python}
+#| label: ax4-dispo-categories
+#| output: asis
+#| echo: false
+
+# &s DISPO_CAT
+# Palette 4 couleurs depuis helper
+PAL_CAT_4 = _mod_graph.PAL_CAT_4
+
+df["dispo_cat"] = pd.cut(
+    df["availability_365"],
+    bins=[0, 30, 90, 180, 365],
+    labels=["<30j (rare)", "30-90j", "90-180j", ">180j (permanent)"],
+    include_lowest=True,
+)
+
+dispo_city = df.groupby(["city", "dispo_cat"]).size().reset_index(name="n")
+dispo_total = dispo_city.groupby("city")["n"].sum().reset_index(name="total")
+dispo_city = dispo_city.merge(dispo_total)
+dispo_city["pct"] = (dispo_city["n"] / dispo_city["total"] * 100).round(1)
+dispo_city = add_city_fr(dispo_city)
+
+order_top20 = city_order(df)[:20]
+order_fr = [city_fr(c) for c in order_top20]
+dispo_display = dispo_city[dispo_city["city"].isin(order_top20)]
+
+fig = px.bar(
+    dispo_display, x="city_fr", y="pct",
+    color="dispo_cat",
+    labels={"pct": "%", "city_fr": "", "dispo_cat": "Disponibilité"},
+    category_orders={"city_fr": order_fr},
+    color_discrete_sequence=PAL_CAT_4,
+)
+fig_title(fig, "Profils de disponibilité",
+          subtitle=f"Top 20 par volume sur {N_CITIES} — saisonnier (<90j) vs permanent (>180j)", fig_num=15)
+fig.update_layout(height=500, xaxis_tickangle=-45, barmode="stack")
+fig.show()
+# &e
+```
+
+---
+
+# Partie 2 — Analyse multidimensionnelle et profils de marchés {.unnumbered}
+
+Le panorama descriptif de la Partie 1 a révélé des disparités majeures entre villes et continents : fracture tarifaire, pressions touristiques extrêmes, professionnalisation inversement corrélée aux prix. L'Europe concentre 57 % du panel mais le marché le plus *atypique* — par sa pression, sa diversité, ses régulations — reste le continent le plus hétérogène.
+
+Cette seconde partie passe de la **description** à l'**analyse** : corrélations entre indicateurs, positionnement multidimensionnel par ACP, et classification en profils-types. L'objectif est de répondre aux questions suivantes :
+
+1. *Corrélations* — Les indicateurs de pression, prix et professionnalisation sont-ils indépendants ou liés ?
+2. *Positionnement* — Quels axes synthétiques structurent l'espace des 64 marchés ?
+3. *Typologies* — Peut-on identifier des groupes de villes aux dynamiques similaires, au-delà des frontières continentales ?
+
+## Corrélations : des liens complexes entre prix, pression et professionnalisation {#sec-corr}
+
+### Matrice de corrélation
+
+[**Au niveau listing, prix et professionnalisation sont quasi-indépendants — les patterns n'émergent qu'à l'échelle de la ville**]{.insight}
+
+Les variables clés (prix, reviews, disponibilité, multi-host) présentent des corrélations faibles au niveau du listing individuel *(figure ci-contre)*. Ce résultat contre-intuitif s'explique par la variabilité *intra-ville* : dans chaque marché, on trouve des annonces chères et bon marché, professionnelles et individuelles, actives et dormantes.
+
+C'est à l'échelle agrégée par ville que les corrélations deviennent significatives. Le taux de multi-hosts corrèle fortement avec le ratio listings/host (r = 0,93 — par construction), mais aussi négativement avec le prix médian (r = -0,47) : les marchés les plus professionnalisés (Barcelone, Prague) sont aussi les moins chers.
+
+Trois enseignements se dégagent :
+
+- La corrélation **prix ~ multi-host** est négative au niveau ville (r = -0,47), mais nulle au niveau listing
+- La corrélation **multi-host ~ ratio L/H** est quasi-parfaite (r = 0,93) — indicateurs redondants
+- L'**absence de corrélation prix ~ reviews** confirme que le prix n'est pas un proxy d'activité
+
+Comment les villes se positionnent-elles dans l'espace prix × professionnalisation ?
+
+```{python}
+#| label: ax5-correlation
+#| output: asis
+#| echo: false
+
+# &s CORR_MATRIX
+# Helper corrélation depuis jcn-graph.py
+correlation_matrix = _mod_graph.correlation_matrix
+
+num_cols = ["price_eur", "minimum_nights", "number_of_reviews",
+            "reviews_per_month", "availability_365",
+            "calculated_host_listings_count", "is_entire_home", "is_multihost"]
+num_cols = [c for c in num_cols if c in df.columns]
+
+# Labels français pour les variables
+labels_fr = {
+    "price_eur": "Prix EUR",
+    "minimum_nights": "Nuits min",
+    "number_of_reviews": "Nb reviews",
+    "reviews_per_month": "Reviews/mois",
+    "availability_365": "Disponibilité",
+    "calculated_host_listings_count": "Listings/host",
+    "is_entire_home": "Entier",
+    "is_multihost": "Multi-host",
+}
+
+# Utilisation du helper triangle sans diagonale
+fig = correlation_matrix(
+    df,
+    cols=num_cols,
+    labels=labels_fr,
+    threshold=0.10,
+    figsize=(650, 550),
+)
+fig_title(fig, "Matrice de corrélation", subtitle="Triangle inférieur — seuil |r| > 0.10 — niveau listing", fig_num=16)
+fig.show()
+# &e
+```
+
+### Prix médian vs professionnalisation
+
+[**Amsterdam et Copenhague combinent prix élevés et faible professionnalisation, Istanbul et Prague l'inverse — pas de lien simple entre les deux dimensions**]{.insight}
+
+Quatre quadrants structurent le paysage des 64 villes *(figure ci-contre)*. En haut à gauche, Amsterdam et Copenhague forment le **pôle premium individuel** : tarifs élevés (>150 EUR), mais moins de 25 % de multi-hosts. En bas à droite, Istanbul et Prague représentent le **pôle budget professionnel** : prix bas (<70 EUR), mais plus de 75 % de listings gérés par des opérateurs multi-biens.
+
+Paris occupe une position *centrale atypique* : prix élevés (156 EUR), professionnalisation modérée (40 %), et volume massif (51K listings). Cette combinaison unique en fait un marché à part, ni premium-individuel ni budget-professionnel.
+
+Trois constats résument ce positionnement :
+
+- Les marchés **régulés** (Amsterdam, Copenhague) cumulent prix élevés et offre individuelle
+- Les marchés **sud-européens** (Barcelone, Prague, Istanbul) cumulent prix bas et forte professionnalisation
+- Paris, Londres et Rome occupent des positions **intermédiaires**, chacune avec son profil spécifique
+
+Le tableau suivant synthétise ces profils sur l'ensemble des indicateurs.
+
+```{python}
+#| label: ax5-scatter-city
+#| output: asis
+#| echo: false
+
+# &s SCATTER_CITY
+profiles = df.groupby(["country_code", "city"]).agg(
+    n=("id", "count"),
+    prix_med=("price_eur", "median"),
+    pct_entire=("is_entire_home", "mean"),
+    pct_multi=("is_multihost", "mean"),
+    n_hosts=("host_id", "nunique"),
+    dispo_med=("availability_365", "median"),
+    reviews_med=("number_of_reviews", "median"),
+    pct_longterm=("is_longterm", "mean"),
+    continent=("continent", "first"),
+).reset_index()
+profiles["pct_entire"] = (profiles["pct_entire"] * 100).round(1)
+profiles["pct_multi"] = (profiles["pct_multi"] * 100).round(1)
+profiles["pct_longterm"] = (profiles["pct_longterm"] * 100).round(1)
+profiles["ratio_lh"] = (profiles["n"] / profiles["n_hosts"]).round(2)
+profiles = add_city_fr(profiles)
+profiles["color"] = apply_colors(profiles)
+
+fig = go.Figure()
+for cont, cont_color in CONTINENT_COLORS.items():
+    sub = profiles[profiles["continent"] == cont]
+    if len(sub) == 0:
+        continue
+    colors = [COL_YELLOW if cc == "FRA" else cont_color for cc in sub["country_code"]]
+    fig.add_trace(go.Scatter(
+        x=sub["pct_multi"], y=sub["prix_med"],
+        mode="markers+text",
+        name=cont,
+        text=sub["city_fr"],
+        textposition="top center",
+        textfont=dict(size=LABEL_SIZE - 1, color="#333"),
+        marker=dict(
+            color=colors,
+            size=sub["n"] / 1800,
+            sizemin=8,
+        ),
+        hovertemplate="<b>%{text}</b><br>Multi-host: %{x:.1f}%<br>Prix: %{y:.0f} EUR<extra></extra>",
+    ))
+fig_title(fig, "Prix vs Professionnalisation",
+          subtitle=f"{N_CITIES} villes — taille = volume — couleur par continent", fig_num=17)
+fig.update_layout(
+    height=650, width=1200,
+    xaxis_title="% listings multi-host",
+    yaxis_title="Prix médian EUR",
+    legend=dict(orientation="h", y=-0.1),
+)
+fig.show()
+# &e
+```
+
+### Tableau profils 64 villes
+
+[**De Londres (61K listings, 153 EUR) à Singapour (2,6K, 107 EUR), les 64 marchés mondiaux couvrent un spectre complet**]{.insight}
+
+Ce tableau interactif rassemble les **9 indicateurs clés** par ville : volume (listings, hosts), prix (médiane EUR), structure (% entiers), professionnalisation (% multi-hosts, ratio L/H), activité (reviews médianes), et régulation (disponibilité, % longterm). Triable et filtrable.
+
+```{python}
+#| label: ax5-profiles-table
+
+# &s TABLE_PROFILES
+profiles_display = profiles[[
+    "continent", "country_code", "city_fr", "n", "prix_med", "pct_entire",
+    "pct_multi", "ratio_lh", "dispo_med", "reviews_med", "pct_longterm"
+]].sort_values("n", ascending=False).copy()
+
+profiles_display.columns = [
+    "Continent", "Pays", "Ville", "Listings", "Prix méd EUR", "% Entire",
+    "% Multi-host", "Ratio L/H", "Dispo méd", "Reviews méd", "% Longterm"
+]
+
+# Export pour reactable
+profiles_display.to_csv(BASE / "reports" / "ytest" / "temp_profiles.csv", index=False, encoding="utf-8-sig")
+# &e
+```
+
+```{r}
+#| label: ax5-profiles-reactable
+
+df_prof <- read.csv("C:/Users/vince/hh/pq/PDS/pbnb-airbnb-log-jrr-jpy/reports/ytest/temp_profiles.csv", fileEncoding = "UTF-8")
+
+stats_n <- compute_bar_stats(df_prof$Listings)
+stats_prix <- compute_bar_stats(df_prof$Prix.méd.EUR)
+
+rt_styled(
+  df_prof,
+  columnGroups = list(
+    col_group("Volume", c("Listings")),
+    col_group("Structure", c("Prix.méd.EUR", "X..Entire")),
+    col_group("Professionnalisation", c("X..Multi.host", "Ratio.L.H")),
+    col_group("Activité", c("Dispo.méd", "Reviews.méd", "X..Longterm"))
+  ),
+  columns = list(
+    Pays = colDef(minWidth = 50),
+    Ville = colDef(minWidth = 100, style = list(fontWeight = "500")),
+    Listings = colDef(cell = bar_simple(stats_n$p98, fill = "#1696d2"), minWidth = 130),
+    Prix.méd.EUR = colDef(name = "Prix", cell = bar_simple(stats_prix$p98, fill = "#fdbf11"), minWidth = 110),
+    X..Entire = colDef(name = "% Entire", cell = bar_pct(fill = "#55b748"), minWidth = 100),
+    X..Multi.host = colDef(name = "% Multi", cell = bar_pct(fill = "#ec008b"), minWidth = 100),
+    Ratio.L.H = colDef(name = "Ratio L/H", format = colFormat(digits = 2)),
+    Dispo.méd = colDef(name = "Dispo", format = colFormat(digits = 0)),
+    Reviews.méd = colDef(name = "Reviews", format = colFormat(digits = 0)),
+    X..Longterm = colDef(name = "% LT", cell = bar_pct(fill = "#1696d2"), minWidth = 90)
+  ),
+  defaultSorted = list(Listings = "desc"),
+  page_size = 20
+)
+```
+
+```{python}
+#| label: ax5-profiles-log
+#| output: false
+#| echo: false
+
+# Log profils complets — top5 ET bottom5 pour tous les axes
+clog.ranking("top5_prix", profiles, col="city", value_col="prix_med", n=5)
+clog.ranking("bottom5_prix", profiles, col="city", value_col="prix_med", n=5, ascending=True)
+clog.ranking("top5_multi", profiles, col="city", value_col="pct_multi", n=5)
+clog.ranking("bottom5_multi", profiles, col="city", value_col="pct_multi", n=5, ascending=True)
+clog.ranking("top5_entire", profiles, col="city", value_col="pct_entire", n=5)
+clog.ranking("bottom5_entire", profiles, col="city", value_col="pct_entire", n=5, ascending=True)
+clog.ranking("top5_ratio_lh", profiles, col="city", value_col="ratio_lh", n=5)
+clog.ranking("bottom5_ratio_lh", profiles, col="city", value_col="ratio_lh", n=5, ascending=True)
+clog.ranking("top5_longterm", profiles, col="city", value_col="pct_longterm", n=5)
+clog.ranking("top5_reviews", profiles, col="city", value_col="reviews_med", n=5)
+clog.ranking("bottom5_reviews", profiles, col="city", value_col="reviews_med", n=5, ascending=True)
+clog.ranking("top5_dispo", profiles, col="city", value_col="dispo_med", n=5)
+clog.ranking("bottom5_dispo", profiles, col="city", value_col="dispo_med", n=5, ascending=True)
+
+# Log FULL profiles table (toutes les 64 villes × tous les indicateurs)
+all_profiles = {}
+for _, r in profiles.iterrows():
+    all_profiles[r["city"]] = {
+        "country": r["country_code"],
+        "n": int(r["n"]),
+        "prix_med": round(float(r["prix_med"]), 1),
+        "pct_entire": float(r["pct_entire"]),
+        "pct_multi": float(r["pct_multi"]),
+        "ratio_lh": float(r["ratio_lh"]),
+        "dispo_med": float(r["dispo_med"]),
+        "reviews_med": float(r["reviews_med"]),
+        "pct_longterm": float(r["pct_longterm"]),
+    }
+clog.result("all_city_profiles", all_profiles,
+            interpret="Profils complets 64 villes x 9 indicateurs")
+
+# Log room type par ville
+room_by_city = df.groupby(["city", "room_type"]).size().unstack(fill_value=0)
+room_pct_city = room_by_city.div(room_by_city.sum(axis=1), axis=0) * 100
+room_dict = {}
+for city in room_pct_city.index:
+    room_dict[city] = {col: round(room_pct_city.loc[city, col], 1) for col in room_pct_city.columns}
+clog.result("room_type_by_city", room_dict,
+            interpret="Repartition room_type par ville (% des listings)")
+
+# Log prix stats par ville (Q25, median, Q75, IQR)
+prix_by_city = df.groupby("city")["price_eur"].agg(
+    ["median", "mean", lambda x: x.quantile(0.25), lambda x: x.quantile(0.75)]
+).round(1)
+prix_by_city.columns = ["median", "mean", "Q25", "Q75"]
+prix_by_city["IQR"] = prix_by_city["Q75"] - prix_by_city["Q25"]
+prix_dict = prix_by_city.to_dict("index")
+clog.result("prix_stats_by_city", prix_dict,
+            interpret="Stats prix EUR par ville: median, mean, Q25, Q75, IQR")
+
+# Log correlations cles
+corr_prix_multi = profiles["prix_med"].corr(profiles["pct_multi"])
+corr_prix_dispo = profiles["prix_med"].corr(profiles["dispo_med"])
+corr_multi_lh = profiles["pct_multi"].corr(profiles["ratio_lh"])
+clog.result("correlations_city_level", {
+    "prix_vs_multi": round(corr_prix_multi, 3),
+    "prix_vs_dispo": round(corr_prix_dispo, 3),
+    "multi_vs_ratio_lh": round(corr_multi_lh, 3),
+}, interpret=f"Corr ville: prix~multi={corr_prix_multi:.2f}, "
+             f"prix~dispo={corr_prix_dispo:.2f}, multi~ratio={corr_multi_lh:.2f}")
+
+# Log pays aggreges
+pays_agg = df.groupby("country_code").agg(
+    n_villes=("city", "nunique"),
+    n_listings=("id", "count"),
+    prix_med=("price_eur", "median"),
+).reset_index().sort_values("n_listings", ascending=False)
+pays_dict = {r["country_code"]: {"villes": int(r["n_villes"]), "n": int(r["n_listings"]),
+             "prix_med": round(float(r["prix_med"]), 1)}
+             for _, r in pays_agg.iterrows()}
+clog.result("pays_aggreges", pays_dict,
+            interpret=f"{len(pays_agg)} pays, top: {pays_agg.iloc[0]['country_code']} "
+                      f"({pays_agg.iloc[0]['n_listings']:,.0f})")
+# &e
+```
+
+---
+
+## Quatre profils-types : une classification des marchés mondiaux {#sec-typo}
+
+### ACP — Positionnement des 64 villes
+
+[**Deux axes synthétiques structurent le paysage mondial : professionnalisation (axe 1) et niveau de prix (axe 2)**]{.insight}
+
+L'analyse en composantes principales positionne les 64 villes dans un espace réduit à deux dimensions. L'axe 1 oppose les marchés professionnalisés (Tokyo, Bangkok, Taipei à droite) aux marchés individuels (Copenhague, Amsterdam à gauche). L'axe 2 distingue les marchés premium (Amsterdam, San Diego en haut) des marchés budget (Bangkok, Budapest en bas) *(figure ci-contre)*.
+
+```{python}
+#| label: acp-villes
+#| output: asis
+#| echo: false
+
+# &s ACP_VILLES
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+
+# Variables pour ACP (centrées-réduites)
+cols_acp = ["prix_med", "pct_entire", "pct_multi", "ratio_lh",
+            "dispo_med", "reviews_med", "pct_longterm"]
+X = profiles[cols_acp].values
+X_scaled = StandardScaler().fit_transform(X)
+
+# ACP 2 composantes
+pca = PCA(n_components=2)
+coords = pca.fit_transform(X_scaled)
+profiles["PC1"] = coords[:, 0]
+profiles["PC2"] = coords[:, 1]
+
+# Variance expliquée
+var_exp = pca.explained_variance_ratio_
+print(f"Variance expliquée: PC1={var_exp[0]:.1%}, PC2={var_exp[1]:.1%}, Total={sum(var_exp):.1%}")
+
+# Contributions variables
+loadings = pd.DataFrame(
+    pca.components_.T,
+    columns=["PC1", "PC2"],
+    index=cols_acp
+)
+
+# Graphique ACP avec couleurs continent
+fig = go.Figure()
+for cont, cont_color in CONTINENT_COLORS.items():
+    sub = profiles[profiles["continent"] == cont]
+    if len(sub) == 0:
+        continue
+    colors = [COL_YELLOW if cc == "FRA" else cont_color for cc in sub["country_code"]]
+    fig.add_trace(go.Scatter(
+        x=sub["PC1"], y=sub["PC2"],
+        mode="markers+text",
+        name=cont,
+        text=sub["city_fr"],
+        textposition="top center",
+        textfont=dict(size=LABEL_SIZE - 1, color="#333"),
+        marker=dict(
+            color=colors,
+            size=sub["n"] / 2000,
+            sizemin=8,
+        ),
+        hovertemplate="<b>%{text}</b><br>PC1: %{x:.2f}<br>PC2: %{y:.2f}<extra></extra>",
+    ))
+
+fig.add_hline(y=0, line_dash="dash", line_color=COL_GRAY, line_width=0.5)
+fig.add_vline(x=0, line_dash="dash", line_color=COL_GRAY, line_width=0.5)
+
+fig_title(fig, f"ACP — Positionnement des {N_CITIES} villes",
+          subtitle=f"PC1 ({var_exp[0]:.0%}) = professionnalisation | PC2 ({var_exp[1]:.0%}) = prix",
+          fig_num=18)
+fig.update_layout(
+    height=650, width=1200,
+    xaxis_title=f"PC1 — Professionnalisation ({var_exp[0]:.0%})",
+    yaxis_title=f"PC2 — Niveau de prix ({var_exp[1]:.0%})",
+    legend=dict(orientation="h", y=-0.1),
+)
+fig.show()
+# &e
+```
+
+### Contributions aux axes
+
+```{python}
+#| label: acp-loadings
+#| output: asis
+#| echo: false
+
+# &s ACP_LOADINGS
+# Heatmap contributions
+fig = px.imshow(
+    loadings.T,
+    text_auto=".2f",
+    color_continuous_scale="RdBu_r",
+    zmin=-0.6, zmax=0.6,
+    aspect="auto",
+    labels={"x": "Variable", "y": "Composante", "color": "Loading"},
+)
+fig_title(fig, "Contributions des variables aux composantes principales",
+          subtitle="Loadings ACP — valeurs positives/négatives", fig_num=19)
+fig.update_layout(height=250)
+fig.show()
+# &e
+```
+
+### Clustering — 4 profils de marché
+
+[**Quatre clusters émergent : Premium régulé, Massif intermédiaire, Touristique mature, Budget professionnel**]{.insight}
+
+Le clustering hiérarchique (méthode Ward, distance euclidienne sur données centrées-réduites) identifie quatre groupes de marchés aux profils distincts *(figure ci-contre)*.
+
+```{python}
+#| label: clustering-villes
+#| output: asis
+#| echo: false
+
+# &s CLUSTERING
+from scipy.cluster.hierarchy import linkage, fcluster
+from scipy.spatial.distance import pdist
+
+# Clustering hiérarchique
+Z = linkage(X_scaled, method="ward")
+profiles["cluster"] = fcluster(Z, t=4, criterion="maxclust")
+
+# Noms clusters
+cluster_names = {
+    1: "Premium régulé",
+    2: "Massif intermédiaire",
+    3: "Touristique mature",
+    4: "Budget professionnel"
+}
+
+# Réassigner selon caractéristiques (ajuster manuellement si besoin)
+cluster_stats = profiles.groupby("cluster")[cols_acp].mean()
+print("Moyennes par cluster:")
+print(cluster_stats.round(1))
+
+# Palette clusters
+cluster_colors = {1: COL_CYAN, 2: COL_YELLOW, 3: COL_GREEN, 4: COL_MAGENTA}
+profiles["cluster_color"] = profiles["cluster"].map(cluster_colors)
+profiles["cluster_name"] = profiles["cluster"].map(cluster_names)
+
+# Graphique clusters sur ACP
+fig = go.Figure()
+for cl in sorted(profiles["cluster"].unique()):
+    df_cl = profiles[profiles["cluster"] == cl]
+    fig.add_trace(go.Scatter(
+        x=df_cl["PC1"], y=df_cl["PC2"],
+        mode="markers+text",
+        name=cluster_names.get(cl, f"Cluster {cl}"),
+        text=df_cl["city_fr"],
+        textposition="top center",
+        textfont=dict(size=LABEL_SIZE - 1, color="#333"),
+        marker=dict(
+            color=cluster_colors.get(cl, COL_GRAY),
+            size=12,
+        ),
+    ))
+
+fig.add_hline(y=0, line_dash="dash", line_color=COL_GRAY, line_width=0.5)
+fig.add_vline(x=0, line_dash="dash", line_color=COL_GRAY, line_width=0.5)
+
+fig_title(fig, f"Clustering des {N_CITIES} villes",
+          subtitle="Profils identifiés par clustering hiérarchique (Ward)", fig_num=20)
+fig.update_layout(
+    height=650, width=1200,
+    xaxis_title="PC1 — Professionnalisation",
+    yaxis_title="PC2 — Niveau de prix",
+    legend=dict(orientation="h", y=-0.1),
+)
+fig.show()
+# &e
+```
+
+### Profils des clusters
+
+```{python}
+#| label: cluster-profiles
+
+# &s CLUSTER_PROFILES
+# Tableau récap clusters
+cluster_recap = profiles.groupby("cluster_name").agg(
+    n_villes=("city", "count"),
+    villes=("city_fr", lambda x: ", ".join(x)),
+    prix_moy=("prix_med", "mean"),
+    multi_moy=("pct_multi", "mean"),
+    dispo_moy=("dispo_med", "mean"),
+).round(1)
+
+print("=== PROFILS DES 4 CLUSTERS ===\n")
+for idx, row in cluster_recap.iterrows():
+    print(f"▸ {idx} ({row['n_villes']} villes)")
+    print(f"  Villes: {row['villes']}")
+    print(f"  Prix: {row['prix_moy']:.0f} EUR | Multi: {row['multi_moy']:.0f}% | Dispo: {row['dispo_moy']:.0f}j")
+    print()
+# &e
+```
+
+---
+
+# Synthèse
+
+## KPI globaux
+
+```{python}
+#| label: synthese-kpi
+#| output: false
+#| echo: false
+
+# &s KPI_RECAP
+n_total = len(df)
+n_cities = df["city"].nunique()
+n_countries = df["country_code"].nunique()
+prix_global = df["price_eur"].median()
+pct_entire_global = df["is_entire_home"].mean() * 100
+pct_multi_global = df["is_multihost"].mean() * 100
+
+top3 = profiles.nlargest(3, "n")["city"].tolist()
+top3_prix = profiles.nlargest(3, "prix_med")["city"].tolist()
+top3_multi = profiles.nlargest(3, "pct_multi")["city"].tolist()
+
+print(f"""
+{'='*65}
+SYNTHESE EDA — {PROJECT_NAME}
+{'='*65}
+
+KPI GLOBAUX
+  Listings actifs nettoyes : {n_total:,}
+  Villes : {n_cities} | Pays : {n_countries}
+  Prix median global : {prix_global:.0f} EUR/nuit
+  % Entire home : {pct_entire_global:.1f}%
+  % Multi-host : {pct_multi_global:.1f}%
+
+TOP 3
+  Volume : {', '.join(top3)}
+  Prix : {', '.join(top3_prix)}
+  Professionnalisation : {', '.join(top3_multi)}
+
+PIPELINE
+  Base brute (juin) : {len(df_raw):,}
+  Apres nettoyage : {n_total:,}
+  Taux retention : {n_total/len(df_raw)*100:.1f}%
+  Dont longterm (flag) : {df['is_longterm'].sum():,}
+{'='*65}
+""")
+# &e
+```
+
+## Récapitulatif par ville — tableau KPI complet
+
+```{r}
+#| label: synthese-ville-reactable
+
+# &s RECAP_VILLE_TABLE - Tableau KPI 64 villes depuis sp08
+kpi_city_path <- "C:/Users/vince/hh/pq/PDS/pbnb-airbnb-log-jrr-jpy/data/interim/kpi_global_by_city_2506.csv"
+df_city <- read.csv(kpi_city_path, fileEncoding = "UTF-8")
+
+stats_n <- compute_bar_stats(df_city$n_listings)
+stats_pres <- compute_bar_stats(df_city$listings_1000hab)
+stats_hsg <- compute_bar_stats(df_city$entire_1000hsg)
+
+rt_styled(
+  df_city[, c("city_fr", "country_code", "n_listings", "pop",
+              "listings_1000hab", "entire_1000hsg", "prix_med",
+              "pct_entire", "pct_multi", "pct_longterm", "ratio_lh", "dispo_med")],
+  columnGroups = list(
+    col_group("Volume", c("n_listings", "pop")),
+    col_group("Pression", c("listings_1000hab", "entire_1000hsg")),
+    col_group("Structure", c("prix_med", "pct_entire", "pct_multi", "pct_longterm")),
+    col_group("Activité", c("ratio_lh", "dispo_med"))
+  ),
+  columns = list(
+    city_fr = colDef(name = "Ville", minWidth = 110, style = list(fontWeight = "500")),
+    country_code = colDef(name = "Pays", minWidth = 50),
+    n_listings = colDef(name = "Listings", cell = bar_simple(stats_n$p98, fill = "#1696d2"), minWidth = 130),
+    pop = colDef(name = "Population", format = colFormat(separators = TRUE, digits = 0)),
+    listings_1000hab = colDef(name = "L/1000 hab", cell = bar_simple(stats_pres$p98, fill = "#1696d2"), minWidth = 120),
+    entire_1000hsg = colDef(name = "EH/1000 log", cell = bar_simple(stats_hsg$p98, fill = "#ec008b"), minWidth = 120),
+    prix_med = colDef(name = "Prix méd", header = header_unit("Prix", "EUR"), format = colFormat(digits = 0)),
+    pct_entire = colDef(name = "% Entire", cell = bar_pct(fill = "#55b748"), minWidth = 100),
+    pct_multi = colDef(name = "% Multi", cell = bar_pct(fill = "#ec008b"), minWidth = 100),
+    pct_longterm = colDef(name = "% LT", cell = bar_pct(fill = "#1696d2"), minWidth = 90),
+    ratio_lh = colDef(name = "Ratio L/H", format = colFormat(digits = 2)),
+    dispo_med = colDef(name = "Dispo méd", header = header_unit("Dispo", "jours"), format = colFormat(digits = 0))
+  ),
+  defaultSorted = list(n_listings = "desc"),
+  searchable = TRUE,
+  page_size = 20
+)
+# &e
+```
+
+## Récapitulatif par pays
+
+```{r}
+#| label: synthese-pays-reactable
+
+# &s RECAP_PAYS_TABLE - Tableau KPI 30 pays depuis sp08
+kpi_country_path <- "C:/Users/vince/hh/pq/PDS/pbnb-airbnb-log-jrr-jpy/data/interim/kpi_global_by_country_2506.csv"
+df_pays <- read.csv(kpi_country_path, fileEncoding = "UTF-8")
+
+stats_n <- compute_bar_stats(df_pays$n_listings)
+stats_pres <- compute_bar_stats(df_pays$listings_1000hab)
+
+rt_styled(
+  df_pays[, c("country_code", "n_villes", "n_listings", "n_hosts",
+              "listings_1000hab", "entire_1000hsg",
+              "prix_med", "pct_entire", "pct_multi", "pct_longterm", "ratio_lh")],
+  columnGroups = list(
+    col_group("Volume", c("n_villes", "n_listings", "n_hosts")),
+    col_group("Pression", c("listings_1000hab", "entire_1000hsg")),
+    col_group("Structure", c("prix_med", "pct_entire", "pct_multi", "pct_longterm", "ratio_lh"))
+  ),
+  columns = list(
+    country_code = colDef(name = "Pays", minWidth = 50),
+    n_villes = colDef(name = "Villes", format = colFormat(digits = 0)),
+    n_listings = colDef(name = "Listings", cell = bar_simple(stats_n$p98, fill = "#1696d2"), minWidth = 130),
+    n_hosts = colDef(name = "Hosts", format = colFormat(separators = TRUE, digits = 0)),
+    listings_1000hab = colDef(name = "L/1000 hab", cell = bar_simple(stats_pres$p98, fill = "#1696d2"), minWidth = 120),
+    entire_1000hsg = colDef(name = "EH/1000 log", format = colFormat(digits = 1)),
+    prix_med = colDef(name = "Prix méd", header = header_unit("Prix", "EUR"), format = colFormat(digits = 0)),
+    pct_entire = colDef(name = "% Entire", cell = bar_pct(fill = "#55b748"), minWidth = 100),
+    pct_multi = colDef(name = "% Multi", cell = bar_pct(fill = "#ec008b"), minWidth = 100),
+    pct_longterm = colDef(name = "% LT", cell = bar_pct(fill = "#1696d2"), minWidth = 90),
+    ratio_lh = colDef(name = "Ratio L/H", format = colFormat(digits = 2))
+  ),
+  page_size = 20
+)
+# &e
+```
+
+## Export CSV
+
+```{python}
+#| label: synthese-export
+
+# &s EXPORT_CSV
+out_csv = BASE / "data" / "interim" / "recap_profiles_global_clean_2506.csv"
+profiles_display.to_csv(out_csv, index=False, encoding="utf-8-sig")
+print(f"Export: {out_csv.name}")
+
+# Sauvegarde log Claude
+clog.result("kpi_global", {
+    "n_listings": len(df),
+    "n_cities": int(df["city"].nunique()),
+    "n_countries": int(df["country_code"].nunique()),
+    "prix_median_eur": round(float(df["price_eur"].median()), 0),
+    "pct_entire": round(float(df["is_entire_home"].mean() * 100), 1),
+    "pct_multi": round(float(df["is_multihost"].mean() * 100), 1),
+}, interpret=f"{len(df):,} listings / {df['city'].nunique()} villes / "
+             f"prix median {df['price_eur'].median():.0f} EUR")
+clog.save()
+# &e
+```
+
+---
+
+::: {.callout-tip}
+## Réponses aux questions directrices
+
+**Q1. Volumes et géographie** — L'offre mondiale se concentre massivement : Londres (61K), Paris (51K) et Rio (38K) cumulent 19 % des 790 000 listings. L'Europe domine avec 57 % du panel, devant les Amériques (28 %) et l'Asie-Pacifique (12 %).
+
+**Q2. Pression sur les territoires** — Les villes patrimoniales européennes subissent la pression la plus forte : Porto (55 L/1000 hab), Lisbonne (38), Bordeaux et Florence (~31). Les métropoles mondiales (Tokyo, New York, Singapour) restent sous 3 L/1000 hab — effet de dilution par la taille.
+
+**Q3. Prix et fractures** — Un facteur **6** sépare Amsterdam (223 EUR) de Bangkok (37 EUR). Les USA et l'Europe du Nord dominent le segment premium ; l'Asie du Sud-Est et l'Amérique latine restent sous 60 EUR. L'écart est davantage continental que lié au type de logement.
+
+**Q4. Professionnalisation** — Non : la corrélation prix ~ multi-host est **négative** (r = −0,34). Tokyo (91 % multi-hosts), Taipei (89 %) et Singapour (88 %) sont hyper-professionnalisés mais à prix modérés. Les marchés premium (Amsterdam, Copenhague) restent sous 25 % de multi-hosts.
+
+**Q5. Régulation** — Oui : New York (82 % longterm), Istanbul (50 %), Barcelone (42 %) portent la trace de régulations par la durée. Copenhague et Amsterdam montrent un profil régulé atypique : ratio L/H ≈ 1, disponibilité <120 jours.
+
+**Q6. Typologies** — L'ACP et le clustering identifient 4 profils qui transcendent les frontières : marchés professionnalisés à bas coûts (Asie), marchés premium régulés (Nord Europe), villes patrimoniales sous pression (Sud Europe), marchés budget émergents (Amérique latine, Afrique).
+:::
+
+---
+
+*Généré avec Quarto + Python | Données Inside Airbnb juin 2025 | Source : insideairbnb.com*

@@ -2,52 +2,69 @@ project:
   type: website
   output-dir: _output
   render:
-    - rpt-synth-bnb-260211.qmd
-    - rpt-nbk-bnb-eda-260207.qmd
-    # - rpt-nbk-bnb-stats-260211.qmd   # TODO annexe stats
-    # - rpt-dash-bnb-260211.qmd         # TODO dashboard OJS
-    # - rpt-focus-bnb-paris.qmd         # TODO zoom Paris
-    # - methodologie.qmd                # TODO
+    - rpt-pbnb-synth-monde-260214.qmd
+    - rpt-pbnb-synth-europe-260214.qmd
+    - rpt-pbnb-rapport-ALL-260207.qmd
+    - rpt-pbnb-edanbk-ALL-260215.qmd
+    - rpt-pbnb-methnbk-acp-260215.qmd
+    - rpt-pbnb-rapport-franceparis-260215.qmd
+    - rpt-pbnb-dash-ALL-260211.qmd
+    - rpt-pbnb-dash-franceparis-260215.qmd
 
 website:
-  title: "Airbnb Europe — Marchés Comparés"
-  sidebar:
-    style: docked
-    search: true
-    contents:
-      - rpt-synth-bnb-260211.qmd
-      - section: "Analyses"
-        contents:
-          - rpt-nbk-bnb-eda-260207.qmd
-          # - rpt-nbk-bnb-stats-260211.qmd
-      # - section: "Focus"
-      #   contents:
-      #     - rpt-focus-bnb-paris.qmd
-      # - section: "Dashboard"
-      #   contents:
-      #     - rpt-dash-bnb-260211.qmd
-      - section: "Présentation"
-        contents:
-          - text: "RevealJS (v2)"
-            href: rpt-pres-bnb-v2-260210.html
+  title: "Airbnb — Marchés Mondiaux Comparés"
+  search: false
+  navbar:
+    background: "#0a3d5c"
+    left:
+      - text: "Monde & Europe"
+        menu:
+          - text: "Synthèse — 64 villes monde"
+            href: rpt-pbnb-synth-monde-260214.qmd
+          - text: "Synthèse — 36 marchés Europe"
+            href: rpt-pbnb-synth-europe-260214.qmd
+          - text: "---"
+          - text: "Rapport d'analyse"
+            href: rpt-pbnb-rapport-ALL-260207.qmd
+      - text: "France"
+        menu:
+          - text: "Rapport — Paris, Lyon, Bordeaux"
+            href: rpt-pbnb-rapport-franceparis-260215.qmd
+          - text: "---"
+          - text: "Dashboard cartographique"
+            href: rpt-pbnb-dash-franceparis-260215.qmd
+      - text: "Exploration"
+        menu:
+          - text: "Notebook EDA"
+            href: rpt-pbnb-edanbk-ALL-260215.qmd
+          - text: "Annexe méthodologique"
+            href: rpt-pbnb-methnbk-acp-260215.qmd
+          - text: "---"
+          - text: "Dashboard interactif (64 villes)"
+            href: rpt-pbnb-dash-ALL-260211.qmd
 
 format:
   html:
-    theme: [cosmo, theme-urban.scss]
+    theme: [cosmo, config/theme-html.scss]
+    include-after-body: config/scrollspy-fix.html
     toc: true
     toc-depth: 3
     toc-location: right
+    toc-title: "Sur cette page"
     number-sections: true
+    smooth-scroll: true
     code-fold: true
     code-summary: "Code"
     grid:
       body-width: 950px
-      sidebar-width: 250px
-      margin-width: 250px
+      sidebar-width: 0px
+      margin-width: 350px
+      gutter-width: 3rem
     fig-width: 10
     fig-height: 6
     fig-align: center
     mainfont: "Inter, system-ui, sans-serif"
+    # PAS de title-block-banner — titre dans le flux body (aligné SCSS)
 
 execute:
   python: C:/ScoopApps/apps/python/current/python.exe

@@ -1,0 +1,373 @@
+---
+title: "Airbnb dans le monde : 64 villes, 789 000 annonces"
+subtitle: "La pression touristique, un phénomène mondial très inégalement distribué"
+author: "Vincent R."
+date: "Février 2026"
+number-sections: false
+toc: false
+format:
+  html:
+    theme: [cosmo, config/theme-html.scss, config/theme-insee.scss]
+    title-block-banner: true
+    title-block-banner-color: "#0a4c6a"
+---
+
+```{r}
+#| label: setup
+#| include: false
+
+library(reticulate)
+use_python("C:/ScoopApps/apps/python/current/python.exe", required = TRUE)
+library(reactable)
+library(dplyr)
+source("C:/Users/vince/hh/pq/PDS/mutils/jrr/jcn-setup.R")
+source("C:/Users/vince/hh/pq/PDS/mutils/jrr/jcn-table.R")
+
+kpi_r <- read.csv("C:/Users/vince/hh/pq/PDS/pbnb-airbnb-log-jrr-jpy/data/interim/kpi_global_by_city_2506.csv",
+                   fileEncoding = "UTF-8")
+```
+
+```{python}
+#| label: config
+#| include: false
+
+from pathlib import Path
+import pandas as pd
+import numpy as np
+import plotly.graph_objects as go
+import plotly.express as px
+import re as _re
+
+# Charger helpers jcn-graph.py
+import sys
+sys.path.insert(0, r"C:\Users\vince\hh\pq\PDS\mutils\jpy")
+import importlib.util
+_spec = importlib.util.spec_from_file_location("jcn_graph", Path(r"C:\Users\vince\hh\pq\PDS\mutils\jpy\jcn-graph.py"))
+_mod = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_mod)
+_mod.init_style()
+_mod.patch_plotly_reticulate()
+
+# Shortcuts
+fig_title = _mod.fig_title
+plot_bar_ranked = _mod.plot_bar_ranked
+COL_CYAN, COL_YELLOW, COL_ORANGE = _mod.COL_CYAN, _mod.COL_YELLOW, _mod.COL_ORANGE
+COL_MAGENTA, COL_GREEN, COL_SPACEGRAY = _mod.COL_MAGENTA, _mod.COL_GREEN, _mod.COL_SPACEGRAY
+LABEL_SIZE = _mod.LABEL_SIZE
+CONTINENT_COLORS = _mod.CONTINENT_COLORS
+
+BASE = Path(r"C:\Users\vince\hh\pq\PDS\pbnb-airbnb-log-jrr-jpy")
+kpi = pd.read_csv(BASE / "data" / "interim" / "kpi_global_by_city_2506.csv")
+
+# Coords mondiales
+COORDS = {
+    "london": (51.51, -0.13), "paris": (48.86, 2.35), "rome": (41.90, 12.50),
+    "istanbul": (41.01, 28.98), "lisbon": (38.72, -9.14), "madrid": (40.42, -3.70),
+    "athens": (37.98, 23.73), "barcelona": (41.39, 2.17), "copenhagen": (55.68, 12.57),
+    "budapest": (47.50, 19.04), "florence": (43.77, 11.25), "vienna": (48.21, 16.37),
+    "prague": (50.08, 14.44), "berlin": (52.52, 13.40), "bordeaux": (44.84, -0.58),
+    "venice": (45.44, 12.33), "amsterdam": (52.37, 4.90), "brussels": (50.85, 4.35),
+    "dublin": (53.35, -6.26), "lyon": (45.76, 4.83), "milan": (45.46, 9.19),
+    "porto": (41.16, -8.63), "oslo": (59.91, 10.75), "naples": (40.85, 14.27),
+    "malaga": (36.72, -4.42), "valencia": (39.47, -0.38), "sevilla": (37.39, -5.98),
+    "greater-manchester": (53.48, -2.24), "munich": (48.14, 11.58),
+    "edinburgh": (55.95, -3.19), "stockholm": (59.33, 18.07),
+    "thessaloniki": (40.64, 22.94), "bologna": (44.49, 11.34),
+    "bergamo": (45.70, 9.67), "zurich": (47.38, 8.54), "riga": (56.95, 24.11),
+    "new-york-city": (40.71, -74.01), "los-angeles": (34.05, -118.24),
+    "san-francisco": (37.77, -122.42), "chicago": (41.88, -87.63),
+    "boston": (42.36, -71.06), "seattle": (47.61, -122.33),
+    "washington-dc": (38.91, -77.04), "nashville": (36.16, -86.78),
+    "austin": (30.27, -97.74), "denver": (39.74, -104.99),
+    "san-diego": (32.72, -117.16), "portland": (45.52, -122.68),
+    "new-orleans": (29.95, -90.07), "dallas": (32.78, -96.80),
+    "toronto": (43.65, -79.38), "montreal": (45.50, -73.57),
+    "vancouver": (49.28, -123.12), "mexico-city": (19.43, -99.13),
+    "rio-de-janeiro": (-22.91, -43.17),
+    "tokyo": (35.68, 139.69), "hong-kong": (22.32, 114.17),
+    "singapore": (1.35, 103.82), "bangkok": (13.76, 100.50),
+    "taipei": (25.03, 121.57), "sydney": (-33.87, 151.21),
+    "melbourne": (-37.81, 144.96), "brisbane": (-27.47, 153.03),
+    "cape-town": (-33.92, 18.42),
+}
+kpi["lat"] = kpi["city"].map(lambda c: COORDS.get(c, (0, 0))[0])
+kpi["lon"] = kpi["city"].map(lambda c: COORDS.get(c, (0, 0))[1])
+kpi["color"] = kpi["continent"].map(CONTINENT_COLORS)
+
+# KPIs
+n_total = kpi["n_listings"].sum()
+n_cities = len(kpi)
+n_countries = kpi["country_code"].nunique()
+n_continents = kpi["continent"].nunique()
+top_press = kpi.nlargest(1, "listings_1000hab").iloc[0]
+bot_press = kpi.nsmallest(1, "listings_1000hab").iloc[0]
+facteur_press = top_press["listings_1000hab"] / bot_press["listings_1000hab"]
+```
+
+```{python}
+#| label: kpi-cards
+#| output: asis
+
+cards = f"""<div class="kpi-card-grid">
+<div class="kpi-card">
+<div class="kpi-value">{n_total:,.0f}</div>
+<div class="kpi-label">annonces actives</div>
+<div class="kpi-context">{n_cities} villes · {n_countries} pays · {n_continents} continents</div>
+</div>
+<div class="kpi-card accent-orange">
+<div class="kpi-value">&times;{facteur_press:.0f}</div>
+<div class="kpi-label">écart de pression</div>
+<div class="kpi-context">{top_press['city_fr']} ({top_press['listings_1000hab']:.0f}) vs {bot_press['city_fr']} ({bot_press['listings_1000hab']:.1f})</div>
+</div>
+<div class="kpi-card accent-green">
+<div class="kpi-value">{kpi.loc[kpi['continent']=='Europe', 'n_listings'].sum() / n_total * 100:.0f} %</div>
+<div class="kpi-label">de l'offre en Europe</div>
+<div class="kpi-context">36 villes sur 64 · {kpi.loc[kpi['continent']=='Europe', 'n_listings'].sum():,.0f} listings</div>
+</div>
+<div class="kpi-card accent-magenta">
+<div class="kpi-value">{kpi['prix_med'].median():.0f} €</div>
+<div class="kpi-label">prix médian mondial</div>
+<div class="kpi-context">{kpi['prix_med'].min():.0f} € (Bangkok) → {kpi['prix_med'].max():.0f} € (Amsterdam)</div>
+</div>
+</div>"""
+print(_re.sub(r'>\s+<', '><', cards).strip())
+```
+
+::: {.chapeau}
+Avec **7 millions d'annonces** dans le monde, Airbnb est devenu un acteur incontournable du tourisme urbain. Cette vue panoramique compare **64 marchés sur 4 continents** à partir des données ouvertes d'Inside Airbnb (juin 2025). Le constat principal : la pression touristique est un phénomène très inégalement distribué — ce ne sont pas les mégapoles qui souffrent le plus.
+:::
+
+---
+
+## Le gradient mondial de la pression {.unnumbered}
+
+Le classement par pression touristique (listings pour 1 000 habitants) révèle un facteur ×137 entre Porto (55 L/1 000 hab) et Singapour (0,4). **Les villes européennes du sud trustent le top** : Porto, Lisbonne, Bordeaux, Florence, Venise occupent les 5 premières places mondiales. Les mégapoles asiatiques (Tokyo 1,6, Hong Kong 0,8) sont en bas de classement.
+
+Ce gradient raconte une histoire : **la pression Airbnb est inversement proportionnelle à la taille de la ville et proportionnelle à l'attractivité touristique** — c'est Venise vs Tokyo.
+
+::: {.panel-tabset}
+
+### Top & Bottom 12
+
+```{python}
+#| label: fig-pression-monde
+#| output: asis
+
+fig = plot_bar_ranked(kpi, "listings_1000hab", label_col="city_fr",
+                      n_show=12, text_outside=True, digits=1, margin_l=160)
+fig.update_layout(title=fig_title(1, "Pression touristique — Top & Bottom 12",
+                    "Listings / 1 000 habitants · top cyan · bottom orange"))
+fig.show()
+```
+
+### Tableau
+
+```{r}
+#| label: tbl-pression-monde
+
+reactable(
+  kpi_r |> select(city_fr, continent, country_code, n_listings, pop, listings_1000hab) |>
+    arrange(desc(listings_1000hab)) |>
+    mutate(pop = format(pop, big.mark = " "), n_listings = format(n_listings, big.mark = " ")),
+  columns = list(
+    city_fr = colDef(name = "Ville", width = 160),
+    continent = colDef(name = "Continent", width = 100),
+    country_code = colDef(name = "Pays", width = 55, align = "center"),
+    n_listings = colDef(name = "Listings", width = 90, align = "right"),
+    pop = colDef(name = "Population", width = 120, align = "right"),
+    listings_1000hab = colDef(name = "L/1000 hab", width = 90, align = "right",
+                              format = colFormat(digits = 1))
+  ),
+  defaultPageSize = 15, searchable = TRUE, striped = TRUE,
+  highlight = TRUE, compact = TRUE, bordered = TRUE,
+  style = list(fontSize = "0.82rem")
+)
+```
+
+:::
+
+::: {.figure-source}
+Source : Inside Airbnb, juin 2025 · Population : ville-centre (sources nationales)
+:::
+
+---
+
+::: {.grey-section}
+
+## 64 villes sur la carte {.unnumbered}
+
+```{python}
+#| label: fig-carte-monde
+#| output: asis
+
+fig = go.Figure()
+for cont, color in CONTINENT_COLORS.items():
+    sub = kpi[kpi["continent"] == cont]
+    fig.add_trace(go.Scattergeo(
+        lat=sub["lat"], lon=sub["lon"],
+        marker=dict(
+            size=sub["n_listings"] / kpi["n_listings"].max() * 40 + 5,
+            color=color, line=dict(width=0.5, color="white"),
+        ),
+        text=sub["city_fr"],
+        hovertemplate="<b>%{text}</b><br>Listings: %{customdata[0]:,.0f}<br>L/1000h: %{customdata[1]:.1f}<br>Prix: %{customdata[2]:.0f} €<extra></extra>",
+        customdata=sub[["n_listings", "listings_1000hab", "prix_med"]].values,
+        name=cont,
+    ))
+
+fig.update_geos(
+    projection_type="natural earth",
+    showcoastlines=True, coastlinecolor="#d2d2d2",
+    showland=True, landcolor="#f5f5f5",
+    showocean=True, oceancolor="#e8f4fa",
+    showcountries=True, countrycolor="#d2d2d2",
+)
+fig.update_layout(
+    title=fig_title(2, "64 marchés Airbnb dans le monde",
+                    "Taille = volume d'annonces · couleur = continent"),
+    height=500,
+    margin=dict(t=100, b=20, l=0, r=0),
+    legend=dict(orientation="h", y=-0.05, x=0.5, xanchor="center"),
+)
+fig.show()
+```
+
+::: {.figure-source}
+Source : Inside Airbnb, juin 2025 · 64 villes, 30 pays, 4 continents
+:::
+
+:::
+
+---
+
+## Benchmarking par continent {.unnumbered}
+
+L'Europe domine l'offre mondiale en volume (57 % des listings) mais surtout en intensité : les 10 villes les plus sous pression sont toutes européennes. Les Amériques présentent un profil plus homogène, avec La Nouvelle-Orléans (16 L/1 000 hab) comme seul outlier. L'Asie-Pacifique reste un marché Airbnb peu développé rapporté à la population, malgré des métropoles géantes.
+
+::: {.panel-tabset}
+
+### Prix — Top & Bottom 12
+
+```{python}
+#| label: fig-prix-continent
+#| output: asis
+
+fig = plot_bar_ranked(kpi, "prix_med", label_col="city_fr",
+                      n_show=12, text_outside=True, digits=0, suffix=" €",
+                      margin_l=160)
+fig.update_layout(title=fig_title(3, "Prix médian — Top & Bottom 12",
+                    "EUR/nuit · top cyan · bottom orange"))
+fig.show()
+```
+
+### Par continent
+
+```{r}
+#| label: tbl-continent
+
+continent_summary <- kpi_r |>
+  group_by(continent) |>
+  summarise(
+    n_villes = n(),
+    n_pays = n_distinct(country_code),
+    listings = sum(n_listings),
+    pct_total = round(sum(n_listings) / sum(kpi_r$n_listings) * 100, 0),
+    prix_med = round(median(prix_med), 0),
+    pression_med = round(median(listings_1000hab), 1),
+    pct_multi_med = round(median(pct_multi), 0),
+    .groups = "drop"
+  ) |>
+  arrange(desc(listings))
+
+reactable(continent_summary,
+  columns = list(
+    continent = colDef(name = "Continent", width = 110),
+    n_villes = colDef(name = "Villes", width = 60, align = "center"),
+    n_pays = colDef(name = "Pays", width = 55, align = "center"),
+    listings = colDef(name = "Listings", width = 100, align = "right",
+                      format = colFormat(separators = TRUE)),
+    pct_total = colDef(name = "% total", width = 70, align = "right",
+                       format = colFormat(suffix = " %")),
+    prix_med = colDef(name = "Prix méd. €", width = 90, align = "right"),
+    pression_med = colDef(name = "L/1000h méd.", width = 100, align = "right"),
+    pct_multi_med = colDef(name = "% multi méd.", width = 95, align = "right",
+                           format = colFormat(suffix = " %"))
+  ),
+  striped = TRUE, highlight = TRUE, bordered = TRUE, compact = TRUE,
+  style = list(fontSize = "0.85rem")
+)
+```
+
+### Toutes les villes
+
+```{r}
+#| label: tbl-monde-all
+
+reactable(
+  kpi_r |> select(city_fr, continent, country_code, n_listings, listings_1000hab,
+                   prix_med, pct_multi, dispo_med, pct_longterm) |>
+    arrange(desc(listings_1000hab)),
+  columns = list(
+    city_fr = colDef(name = "Ville", width = 160, sticky = "left",
+                     style = list(fontWeight = 500)),
+    continent = colDef(name = "Continent", width = 95),
+    country_code = colDef(name = "Pays", width = 50, align = "center"),
+    n_listings = colDef(name = "Listings", width = 80, align = "right",
+                        format = colFormat(separators = TRUE)),
+    listings_1000hab = colDef(name = "L/1000h", width = 80, align = "right",
+                              format = colFormat(digits = 1)),
+    prix_med = colDef(name = "Prix €", width = 65, align = "right"),
+    pct_multi = colDef(name = "% multi", width = 70, align = "right",
+                       format = colFormat(suffix = "%", digits = 0)),
+    dispo_med = colDef(name = "Dispo", width = 65, align = "right"),
+    pct_longterm = colDef(name = "% long", width = 65, align = "right",
+                          format = colFormat(suffix = "%", digits = 1))
+  ),
+  defaultPageSize = 20, searchable = TRUE, striped = TRUE,
+  highlight = TRUE, compact = TRUE, bordered = TRUE,
+  style = list(fontSize = "0.82rem"),
+  defaultSorted = list(listings_1000hab = "desc")
+)
+```
+
+:::
+
+---
+
+::: {.grey-section}
+
+## L'Europe, épicentre de la pression {.unnumbered}
+
+Avec 57 % de l'offre mondiale concentrée sur 36 villes, l'Europe est le terrain de jeu principal d'Airbnb. Mais au-delà du volume, c'est l'**intensité** qui distingue le continent : 9 des 10 villes les plus sous pression au monde sont européennes. La Nouvelle-Orléans (16 L/1 000 hab, seul outlier américain) n'atteint pas le niveau de la 12^e^ ville européenne.
+
+Ce constat justifie un zoom approfondi sur le marché européen, où se concentrent les enjeux de régulation, de professionnalisation et d'impact sur le logement.
+
+:::
+
+
+::: {.encadre-accent}
+
+[Source et méthodologie]{.encadre-titre}
+
+**Données** : Inside Airbnb (sumlistings, juin 2025) — projet indépendant de collecte des annonces publiques.
+
+**Périmètre** : 64 villes, 30 pays, 4 continents, 789 000 annonces actives après nettoyage.
+
+**Pipeline** : prix non null → disponibilité > 0 → hors hôtels → prix 10–1 000 EUR (taux de rétention ~65-70 %).
+
+**Taux de change** : EUR mi-2025 pour 21 devises non-euro (USD, GBP, CAD, BRL, JPY, AUD, SGD, THB, TWD, HKD, ZAR, MXN, NOK, SEK, DKK, CZK, HUF, TRY, CHF, LVL).
+
+:::
+
+
+::: {.pour-en-savoir-plus}
+
+### Pour en savoir plus
+
+- [**Focus Europe — 36 marchés**](rpt-pbnb-synth-europe-260214.qmd) — Analyse approfondie : prix, régulation, professionnalisation, ACP et profils de marché
+- [**Rapport complet**](rpt-pbnb-rapport-ALL-260207.qmd) — Analyse mondiale & européenne détaillée (64 villes)
+- [**Notebook EDA**](rpt-pbnb-edanbk-ALL-260215.qmd) — Exploration des données, distributions, code reproductible
+- [**Dashboard interactif**](rpt-pbnb-dash-ALL-260211.qmd) — Exploration libre avec sélecteur d'indicateurs (64 villes)
+- **Inside Airbnb** — [insideairbnb.com](http://insideairbnb.com/get-the-data/) — Données ouvertes
+
+:::

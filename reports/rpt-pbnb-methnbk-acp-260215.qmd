@@ -1,0 +1,401 @@
+---
+title: "Méthodologie — Pipeline ETL et indicateurs"
+subtitle: "Annexe technique · Inside Airbnb juin 2025 · 64 villes"
+author: "Vincent R."
+date: today
+date-format: "DD MMMM YYYY"
+categories: ["Annexe méthodologique"]
+number-sections: false
+format:
+  html:
+    theme: [cosmo, config/theme-html.scss]
+    toc: true
+    toc-location: left
+    toc-depth: 3
+    code-fold: true
+    code-summary: "Code"
+    code-tools: true
+    fig-width: 10
+    fig-height: 6
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+<!-- Notebook méthodologique (rpt-pbnb-methnbk-acp-260215)
+     Type : METHNBK (code visible, annexe technique)
+     Companion : rpt-pbnb-rapport-ALL-260207.qmd (rapport)
+     Objectif : documenter pipeline ETL, cleaning, indicateurs, ACP, difficultés
+-->
+
+```{r}
+#| label: setup-reticulate
+#| include: false
+
+library(reticulate)
+use_python("C:/ScoopApps/apps/python/current/python.exe", required = TRUE)
+```
+
+```{python}
+#| label: setup
+#| code-fold: false
+
+from pathlib import Path
+import sys
+import pandas as pd
+import numpy as np
+
+MUTILS_JPY = Path(r"C:\Users\vince\hh\pq\PDS\mutils\jpy")
+if str(MUTILS_JPY) not in sys.path:
+    sys.path.insert(0, str(MUTILS_JPY))
+
+import importlib.util
+_spec_graph = importlib.util.spec_from_file_location("jcn_graph", MUTILS_JPY / "jcn-graph.py")
+_mod = importlib.util.module_from_spec(_spec_graph)
+_spec_graph.loader.exec_module(_mod)
+_mod.init_style()
+_mod.patch_plotly_reticulate()
+
+BASE = Path(r"C:\Users\vince\hh\pq\PDS\pbnb-airbnb-log-jrr-jpy")
+```
+
+::: {.callout-note}
+## Objectif
+
+Cette annexe documente les **choix méthodologiques** du projet :
+
+1. Pipeline ETL complet (scraping → parquet nettoyé)
+2. Nettoyage et décisions de filtrage
+3. Construction des indicateurs (KPIs)
+4. Méthodologie ACP et clustering
+5. Difficultés rencontrées et solutions
+
+Elle accompagne le [rapport complet](rpt-pbnb-rapport-ALL-260207.qmd) et le [notebook EDA](rpt-pbnb-edanbk-ALL-260215.qmd).
+:::
+
+---
+
+# Pipeline ETL — Vue d'ensemble
+
+```{mermaid}
+%%| fig-width: 10
+flowchart TD
+    A["🌐 Inside Airbnb<br/><i>insideairbnb.com/get-the-data</i><br/>~80 villes disponibles"] --> B
+
+    B["📥 <b>sp04</b> — Download<br/><code>sp04-download-insideairbnb-251231.py</code><br/>Téléchargement ciblé par ville/pays/continent<br/>4 types : listings.gz, sumlistings, geojson, neighbourhoods"]
+
+    B --> C["📁 <b>sp06</b> — Flatten<br/><code>sp06-flatten-insideairbnb-251231.py</code><br/>Aplatir arborescence datée → nommage flat<br/><code>YYYY-MM-DD/</code> → <code>YY-MM-XXX-CITY_*</code>"]
+
+    C --> D["🔧 <b>sp07</b> — Consolidation<br/><code>sp07-consolidate-global-260212.py</code><br/>Agrégation 64 villes × 4 continents en 1 parquet<br/>+ métadonnées : pop, logements, FX, continent"]
+
+    D --> E["📊 <b>sp08</b> — KPIs<br/><code>sp08-recap-kpi-global-260212.py</code><br/>Nettoyage + calcul 25 indicateurs par ville<br/>→ CSV monde (64 villes) + Europe (36)"]
+
+    F["🏘️ <b>city_reference_data.py</b><br/>Pop commune propre + logements<br/>35 villes Europe (sources officielles)"] --> D
+    F --> E
+
+    G["💱 <b>Taux de change</b><br/>21 devises non-EUR → EUR<br/>FX manuels (BCE, fév. 2026)"] --> D
+
+    E --> H["📈 <b>Rapports Quarto</b><br/>Synthèses · Rapport · EDA · Dashboard"]
+    D --> H
+
+    style A fill:#e3f2fd,stroke:#1696d2,stroke-width:2px
+    style B fill:#fff3e0,stroke:#ca5800,stroke-width:2px
+    style C fill:#fff3e0,stroke:#ca5800,stroke-width:2px
+    style D fill:#e8f5e9,stroke:#55b748,stroke-width:2px
+    style E fill:#e8f5e9,stroke:#55b748,stroke-width:2px
+    style F fill:#f3e5f5,stroke:#ec008b,stroke-width:2px
+    style G fill:#f3e5f5,stroke:#ec008b,stroke-width:2px
+    style H fill:#e3f2fd,stroke:#1696d2,stroke-width:2px
+```
+
+## Étapes détaillées
+
+### Étape 1 — Download (`sp04`)
+
+**Source** : [Inside Airbnb](https://insideairbnb.com/get-the-data/) — données publiques compilées par Murray Cox.
+
+| Type fichier | Colonnes | Usage | Taille/ville |
+|:-------------|:---------|:------|:-------------|
+| `listings.csv.gz` | 74 | Détail complet (amenities, descriptions, scores) | 5-50 MB |
+| `listings.csv` (sumlistings) | 18 | Résumé léger (prix, dispo, reviews) | 0.5-3 MB |
+| `neighbourhoods.geojson` | géométrie | Contours quartiers | 0.1-2 MB |
+| `neighbourhoods.csv` | 2 | Liste quartiers | < 10 KB |
+
+**Paramétrage** : Filtrage par continent (`-e` Europe), pays (`-c france`), types de fichiers (`-l -s -g -n`). Retry 3× avec rate-limiting (1s entre requêtes).
+
+**Organisation** :
+```
+data/raw/zudb-inside-airbnbbnb/
+├── europe/{pays}/{ville}/{YYYY-MM-DD}/listings.csv.gz
+├── usa/united-states/{ville}/...
+└── world/{pays}/{ville}/...
+```
+
+### Étape 2 — Flatten (`sp06`)
+
+Transformation de l'arborescence datée vers un nommage plat pour simplifier la consolidation :
+
+```
+Avant : europe/france/paris/2025-06-18/listings.csv.gz
+Après : europe/france/paris/25-06/
+        + 25-06-FRA-paris_sumlistings.csv
+        + geo-FRA-paris_neighbourhoods.geojson
+```
+
+### Étape 3 — Consolidation (`sp07`)
+
+- **Scan** des 3 dossiers racines (`europe/`, `usa/`, `world/`)
+- **Exclusion des régions** : Sicile, Crète, Baléares, Pays Basque, Basilicate... (biais rural)
+- **Seuil** : minimum 3 000 listings par ville (exclut villes trop petites)
+- **Enrichissement** : ajout `country_code`, `continent`, `city_pop`, `city_housing`, `city_lat`, `city_lon`
+- **Conversion FX** : 21 devises non-EUR converties via taux BCE (février 2026)
+
+**Référentiel population** (`city_reference_data.py`) :
+- 35 villes Europe avec données **commune propre** (pas métropole)
+- Sources : INSEE (FR), ISTAT (IT), ONS (UK), INE (ES), Eurostat...
+- Logements : recensement officiel ou estimation par ratio national (OCDE)
+
+### Étape 4 — Calcul KPIs (`sp08`)
+
+Le script applique le **pipeline de nettoyage** (voir section suivante), puis calcule 25 indicateurs par ville regroupés en 7 catégories.
+
+---
+
+# Pipeline de nettoyage
+
+```{python}
+#| label: cleaning-pipeline
+
+df_raw = pd.read_parquet(BASE / "data" / "interim" / "dbsumlistings_2506_cons_global.parquet")
+n_raw = len(df_raw)
+
+steps = []
+df_c = df_raw.copy()
+
+# Étape 1 : Prix non null
+mask = df_c["price"].notna() & (df_c["price"] > 0)
+steps.append(("1. Prix non null (exclure inactifs)", mask.sum(), len(df_c) - mask.sum()))
+df_c = df_c[mask]
+
+# Étape 2 : Disponibilité > 0
+mask = df_c["availability_365"] > 0
+steps.append(("2. Disponibilité > 0 jours/an", mask.sum(), len(df_c) - mask.sum()))
+df_c = df_c[mask]
+
+# Étape 3 : Exclure Hotel room
+mask = df_c["room_type"] != "Hotel room"
+steps.append(("3. Exclure Hotel room", mask.sum(), len(df_c) - mask.sum()))
+df_c = df_c[mask]
+
+# Étape 4 : Prix EUR 10-1000 (aberrants)
+if "price_eur" in df_c.columns:
+    mask = (df_c["price_eur"] >= 10) & (df_c["price_eur"] <= 1000)
+    steps.append(("4. Prix EUR [10, 1000] (aberrants)", mask.sum(), len(df_c) - mask.sum()))
+    df_c = df_c[mask]
+
+# Étape 5 : Flag longterm (PAS d'exclusion)
+if "minimum_nights" in df_c.columns:
+    n_lt = (df_c["minimum_nights"] >= 30).sum()
+    steps.append((f"5. Flag is_longterm (≥30 nuits) — NON exclu", len(df_c), 0))
+
+print(f"Pipeline de nettoyage — Impact sur {n_raw:,} listings bruts\n")
+print(f"{'Étape':<45s} {'Restant':>10s} {'Exclu':>10s} {'% brut':>8s}")
+print("─" * 75)
+cumul_exclu = 0
+for name, kept, removed in steps:
+    cumul_exclu += removed
+    print(f"{name:<45s} {kept:>10,} {removed:>10,} {removed/n_raw*100:>7.1f}%")
+print("─" * 75)
+print(f"{'TOTAL APRÈS NETTOYAGE':<45s} {len(df_c):>10,} {n_raw - len(df_c):>10,} {(n_raw-len(df_c))/n_raw*100:>7.1f}%")
+print(f"\nTaux de rétention : {len(df_c)/n_raw*100:.1f}%")
+```
+
+### Justification des choix
+
+::: {.callout-tip}
+## Décisions clés
+
+**Prix null = inactif** : 80,8 % des listings à prix null ont `availability_365 = 0`. Ce sont des annonces retirées ou dormantes, pas des erreurs de saisie. Seulement 1,2 % d'anomalies (prix null mais listing actif).
+
+**Hotel room exclu** : Représente ~1 % de la base. Comportement tarifaire et d'usage très différent (réservation plateforme hôtelière, pas location de logement).
+
+**Prix [10, 1000] EUR** : Borne basse (10€/nuit) exclut les erreurs de saisie. Borne haute (1000€) : au-delà, marché de niche ultra-luxe non représentatif.
+
+**Longterm flaggé, pas exclu** : `minimum_nights ≥ 30` est un **indicateur de régulation** (effet Barcelona, Berlin, Istanbul). Exclure ces listings masquerait un signal structurel majeur.
+:::
+
+---
+
+# Indicateurs — Définitions
+
+```{python}
+#| label: kpi-definitions
+
+kpi_defs = pd.DataFrame([
+    ("Volume", "n_listings", "Nombre total de listings actifs", "Count"),
+    ("Volume", "n_entire", "Nombre d'appartements entiers", "Count"),
+    ("Volume", "n_hosts", "Nombre d'hôtes uniques", "Count"),
+    ("Volume", "ratio_lh", "Ratio listings / hôtes", "n_listings / n_hosts"),
+    ("Pression", "listings_1000hab", "Listings pour 1 000 habitants", "n_listings / pop × 1000"),
+    ("Pression", "listings_1000hsg", "Listings pour 1 000 logements", "n_listings / housing × 1000"),
+    ("Pression", "entire_1000hsg", "Logements entiers pour 1 000 logements", "n_entire / housing × 1000"),
+    ("Prix", "prix_med", "Prix médian EUR/nuit", "Median(price_eur)"),
+    ("Prix", "prix_moy", "Prix moyen EUR/nuit", "Mean(price_eur)"),
+    ("Prix", "prix_q25", "1er quartile prix", "Q25(price_eur)"),
+    ("Prix", "prix_q75", "3e quartile prix", "Q75(price_eur)"),
+    ("Prix", "prix_iqr", "Écart interquartile prix", "Q75 − Q25"),
+    ("Composition", "pct_entire", "% logements entiers", "n_entire / n_listings × 100"),
+    ("Composition", "pct_multi", "% multi-hôtes (≥2 annonces)", "n_multi / n_listings × 100"),
+    ("Composition", "pct_longterm", "% longue durée (min_nights ≥ 30)", "n_longterm / n_listings × 100"),
+    ("Disponibilité", "dispo_med", "Disponibilité médiane (jours/an)", "Median(availability_365)"),
+    ("Disponibilité", "dispo_moy", "Disponibilité moyenne", "Mean(availability_365)"),
+    ("Activité", "reviews_med", "Reviews médian par listing", "Median(number_of_reviews)"),
+    ("Activité", "rpm_med", "Reviews/mois médian", "Median(reviews_per_month)"),
+    ("Concentration", "pct_hosts_50pct", "% hôtes détenant 50% de l'offre", "Lorenz-based"),
+], columns=["Catégorie", "Variable", "Description", "Formule"])
+
+print(f"25 indicateurs en 7 catégories :\n")
+for cat in kpi_defs["Catégorie"].unique():
+    sub = kpi_defs[kpi_defs["Catégorie"] == cat]
+    print(f"\n{cat} ({len(sub)} indicateurs)")
+    print("─" * 70)
+    for _, row in sub.iterrows():
+        print(f"  {row['Variable']:22s}  {row['Description']}")
+        print(f"  {'':22s}  → {row['Formule']}")
+```
+
+---
+
+# Taux de change EUR
+
+```{python}
+#| label: fx-rates
+
+fx = {
+    "GBP": 1.17, "HUF": 0.0026, "TRY": 0.028, "DKK": 0.134, "CZK": 0.040,
+    "NOK": 0.085, "SEK": 0.087, "CHF": 1.06, "USD": 0.92, "CAD": 0.65,
+    "AUD": 0.60, "NZD": 0.55, "JPY": 0.006, "SGD": 0.69, "HKD": 0.12,
+    "THB": 0.026, "MXN": 0.047, "BRL": 0.16, "COP": 0.00022, "ARS": 0.00086,
+    "ZAR": 0.050
+}
+
+print(f"Taux de change → EUR (source : BCE, février 2026)\n")
+print(f"{'Devise':<8s} {'Taux':>8s}   {'Exemple : 100 local →':>25s}")
+print("─" * 50)
+for cur, rate in sorted(fx.items(), key=lambda x: -x[1]):
+    print(f"{cur:<8s} {rate:>8.4f}   {100*rate:>20.1f} EUR")
+
+print(f"\n{len(fx)} devises converties. Pays EUR : pas de conversion.")
+```
+
+---
+
+# Difficultés rencontrées et solutions
+
+::: {.callout-warning}
+## Difficultés techniques
+
+### Scraping et données brutes
+
+| Problème | Impact | Solution |
+|:---------|:-------|:---------|
+| **URLs atypiques** (Irlande, Malte, Nouvelle-Zélande) | sp04 crashait sur format non standard | Normalisation regex dans sp04, skip silencieux si erreur |
+| **Paris sept 2025 : prix vide** dans sumlistings | Listings sans prix → exclusion massive | Utiliser listings.gz (74 cols) pour Paris si besoin du snapshot sept |
+| **Régions vs villes** (Sicile, Crète, Baléares) | Biais rural dans consolidation | Liste d'exclusion explicite dans sp07 |
+| **Snapshots non alignés** | Dates variables selon villes (juin ±2 semaines) | Tolérance : snapshot `25-06` = tout fichier juin 2025 |
+
+### Population et logements
+
+| Problème | Impact | Solution |
+|:---------|:-------|:---------|
+| **Périmètre commune vs métropole** | Manchester IA = Greater Manchester (2.8M) vs commune (550K) | Documenter, utiliser périmètre IA cohérent |
+| **Logements non disponibles** pour 22 villes | Pression logement biaisée | Estimation par ratio national OCDE (logements/1000 hab) |
+| **Eurostat Urban Audit** inutilisable | Greater city ≠ commune propre, logements absents | Référentiel maison (city_reference_data.py) |
+
+### Rendu Quarto
+
+| Problème | Impact | Solution |
+|:---------|:-------|:---------|
+| **Plotly 6 + reticulate** = double affichage | Figures dupliquées, HTML corrompu | Monkey-patch `fig.show()` → `print(to_html())` |
+| **Whitespace dans HTML** → pandoc code blocks | Graphiques rendus comme texte brut | `re.sub(r'>\s+<', '><', html).strip()` |
+| **JS heap OOM** sur gros rapports | Render crash après 80+ chunks | `NODE_OPTIONS="--max-old-space-size=8192"` |
+| **`column: page` + `output: asis`** | Charts débordent du viewport | Utiliser `width=` dans Plotly + CSS overflow |
+| **`display()` en knitr** | Crash reticulate (pas de kernel Jupyter) | Remplacer par `print()` |
+:::
+
+---
+
+# Méthodologie ACP
+
+## Variables actives
+
+```{python}
+#| label: acp-method-vars
+
+acp_vars = ["listings_1000hab", "entire_1000hsg", "prix_med", "prix_iqr",
+            "pct_entire", "pct_multi", "pct_longterm", "ratio_lh",
+            "pct_hosts_50pct", "dispo_med", "reviews_med", "rpm_med"]
+
+print(f"ACP sur {len(acp_vars)} variables actives :\n")
+print("Variables retenues (ratios et pourcentages normalisés) :")
+for v in acp_vars:
+    print(f"  • {v}")
+
+print(f"\nVariables exclues (justification) :")
+exclusions = [
+    ("n_listings, n_entire, n_hosts", "Volumes bruts → effet taille, redondant avec pression"),
+    ("pop, housing", "Variables supplémentaires, pas de signal propre"),
+    ("prix_moy, prix_q25, prix_q75", "Redondant avec prix_med + prix_iqr"),
+    ("dispo_moy", "Très corrélé à dispo_med (r > 0.95)"),
+    ("listings_1000hsg", "Très corrélé à entire_1000hsg (r > 0.90)"),
+]
+for var, reason in exclusions:
+    print(f"  ✗ {var}")
+    print(f"    → {reason}")
+```
+
+## Protocole
+
+1. **Standardisation** : centrage-réduction (z-scores) sur les 12 variables actives
+2. **ACP** : décomposition en valeurs propres de la matrice de corrélation
+3. **Rétention** : composantes retenues selon règle des 80 % de variance cumulée
+4. **Clustering Ward** : distance euclidienne sur les 4 premières composantes
+5. **Choix de k** : score silhouette pour k ∈ {3, 4, 5, 6}, retenir le maximum
+6. **Profils** : médiane par cluster sur les variables clés
+
+::: {.callout-tip}
+## Pourquoi Ward sur composantes et pas sur variables brutes ?
+
+Les variables ont des **échelles très différentes** (pression 0-55, prix 37-223, pct 0-98). La standardisation résout ce problème, mais l'ACP apporte en plus :
+- **Décorrélation** : les composantes sont orthogonales → distance euclidienne cohérente
+- **Réduction de bruit** : les dernières composantes captent du bruit, pas du signal
+- **Interprétabilité** : les clusters se projettent lisiblement sur le biplot
+:::
+
+---
+
+# Sources et limites
+
+::: {.callout-note}
+## Sources des données
+
+| Source | Contenu | Dernière mise à jour |
+|:-------|:--------|:---------------------|
+| [Inside Airbnb](https://insideairbnb.com/) | Listings, prix, disponibilité, reviews | Juin 2025 |
+| INSEE RP2022 | Population + logements commune propre (France) | 2022 |
+| ONS / GLA | Population Londres + logements | 2023 |
+| ISTAT | Population + logements Italie | 2021-2023 |
+| INE (Espagne) | Population communes | 2024 |
+| Eurostat | Ratios nationaux logements/1000 hab | 2022 |
+| BCE | Taux de change EUR | Février 2026 |
+
+## Limites principales
+
+1. **Snapshot unique** (juin 2025) : pas de dimension temporelle, saisonnalité masquée
+2. **Population commune propre** : 22/64 villes avec logements estimés (ratio national)
+3. **Périmètre géographique variable** : Manchester = metro, Paris = commune
+4. **Biais Inside Airbnb** : données scrapées, pas API officielle → listings retirés possibles
+5. **Pas de données revenus** : ni taux d'occupation réel, ni revenus hôtes
+6. **FX manuels** : taux fixes février 2026, pas d'ajustement dynamique
+:::

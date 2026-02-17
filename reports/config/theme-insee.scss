@@ -1,0 +1,297 @@
+/*-- scss:rules --*/
+
+// ============================================================
+// THEME INSEE PREMIÈRE — Layout rapport communicant
+// Supplément à theme-html.scss (Urban Institute base)
+// Usage: theme: [cosmo, config/theme-html.scss, config/theme-insee.scss]
+// ============================================================
+
+// === CHAPEAU — Accroche introductive pleine largeur ===
+.chapeau {
+  font-size: 1.08em;
+  font-weight: 450;
+  color: #333;
+  line-height: 1.65;
+  margin-bottom: 1.8rem;
+  padding-bottom: 1.2rem;
+  border-bottom: 2px solid #1696d2;
+}
+
+// === TEXTE 2 COLONNES — Flux vertical automatique CSS ===
+.col-text {
+  column-count: 2;
+  column-gap: 2.5rem;
+  column-rule: 1px solid #e0e0e0;
+  text-align: justify;
+  hyphens: auto;
+  margin-bottom: 0.5rem;
+}
+
+.col-text p {
+  margin-bottom: 0.85em;
+  orphans: 3;
+  widows: 3;
+}
+
+// Strong/insight dans col-text
+.col-text strong {
+  color: #333;
+}
+
+// === FIGURE BREAK — Graph pleine largeur cassant les colonnes ===
+.figure-break {
+  column-span: all;
+  margin: 1.8rem 0 1.2rem;
+  padding: 0;
+}
+
+.figure-break .cell-output-display {
+  margin: 0;
+}
+
+// === KPI STRIPE — Bandeau horizontal chiffres clés ===
+.kpi-stripe {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  background: linear-gradient(135deg, #0a4c6a 0%, #1696d2 100%);
+  color: white;
+  padding: 1.2rem 2rem;
+  margin: 1.5rem 0 2rem;
+  border-radius: 4px;
+}
+
+.kpi-stripe .kpi-item {
+  text-align: center;
+  flex: 1;
+}
+
+.kpi-stripe .kpi-number {
+  font-size: 1.8em;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.kpi-stripe .kpi-desc {
+  font-size: 0.78em;
+  opacity: 0.85;
+  margin-top: 0.2rem;
+}
+
+// === ENCADRÉ — Boîte méthodologie / focus ===
+.encadre {
+  background: #f8f9fa;
+  border: 1px solid #d2d2d2;
+  padding: 1.2rem 1.5rem;
+  margin: 1.2rem 0;
+  border-radius: 3px;
+  break-inside: avoid;
+  font-size: 0.92em;
+}
+
+.encadre p:last-child {
+  margin-bottom: 0;
+}
+
+.encadre-titre {
+  font-weight: 600;
+  color: #0a4c6a;
+  font-size: 0.95em;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+// Encadré variante avec accent couleur
+.encadre-accent {
+  background: rgba(#1696d2, 0.04);
+  border: 1px solid rgba(#1696d2, 0.2);
+  border-left: 4px solid #1696d2;
+  padding: 1.2rem 1.5rem;
+  margin: 1.2rem 0;
+  border-radius: 0 3px 3px 0;
+  break-inside: avoid;
+  font-size: 0.92em;
+}
+
+// === FIGURE SOURCE / NOTE ===
+.figure-source {
+  font-size: 0.78rem;
+  color: #888;
+  font-style: italic;
+  text-align: right;
+  margin-top: 0.3rem;
+  margin-bottom: 1rem;
+}
+
+.figure-note {
+  font-size: 0.78rem;
+  color: #666;
+  margin-top: 0.3rem;
+  padding-left: 0;
+}
+
+// === INTERTITRE — H3 style rapport (pas italique) ===
+.rapport-body h3 {
+  font-style: normal;
+  font-weight: 600;
+  color: #0a4c6a;
+  font-size: 1.1rem;
+  margin-top: 2rem;
+  margin-bottom: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  border-bottom: none;
+}
+
+// === POUR EN SAVOIR PLUS — Section finale ===
+.pour-en-savoir-plus {
+  border-top: 2px solid #1696d2;
+  padding-top: 1rem;
+  margin-top: 2.5rem;
+  font-size: 0.9em;
+}
+
+.pour-en-savoir-plus h3 {
+  color: #0a4c6a !important;
+  font-style: normal !important;
+  font-weight: 600 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-size: 1rem !important;
+  margin-top: 0 !important;
+}
+
+.pour-en-savoir-plus ul {
+  list-style: none;
+  padding-left: 0;
+}
+
+.pour-en-savoir-plus li {
+  padding: 0.3rem 0;
+  border-bottom: 1px solid #eee;
+}
+
+.pour-en-savoir-plus li:last-child {
+  border-bottom: none;
+}
+
+// === NUMÉRO PUBLICATION ===
+.pub-number {
+  font-size: 0.85em;
+  color: #888;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+// === LÉGENDE COMPACTE (chiffres clés inline) ===
+.chiffre-cle {
+  font-weight: 700;
+  color: #1696d2;
+  font-size: 1.15em;
+}
+
+.chiffre-orange {
+  font-weight: 700;
+  color: #ca5800;
+  font-size: 1.15em;
+}
+
+// === GREY SECTION — Alternance fond blanc/gris ===
+.grey-section {
+  background-color: #f8f9fa;
+  padding: 1.5rem 2rem;
+  margin: 1.5rem -1rem;
+  border-radius: 6px;
+}
+
+// === SHORT HR — Trait court bleu centré (style Le Monde) ===
+main hr {
+  border: none;
+  height: 2px;
+  background-color: #1696d2;
+  margin: 2.5rem auto;
+  max-width: 120px;
+}
+
+// === KPI CARD GRID — Infographie chiffres clés ===
+.kpi-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0 2rem;
+}
+
+.kpi-card {
+  background: white;
+  border-left: 4px solid #1696d2;
+  padding: 1.2rem 1.5rem;
+  border-radius: 0 6px 6px 0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+.kpi-card .kpi-value {
+  font-size: 2em;
+  font-weight: 700;
+  color: #0a4c6a;
+  line-height: 1.1;
+}
+
+.kpi-card .kpi-label {
+  font-size: 0.88em;
+  color: #5c5859;
+  margin-top: 0.3em;
+  font-weight: 500;
+}
+
+.kpi-card .kpi-context {
+  font-size: 0.78em;
+  color: #999;
+  margin-top: 0.4em;
+  font-style: italic;
+}
+
+.kpi-card.accent-orange {
+  border-left-color: #ca5800;
+}
+.kpi-card.accent-orange .kpi-value {
+  color: #ca5800;
+}
+
+.kpi-card.accent-green {
+  border-left-color: #55b748;
+}
+.kpi-card.accent-green .kpi-value {
+  color: #55b748;
+}
+
+.kpi-card.accent-magenta {
+  border-left-color: #ec008b;
+}
+.kpi-card.accent-magenta .kpi-value {
+  color: #ec008b;
+}
+
+// === RESPONSIVE — 1 colonne sous 768px ===
+@media (max-width: 768px) {
+  .col-text {
+    column-count: 1;
+  }
+  .kpi-stripe {
+    flex-direction: column;
+    gap: 0.8rem;
+  }
+}
+
+// === PRINT ===
+@media print {
+  .col-text {
+    column-count: 2;
+    column-gap: 2rem;
+  }
+  .kpi-stripe {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

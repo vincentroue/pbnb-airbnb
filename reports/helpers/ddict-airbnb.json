@@ -1,0 +1,94 @@
+{
+  "_meta": {
+    "version": "1.0",
+    "project": "pbnb-airbnb",
+    "date": "2026-02-16",
+    "description": "Dictionnaire indicateurs Airbnb pour tableaux OJS z-score"
+  },
+  "indicators": {
+    "n_listings": {
+      "label": "Listings", "short": "Listings",
+      "type": "stock", "unit": "n", "polarity": 0,
+      "description": "Nombre de listings actifs"
+    },
+    "n_hosts": {
+      "label": "Hosts", "short": "Hosts",
+      "type": "stock", "unit": "n", "polarity": 0,
+      "description": "Nombre de hosts uniques"
+    },
+    "prix_med": {
+      "label": "Prix médian", "short": "Prix €",
+      "type": "prix", "unit": "€/nuit", "polarity": 0,
+      "description": "Prix médian par nuit en EUR"
+    },
+    "prix_moy": {
+      "label": "Prix moyen", "short": "Prix moy €",
+      "type": "prix", "unit": "€/nuit", "polarity": 0,
+      "description": "Prix moyen par nuit en EUR"
+    },
+    "pct_entire": {
+      "label": "% Entire home", "short": "% Entire",
+      "type": "pct", "unit": "%", "polarity": 0,
+      "description": "Part de logements entiers"
+    },
+    "pct_multi": {
+      "label": "% Multi-host", "short": "% Multi",
+      "type": "pct", "unit": "%", "polarity": -1,
+      "description": "Part de listings gérés par multi-hosts (>1 listing). Haut = professionnalisation"
+    },
+    "pct_longterm": {
+      "label": "% Long-term", "short": "% Long",
+      "type": "pct", "unit": "%", "polarity": 0,
+      "description": "Part de listings ≥30 nuits minimum"
+    },
+    "dispo_med": {
+      "label": "Disponibilité", "short": "Dispo.",
+      "type": "stock", "unit": "j/an", "polarity": 0,
+      "description": "Disponibilité médiane en jours/an"
+    },
+    "reviews_med": {
+      "label": "Avis médian", "short": "Avis",
+      "type": "stock", "unit": "n", "polarity": 1,
+      "description": "Nombre médian d'avis (proxy ancienneté/activité)"
+    },
+    "rpm_med": {
+      "label": "Reviews/mois", "short": "RPM",
+      "type": "ind", "unit": "/mois", "polarity": 1,
+      "description": "Reviews par mois médian (proxy taux de réservation)"
+    },
+    "listings_1000hab": {
+      "label": "L/1000 hab", "short": "L/1000h",
+      "type": "ind", "unit": "ratio", "polarity": -1,
+      "description": "Listings pour 1000 habitants. Haut = pression touristique"
+    },
+    "listings_1000hsg": {
+      "label": "L/1000 log", "short": "L/1000log",
+      "type": "ind", "unit": "ratio", "polarity": -1,
+      "description": "Listings pour 1000 logements. Haut = pression immobilière"
+    },
+    "ratio_lh": {
+      "label": "Ratio L/H", "short": "L/H",
+      "type": "ind", "unit": "ratio", "polarity": 0,
+      "description": "Ratio listings par host (concentration)"
+    },
+    "pct_hosts_50pct": {
+      "label": "% Hosts top 50%", "short": "Top50%",
+      "type": "pct", "unit": "%", "polarity": -1,
+      "description": "Part de hosts détenant 50% de l'offre. Bas = concentration"
+    }
+  },
+  "palettes": {
+    "stock_blue": ["#A2D4EC", "#73BFE2", "#1696D2"],
+    "prix_orange": ["#FDBF11", "#EC008B", "#CA5800"],
+    "favorable_green": ["#bcdeb4", "#98cf90", "#5aaa5a"],
+    "defavorable_violet": ["#eb99c2", "#e46aa7", "#af1f6b"],
+    "choropleth": {
+      "n":            { "colors": ["#f7fbff","#c6dbef","#6baed6","#2171b5","#08306b"], "stops": [0,20,60,150,350] },
+      "prix_med":     { "colors": ["#ffffcc","#fd8d3c","#e31a1c","#bd0026","#800026"], "stops": [0,80,150,250,400] },
+      "pct_multi":    { "colors": ["#f7fcf5","#a1d99b","#41ab5d","#006d2c","#00441b"], "stops": [0,30,50,70,90] },
+      "pct_entire":   { "colors": ["#f7fcf5","#a1d99b","#41ab5d","#006d2c","#00441b"], "stops": [50,70,80,90,100] },
+      "pct_longterm": { "colors": ["#fff5eb","#fdae6b","#e6550d","#a63603","#7f2704"], "stops": [0,5,15,30,60] },
+      "dispo_med":    { "colors": ["#f7fbff","#9ecae1","#4292c6","#2171b5","#084594"], "stops": [0,100,200,280,365] }
+    }
+  }
+}

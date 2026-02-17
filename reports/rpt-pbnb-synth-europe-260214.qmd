@@ -1,0 +1,657 @@
+---
+title: "Airbnb en Europe : 36 marchés, 452 000 annonces"
+subtitle: "Quand la location courte durée redessine le logement urbain"
+author: "Vincent R."
+date: "Février 2026"
+number-sections: false
+toc: false
+format:
+  html:
+    theme: [cosmo, config/theme-html.scss, config/theme-insee.scss]
+    title-block-banner: true
+    title-block-banner-color: "#0a4c6a"
+---
+
+```{r}
+#| label: setup
+#| include: false
+
+library(reticulate)
+use_python("C:/ScoopApps/apps/python/current/python.exe", required = TRUE)
+
+# ACP + tables
+library(FactoMineR)
+library(factoextra)
+library(ggplot2)
+library(ggrepel)
+library(patchwork)
+library(dplyr)
+library(reactable)
+library(reactablefmtr)
+
+source("C:/Users/vince/hh/pq/PDS/mutils/jrr/jcn-setup.R")
+source("C:/Users/vince/hh/pq/PDS/mutils/jrr/jcn-table.R")
+source("C:/Users/vince/hh/pq/PDS/mutils/jrr/jcn-acp-pca-plots.R")
+
+# Charger KPI pour R (reactable, ACP)
+kpi_r <- read.csv("C:/Users/vince/hh/pq/PDS/pbnb-airbnb-log-jrr-jpy/data/interim/kpi_europe_by_city_2506.csv",
+                   fileEncoding = "UTF-8")
+```
+
+```{python}
+#| label: config
+#| include: false
+
+from pathlib import Path
+import pandas as pd
+import numpy as np
+import plotly.express as px
+import plotly.graph_objects as go
+import re as _re
+
+# Charger helpers jcn-graph.py (couleurs, palettes, plot_bar_ranked, fig_title)
+import sys
+sys.path.insert(0, r"C:\Users\vince\hh\pq\PDS\mutils\jpy")
+import importlib.util
+_spec = importlib.util.spec_from_file_location("jcn_graph", Path(r"C:\Users\vince\hh\pq\PDS\mutils\jpy\jcn-graph.py"))
+_mod = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_mod)
+_mod.init_style()
+_mod.patch_plotly_reticulate()
+
+# Shortcuts
+fig_title = _mod.fig_title
+plot_bar_ranked = _mod.plot_bar_ranked
+COL_CYAN, COL_YELLOW, COL_ORANGE = _mod.COL_CYAN, _mod.COL_YELLOW, _mod.COL_ORANGE
+COL_MAGENTA, COL_DARKBLUE, COL_GREEN = _mod.COL_MAGENTA, _mod.COL_DARKBLUE, _mod.COL_GREEN
+COL_SPACEGRAY = _mod.COL_SPACEGRAY
+LABEL_SIZE = _mod.LABEL_SIZE
+
+BASE = Path(r"C:\Users\vince\hh\pq\PDS\pbnb-airbnb-log-jrr-jpy")
+kpi = pd.read_csv(BASE / "data" / "interim" / "kpi_europe_by_city_2506.csv")
+
+COORDS = {
+    "london": (51.51, -0.13), "paris": (48.86, 2.35), "rome": (41.90, 12.50),
+    "istanbul": (41.01, 28.98), "lisbon": (38.72, -9.14), "madrid": (40.42, -3.70),
+    "athens": (37.98, 23.73), "barcelona": (41.39, 2.17), "copenhagen": (55.68, 12.57),
+    "budapest": (47.50, 19.04), "florence": (43.77, 11.25), "vienna": (48.21, 16.37),
+    "prague": (50.08, 14.44), "berlin": (52.52, 13.40), "bordeaux": (44.84, -0.58),
+    "venice": (45.44, 12.33), "amsterdam": (52.37, 4.90), "brussels": (50.85, 4.35),
+    "dublin": (53.35, -6.26), "lyon": (45.76, 4.83), "milan": (45.46, 9.19),
+    "porto": (41.16, -8.63), "oslo": (59.91, 10.75), "naples": (40.85, 14.27),
+    "malaga": (36.72, -4.42), "valencia": (39.47, -0.38), "sevilla": (37.39, -5.98),
+    "greater-manchester": (53.48, -2.24), "munich": (48.14, 11.58),
+    "edinburgh": (55.95, -3.19), "stockholm": (59.33, 18.07),
+    "thessaloniki": (40.64, 22.94), "bologna": (44.49, 11.34),
+    "bergamo": (45.70, 9.67), "zurich": (47.38, 8.54), "riga": (56.95, 24.11),
+}
+kpi["lat"] = kpi["city"].map(lambda c: COORDS.get(c, (0, 0))[0])
+kpi["lon"] = kpi["city"].map(lambda c: COORDS.get(c, (0, 0))[1])
+
+# KPIs globaux
+n_total = kpi["n_listings"].sum()
+n_cities = len(kpi)
+n_countries = kpi["country_code"].nunique()
+prix_med_global = kpi["prix_med"].median()
+avg_press = n_total / kpi["pop"].sum() * 1000
+top_press = kpi.nlargest(1, "listings_1000hab").iloc[0]
+bot_press = kpi.nsmallest(1, "listings_1000hab").iloc[0]
+top5_vol = kpi.nlargest(5, "n_listings")
+top5_share = top5_vol["n_listings"].sum() / n_total * 100
+prix_max = kpi.loc[kpi["prix_med"].idxmax()]
+prix_min = kpi.loc[kpi["prix_med"].idxmin()]
+facteur_prix = prix_max["prix_med"] / prix_min["prix_med"]
+```
+
+```{python}
+#| label: kpi-cards
+#| output: asis
+
+cards = f"""<div class="kpi-card-grid">
+<div class="kpi-card">
+<div class="kpi-value">{n_total:,.0f}</div>
+<div class="kpi-label">annonces actives</div>
+<div class="kpi-context">{n_cities} villes · {n_countries} pays européens</div>
+</div>
+<div class="kpi-card accent-orange">
+<div class="kpi-value">&times;{facteur_prix:.0f}</div>
+<div class="kpi-label">écart de prix</div>
+<div class="kpi-context">{prix_min['city_fr']} ({prix_min['prix_med']:.0f} €) → {prix_max['city_fr']} ({prix_max['prix_med']:.0f} €)</div>
+</div>
+<div class="kpi-card accent-green">
+<div class="kpi-value">{top_press['listings_1000hab']:.0f}</div>
+<div class="kpi-label">L / 1 000 hab (max)</div>
+<div class="kpi-context">{top_press['city_fr']} vs {bot_press['listings_1000hab']:.1f} ({bot_press['city_fr']})</div>
+</div>
+<div class="kpi-card accent-magenta">
+<div class="kpi-value">{top5_share:.0f} %</div>
+<div class="kpi-label">Top 5 = un tiers de l'offre</div>
+<div class="kpi-context">{', '.join(top5_vol['city_fr'].tolist())}</div>
+</div>
+</div>"""
+print(_re.sub(r'>\s+<', '><', cards).strip())
+```
+
+::: {.chapeau}
+En Europe, Airbnb est devenu un acteur structurant du tourisme urbain — et un sujet de politique publique majeur. Cette étude compare **36 marchés européens** à partir des données ouvertes d'Inside Airbnb (juin 2025) : où la pression est-elle la plus forte ? Quels facteurs expliquent les écarts de prix ? La professionnalisation du marché bénéficie-t-elle au voyageur ou au territoire ?
+:::
+
+---
+
+## La pression touristique : volume ne rime pas avec intensité {.unnumbered}
+
+Les cinq premiers marchés — Londres (62 000 annonces), Paris (53 000), Rome (32 000), Istanbul (25 000) et Lisbonne (21 000) — totalisent un tiers de l'offre européenne. Mais ce classement par volume est trompeur : il ne dit rien de la pression réelle sur le tissu urbain.
+
+Rapporter le nombre d'annonces à la population résidente renverse la hiérarchie. **Porto (55 L/1 000 hab) et Lisbonne (38) se détachent nettement** : ces villes consacrent une part disproportionnée de leur parc à la location touristique. Florence (31), Bordeaux (31,5) et Venise (26) suivent. À l'inverse, Istanbul, Berlin et Munich — pourtant pourvues de milliers d'annonces — restent sous le seuil de 3 L/1 000 hab.
+
+En France, l'hétérogénéité est forte : Bordeaux (31,5) se hisse parmi les villes les plus exposées d'Europe, Paris (23,9) occupe le 7^e^ rang, tandis que Lyon (10,1) reste trois fois plus en retrait.
+
+::: {.panel-tabset}
+
+### Graphique
+
+```{python}
+#| label: fig-pression
+#| output: asis
+
+fig = plot_bar_ranked(kpi, "listings_1000hab", label_col="city_fr",
+                      n_show=12, text_outside=True, digits=1)
+fig.add_vline(x=avg_press, line_dash="dash", line_color=COL_MAGENTA,
+              annotation_text=f"Moy. {avg_press:.1f}", annotation_position="top right")
+fig.update_layout(title=fig_title(1, "Pression touristique — Top & Bottom 12",
+                    "Listings / 1 000 habitants · top cyan · bottom orange"))
+fig.show()
+```
+
+::: {.figure-source}
+Source : Inside Airbnb, juin 2025 · Population : ville-centre (Eurostat, recensements nationaux)
+:::
+
+### Tableau
+
+```{r}
+#| label: tbl-pression
+
+reactable(
+  kpi_r |> select(city_fr, country_code, n_listings, pop, listings_1000hab) |>
+    arrange(desc(listings_1000hab)) |>
+    mutate(pop = format(pop, big.mark = " "), n_listings = format(n_listings, big.mark = " ")),
+  columns = list(
+    city_fr = colDef(name = "Ville", width = 140),
+    country_code = colDef(name = "Pays", width = 60, align = "center"),
+    n_listings = colDef(name = "Listings", width = 100, align = "right"),
+    pop = colDef(name = "Population", width = 120, align = "right"),
+    listings_1000hab = colDef(name = "L/1000 hab", width = 100, align = "right",
+                              format = colFormat(digits = 1))
+  ),
+  defaultPageSize = 12, searchable = TRUE, striped = TRUE,
+  highlight = TRUE, compact = TRUE, bordered = TRUE,
+  style = list(fontSize = "0.82rem")
+)
+```
+
+:::
+
+---
+
+::: {.grey-section}
+
+## Concentration : cinq villes pèsent un tiers du marché {.unnumbered}
+
+Le marché européen est fortement concentré. Les cinq plus gros marchés en volume — Londres, Paris, Rome, Istanbul et Lisbonne — captent à eux seuls **un tiers de l'offre totale** (33 %). Les 31 autres villes se partagent les deux tiers restants, ce qui pose la question de la représentativité des politiques calibrées sur les seuls « géants ».
+
+```{python}
+#| label: fig-concentration
+#| output: asis
+
+# Top 5 + "Autres"
+top5_sorted = top5_vol.sort_values("n_listings", ascending=True)
+others = pd.DataFrame({
+    "city_fr": [f"31 autres villes"],
+    "n_listings": [n_total - top5_vol["n_listings"].sum()],
+    "pct": [(n_total - top5_vol["n_listings"].sum()) / n_total * 100],
+})
+top5_sorted = top5_sorted.copy()
+top5_sorted["pct"] = top5_sorted["n_listings"] / n_total * 100
+conc = pd.concat([others, top5_sorted[["city_fr", "n_listings", "pct"]]], ignore_index=True)
+
+fig = go.Figure()
+fig.add_trace(go.Bar(
+    x=conc["n_listings"], y=conc["city_fr"],
+    orientation="h",
+    marker_color=[COL_SPACEGRAY] + [COL_CYAN]*5,
+    text=[f"{v:,.0f} ({p:.0f} %)" for v, p in zip(conc["n_listings"], conc["pct"])],
+    textposition="outside",
+    textfont=dict(size=LABEL_SIZE),
+))
+fig.update_layout(
+    title=fig_title(2, "Concentration de l'offre",
+                    "Top 5 villes vs reste du marché européen"),
+    height=280, showlegend=False,
+    xaxis_title="", yaxis=dict(tickfont=dict(size=LABEL_SIZE)),
+    margin=dict(l=160, r=120, t=100, b=30),
+)
+fig.show()
+```
+
+::: {.figure-source}
+Source : Inside Airbnb, juin 2025 · 36 villes européennes
+:::
+
+:::
+
+---
+
+## Deux Europes tarifaires {.unnumbered}
+
+Le quatuor premium — **Amsterdam (223 EUR), Édimbourg (193), Copenhague (157) et Paris (156)** — dépasse 155 EUR la nuit de médiane. À l'autre extrémité, Riga, Thessalonique, Budapest et Istanbul restent sous 70 EUR. Entre les deux, un gradient continu épouse la carte du niveau de vie européen.
+
+Paris (156 EUR) se positionne dans le quatuor premium. Bordeaux (79 EUR) et Lyon (77 EUR) traduisent des marchés matures à tarification modérée, deux fois moins chers que la capitale.
+
+::: {.panel-tabset}
+
+### Top & Bottom 12
+
+```{python}
+#| label: fig-prix-tb
+#| output: asis
+
+fig = plot_bar_ranked(kpi, "prix_med", label_col="city_fr",
+                      n_show=12, text_outside=True, digits=0, suffix=" €")
+fig.add_vline(x=prix_med_global, line_dash="dash", line_color=COL_MAGENTA,
+              annotation_text=f"Méd. {prix_med_global:.0f} €")
+fig.update_layout(title=fig_title(3, "Prix médian — Top & Bottom 12",
+                    "EUR/nuit · top cyan · bottom orange"))
+fig.show()
+```
+
+::: {.figure-source}
+Source : Inside Airbnb, juin 2025 · Prix convertis en EUR (taux mi-2025)
+:::
+
+### 36 villes
+
+```{python}
+#| label: fig-prix-all
+#| output: asis
+
+fig = plot_bar_ranked(kpi, "prix_med", label_col="city_fr",
+                      max_bars=40, text_outside=True, digits=0, suffix=" €")
+fig.add_vline(x=prix_med_global, line_dash="dash", line_color=COL_MAGENTA,
+              annotation_text=f"Méd. {prix_med_global:.0f} €")
+fig.update_layout(title=fig_title(3, "Prix médian par nuit — 36 villes",
+                    "EUR/nuit · classement ascendant"))
+fig.show()
+```
+
+### Tableau
+
+```{r}
+#| label: tbl-prix
+
+reactable(
+  kpi_r |> select(city_fr, country_code, prix_med, prix_q25, prix_q75, prix_iqr) |>
+    arrange(desc(prix_med)),
+  columns = list(
+    city_fr = colDef(name = "Ville", width = 140),
+    country_code = colDef(name = "Pays", width = 60, align = "center"),
+    prix_med = colDef(name = "Médiane €", width = 90, align = "right"),
+    prix_q25 = colDef(name = "Q25 €", width = 75, align = "right"),
+    prix_q75 = colDef(name = "Q75 €", width = 75, align = "right"),
+    prix_iqr = colDef(name = "IQR €", width = 75, align = "right")
+  ),
+  defaultPageSize = 12, searchable = TRUE, striped = TRUE,
+  highlight = TRUE, compact = TRUE, bordered = TRUE,
+  style = list(fontSize = "0.82rem")
+)
+```
+
+:::
+
+---
+
+::: {.grey-section}
+
+## Plus de professionnels, des prix plus bas {.unnumbered}
+
+Les marchés les plus professionnalisés — ceux où les gestionnaires multi-annonces dominent — ne sont pas les plus chers. C'est même l'inverse : la corrélation est négative (r = −0,41). **Barcelone** (81 % de multi-hosts, prix modérés) illustre la compétition par les volumes, quand **Copenhague** (16 % de multi-hosts, prix élevés) incarne le modèle du particulier sélectif. **Paris** occupe une position singulière : un taux de multi-hosts proche de la médiane (~50 %) mais un prix nettement supérieur.
+
+```{python}
+#| label: fig-scatter
+#| output: asis
+
+fig = go.Figure()
+fig.add_trace(go.Scatter(
+    x=kpi["pct_multi"], y=kpi["prix_med"],
+    mode="markers+text",
+    text=kpi["city_fr"],
+    textposition="top center",
+    textfont=dict(size=9, color="#555"),
+    marker=dict(
+        size=kpi["n_listings"] / kpi["n_listings"].max() * 35 + 8,
+        color=[COL_YELLOW if c == "FRA" else COL_CYAN for c in kpi["country_code"]],
+        line=dict(width=0.5, color="white"),
+    ),
+    hovertemplate="<b>%{text}</b><br>Multi-host: %{x:.0f}%<br>Prix méd: %{y:.0f} €<extra></extra>",
+))
+
+z = np.polyfit(kpi["pct_multi"], kpi["prix_med"], 1)
+x_range = np.linspace(kpi["pct_multi"].min(), kpi["pct_multi"].max(), 50)
+fig.add_trace(go.Scatter(
+    x=x_range, y=np.polyval(z, x_range),
+    mode="lines", line=dict(color=COL_MAGENTA, dash="dash", width=1.5),
+    showlegend=False,
+))
+
+r_corr = kpi["pct_multi"].corr(kpi["prix_med"])
+fig.update_layout(
+    title=fig_title(4, "Prix vs professionnalisation",
+                    f"r = {r_corr:.2f} · taille = volume de listings"),
+    height=420,
+    xaxis_title="% de multi-hosts",
+    yaxis_title="Prix médian (EUR/nuit)",
+    showlegend=False,
+    margin=dict(l=60, r=30, t=100),
+)
+fig.show()
+```
+
+::: {.figure-source}
+Source : Inside Airbnb, juin 2025 · Corrélation de Pearson
+:::
+
+:::
+
+---
+
+## La régulation laisse des traces lisibles {.unnumbered}
+
+Sans registre centralisé des réglementations locales, on peut lire la régulation *dans* les données. Trois marqueurs se distinguent : la **disponibilité annuelle médiane** (Copenhague 106 jours, Amsterdam 111), le **ratio listing/host** proche de 1 (Berlin, Dublin), et la **part de listings longterm** imposant au moins 30 nuits de séjour minimum (Istanbul 50 %, Barcelone 42 %).
+
+Les villes françaises se situent en zone intermédiaire : Paris affiche une disponibilité modérée et environ 20 % de longterm, un profil cohérent avec le cadre réglementaire français (120 nuits/an pour les résidences principales).
+
+```{python}
+#| label: fig-regulation
+#| output: asis
+
+fig = go.Figure()
+fig.add_trace(go.Scatter(
+    x=kpi["dispo_med"], y=kpi["pct_longterm"],
+    mode="markers+text",
+    text=kpi["city_fr"],
+    textposition="top center",
+    textfont=dict(size=9, color="#555"),
+    marker=dict(
+        size=12,
+        color=[COL_YELLOW if c == "FRA" else COL_CYAN for c in kpi["country_code"]],
+        line=dict(width=0.5, color="white"),
+    ),
+    hovertemplate="<b>%{text}</b><br>Dispo méd: %{x:.0f} j<br>Longterm: %{y:.1f}%<extra></extra>",
+))
+fig.add_vline(x=180, line_dash="dash", line_color=COL_MAGENTA,
+              annotation_text="180 j (seuil FR)")
+fig.update_layout(
+    title=fig_title(5, "Disponibilité vs part longterm",
+                    "Deux dimensions de la contrainte réglementaire"),
+    height=420,
+    xaxis_title="Disponibilité médiane (jours/an)",
+    yaxis_title="% listings longterm (≥ 30 nuits min.)",
+    showlegend=False,
+    margin=dict(l=60, r=30, t=100),
+)
+fig.show()
+```
+
+::: {.figure-source}
+Source : Inside Airbnb, juin 2025 · Calcul : annonces avec minimum_nights ≥ 30
+:::
+
+---
+
+::: {.grey-section}
+
+## 36 marchés sur la carte {.unnumbered}
+
+```{python}
+#| label: fig-carte
+#| output: asis
+
+fig = px.scatter_geo(
+    kpi,
+    lat="lat", lon="lon",
+    size="n_listings",
+    color="prix_med",
+    hover_name="city_fr",
+    hover_data={
+        "n_listings": ":,.0f",
+        "prix_med": ":.0f",
+        "listings_1000hab": ":.1f",
+        "pct_multi": ":.0f",
+        "lat": False, "lon": False,
+    },
+    color_continuous_scale=["#fdd870", "#ca5800", "#0a4c6a"],
+    size_max=50,
+    labels={
+        "n_listings": "Listings",
+        "prix_med": "Prix méd. EUR",
+        "listings_1000hab": "L/1000 hab",
+        "pct_multi": "% multi-host",
+    },
+)
+fig.update_geos(
+    scope="europe",
+    projection_type="natural earth",
+    showcoastlines=True, coastlinecolor="#d2d2d2",
+    showland=True, landcolor="#f5f5f5",
+    showocean=True, oceancolor="#e8f4fa",
+    showcountries=True, countrycolor="#d2d2d2",
+    center=dict(lat=48, lon=12),
+    lonaxis_range=[-12, 35],
+    lataxis_range=[34, 62],
+)
+fig.update_layout(
+    title=fig_title(6, "36 marchés Airbnb en Europe",
+                    "Taille = volume d'annonces · couleur = prix médian"),
+    height=520,
+    margin=dict(t=100, b=20, l=0, r=0),
+    coloraxis_colorbar=dict(title="Prix méd.<br>EUR/nuit", len=0.6),
+)
+fig.show()
+```
+
+::: {.figure-source}
+Source : Inside Airbnb, juin 2025 · Géolocalisation manuelle des villes-centres
+:::
+
+La carte révèle un double phénomène. D'un côté, les grands marchés de volume concentrés sur l'arc Londres–Paris–Rome. De l'autre, des villes plus petites — Porto, Florence, Bordeaux — où la pression par habitant atteint des niveaux inédits. La couleur des bulles dessine deux Europes tarifaires qui épousent la carte du pouvoir d'achat, avec quelques anomalies notables : Porto combine pression maximale et prix contenus, quand Amsterdam concentre premium tarifaire et faible professionnalisation.
+
+:::
+
+---
+
+## Quatre profils de marché {.unnumbered}
+
+Une analyse en composantes principales (ACP) permet de dégager les grandes structures du marché européen. Huit indicateurs sont projetés simultanément — prix, pression touristique, professionnalisation, disponibilité, activité review, ratio listing/host, part longterm et part de logements entiers — pour identifier les dimensions latentes qui organisent la diversité des 36 marchés.
+
+```{r}
+#| label: fig-acp-data
+#| include: false
+
+# Variables ACP (8 indicateurs structurants)
+acp_vars <- c("prix_med", "listings_1000hab", "pct_entire", "pct_multi",
+              "ratio_lh", "dispo_med", "reviews_med", "pct_longterm")
+
+df_acp <- kpi_r[, acp_vars]
+rownames(df_acp) <- kpi_r$city_fr
+
+# ACP FactoMineR
+pca_res <- FactoMineR::PCA(df_acp, scale.unit = TRUE, ncp = 5, graph = FALSE)
+
+# Clustering Ward sur données centrées-réduites
+df_scaled <- scale(df_acp)
+hc <- hclust(dist(df_scaled), method = "ward.D2")
+clusters <- cutree(hc, k = 4)
+kpi_r$cluster <- factor(clusters, labels = paste("Profil", 1:4))
+```
+
+::: {.panel-tabset}
+
+### Biplot
+
+```{r}
+#| label: fig-screeplot
+#| fig-width: 8
+#| fig-height: 4
+
+plot_screeplot(pca_res, ncp = 7, title = "Variance expliquée par axe")
+```
+
+```{r}
+#| label: fig-biplot
+#| fig-width: 10
+#| fig-height: 7
+
+plot_biplot(pca_res,
+            quali = kpi_r$cluster,
+            ind_labels = TRUE,
+            top_ind = 36,
+            var_filter = 0.2,
+            title = "Biplot ACP — 36 marchés européens")
+```
+
+::: {.figure-source}
+ACP sur 8 indicateurs centrés-réduits · Classification hiérarchique ascendante (Ward, k=4)
+:::
+
+### Profils
+
+```{r}
+#| label: tbl-clusters
+
+profils <- kpi_r %>%
+  group_by(cluster) %>%
+  summarise(
+    n_villes = n(),
+    prix_med = round(median(prix_med), 0),
+    listings_1000hab = round(median(listings_1000hab), 1),
+    pct_multi = round(median(pct_multi), 0),
+    pct_entire = round(median(pct_entire), 0),
+    dispo_med = round(median(dispo_med), 0),
+    reviews_med = round(median(reviews_med), 0),
+    pct_longterm = round(median(pct_longterm), 1),
+    villes = paste(head(city_fr[order(-n_listings)], 5), collapse = ", "),
+    .groups = "drop"
+  )
+
+reactable(profils,
+  columns = list(
+    cluster = colDef(name = "Profil", width = 90),
+    n_villes = colDef(name = "N", width = 45, align = "center"),
+    prix_med = colDef(name = "Prix €", width = 70, align = "right"),
+    listings_1000hab = colDef(name = "L/1000h", width = 75, align = "right"),
+    pct_multi = colDef(name = "% multi", width = 70, align = "right",
+                       format = colFormat(suffix = " %")),
+    pct_entire = colDef(name = "% entier", width = 75, align = "right",
+                        format = colFormat(suffix = " %")),
+    dispo_med = colDef(name = "Dispo j.", width = 70, align = "right"),
+    reviews_med = colDef(name = "Reviews", width = 70, align = "right"),
+    pct_longterm = colDef(name = "% long", width = 65, align = "right",
+                          format = colFormat(suffix = " %")),
+    villes = colDef(name = "Principales villes", minWidth = 200)
+  ),
+  defaultPageSize = 5, striped = TRUE, highlight = TRUE,
+  bordered = TRUE, compact = TRUE,
+  style = list(fontSize = "0.82rem")
+)
+```
+
+:::
+
+La classification hiérarchique (méthode Ward) identifie **quatre profils distincts** :
+
+**Profil 1 — Marchés mainstream** (Londres, Rome, Milan, Berlin, Madrid…) : 16 villes au profil médian — prix ~105 EUR, professionnalisation intermédiaire (60 % multi-hosts), pression touristique modérée. Le socle européen standard, incluant Bordeaux et Lyon côté français.
+
+**Profil 2 — Marchés premium** (Paris, Amsterdam, Copenhague, Oslo, Édimbourg, Stockholm) : prix élevés (~157 EUR), très faible professionnalisation (27 % multi-hosts), disponibilité contrainte, quasi-absence de longterm. Le modèle du « particulier sélectif » dans les métropoles nordiques et capitales à fort pouvoir d'achat.
+
+**Profil 3 — Marchés régulés à longterm** (Istanbul, Barcelone) : profils atypiques avec ~46 % de listings longterm, haute disponibilité (299 jours), très forte professionnalisation (78 %). La réglementation locale impose des séjours minimums élevés.
+
+**Profil 4 — Pression touristique forte** (Porto, Lisbonne, Florence, Athènes, Venise…) : 12 villes à forte densité d'annonces (14,6 L/1 000 hab), très professionnalisées (73 %), activité review intense, prix accessibles (~89 EUR). La compétition par les volumes maintient des tarifs contenus.
+
+---
+
+::: {.grey-section}
+
+## Tableau récapitulatif {.unnumbered}
+
+```{r}
+#| label: tbl-recap
+
+recap <- kpi_r |>
+  select(city_fr, country_code, n_listings, listings_1000hab,
+         prix_med, pct_multi, pct_entire, dispo_med, pct_longterm, reviews_med) |>
+  arrange(desc(listings_1000hab))
+
+reactable(recap,
+  columns = list(
+    city_fr = colDef(name = "Ville", width = 140, sticky = "left",
+                     style = list(fontWeight = 500)),
+    country_code = colDef(name = "Pays", width = 55, align = "center"),
+    n_listings = colDef(name = "Listings", width = 85, align = "right",
+                        format = colFormat(separators = TRUE)),
+    listings_1000hab = colDef(name = "L/1000 hab", width = 90, align = "right",
+                              format = colFormat(digits = 1),
+                              style = function(value) {
+                                bg <- if (value > 20) "#fdd870" else if (value > 10) "#fef4d0" else "transparent"
+                                list(background = bg)
+                              }),
+    prix_med = colDef(name = "Prix €", width = 70, align = "right"),
+    pct_multi = colDef(name = "% multi", width = 70, align = "right",
+                       format = colFormat(suffix = "%", digits = 0)),
+    pct_entire = colDef(name = "% entier", width = 75, align = "right",
+                        format = colFormat(suffix = "%", digits = 0)),
+    dispo_med = colDef(name = "Dispo j.", width = 70, align = "right"),
+    pct_longterm = colDef(name = "% long", width = 65, align = "right",
+                          format = colFormat(suffix = "%", digits = 1)),
+    reviews_med = colDef(name = "Reviews", width = 70, align = "right")
+  ),
+  defaultPageSize = 20, searchable = TRUE, striped = TRUE,
+  highlight = TRUE, compact = TRUE, bordered = TRUE,
+  style = list(fontSize = "0.82rem"),
+  defaultSorted = list(listings_1000hab = "desc")
+)
+```
+
+:::
+
+
+::: {.encadre-accent}
+
+[Source et méthodologie]{.encadre-titre}
+
+**Données** : Inside Airbnb (sumlistings, juin 2025) — projet indépendant de collecte des annonces publiques.
+
+**Périmètre** : 36 villes européennes, 19 pays, 452 000 annonces actives après nettoyage.
+
+**Pipeline** : prix non null → disponibilité > 0 → hors hôtels → prix 10–1 000 EUR (taux de rétention ~70 %).
+
+**Population** : ville-centre (Eurostat, recensements nationaux). Ce choix méthodologique majore les ratios par rapport aux estimations métropolitaines.
+
+**Taux de change** : EUR mi-2025 pour 9 devises non-euro (GBP, HUF, TRY, DKK, CZK, NOK, SEK, CHF, EUR/LVL).
+
+**ACP** : 8 variables centrées-réduites, FactoMineR. Classification hiérarchique ascendante (distance euclidienne, agrégation Ward, 4 classes).
+
+:::
+
+
+::: {.pour-en-savoir-plus}
+
+### Pour en savoir plus
+
+- [**Vue mondiale — 64 villes**](rpt-pbnb-synth-monde-260214.qmd) — Cadrage international, benchmarking par continent
+- [**Rapport complet**](rpt-pbnb-rapport-ALL-260207.qmd) — Analyse détaillée monde + Europe, 20 figures, panel-tabsets (64 villes)
+- [**Notebook EDA**](rpt-pbnb-edanbk-ALL-260215.qmd) — Exploration données, distributions, corrélations, code reproductible
+- [**Présentation interactive**](rpt-pres-bnb-v2-260210.html) — 14 slides RevealJS avec graphiques Plotly
+- [**Dashboard interactif**](rpt-pbnb-dash-ALL-260211.qmd) — Exploration libre avec sélecteur d'indicateurs (64 villes)
+- **Inside Airbnb** — [insideairbnb.com](http://insideairbnb.com/get-the-data/) — Données ouvertes
+
+:::

@@ -1,0 +1,703 @@
+---
+title: "Airbnb France — Explorateur"
+subtitle: "Paris · Lyon · Bordeaux — Inside Airbnb juin 2025"
+format:
+  dashboard:
+    orientation: rows
+    scrolling: true
+    theme: cosmo
+include-in-header:
+  text: |
+    <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet">
+    <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+    <style>
+      /* === BANNER HEADER === */
+      .banner {
+        background:#f8f9fa; border-bottom:3px solid #0a4c6a;
+        padding:12px 20px; margin-bottom:0;
+      }
+      .kpi-row { display:flex; gap:16px; align-items:center; }
+      .kpi-brick {
+        background:white; border-left:4px solid #1696d2; border-radius:0 4px 4px 0;
+        padding:8px 14px; box-shadow:0 1px 3px rgba(0,0,0,0.08); min-width:120px;
+      }
+      .kpi-brick.accent-orange { border-left-color:#ca5800; }
+      .kpi-brick.accent-green { border-left-color:#55b748; }
+      .kpi-brick .kv { font-size:1.6em; font-weight:700; color:#0a4c6a; line-height:1.1; }
+      .kpi-brick.accent-orange .kv { color:#ca5800; }
+      .kpi-brick.accent-green .kv { color:#55b748; }
+      .kpi-brick .kl { font-size:0.75em; color:#5c5859; margin-top:2px; }
+
+      /* === MAP === */
+      .map-ctrl {
+        position:absolute; top:8px; left:8px; z-index:5;
+        background:rgba(255,255,255,0.93); border-radius:5px;
+        padding:6px 10px; font-size:11px; box-shadow:0 1px 3px rgba(0,0,0,0.12);
+        display:flex; flex-direction:column; gap:4px; max-width:200px;
+      }
+      .map-ctrl select { width:100%; font-size:10px; padding:2px; }
+      .map-ctrl label { display:flex; align-items:center; gap:4px; cursor:pointer; font-size:10px; }
+      .map-ctrl .mt { font-weight:600; font-size:10px; color:#333; }
+      .map-legend {
+        position:absolute; bottom:24px; left:8px; z-index:5;
+        background:rgba(255,255,255,0.93); border-radius:3px;
+        padding:5px 8px; font-size:9px; box-shadow:0 1px 2px rgba(0,0,0,0.1);
+      }
+      .lg-bar { display:flex; height:8px; border-radius:2px; overflow:hidden; width:120px; margin:2px 0; }
+      .lg-bar div { flex:1; }
+      .lg-labels { display:flex; justify-content:space-between; font-size:8px; color:#666; }
+
+      /* === TABLES === */
+      .t { overflow-y:auto; overflow-x:hidden; font-size:11px; }
+      .t:hover { overflow-x:auto; }
+      .t table { border-collapse:collapse; width:100%; }
+      .t th {
+        position:sticky; top:0; z-index:3; background:#e5e7eb;
+        border-bottom:2px solid #94a3b8; padding:4px 6px; font-size:10px;
+        cursor:pointer; user-select:none; white-space:nowrap;
+      }
+      .t th:hover { background:#d1d5db; }
+      .t th.active { background:#bfdbfe; font-weight:700; }
+      .t td { padding:3px 6px; border-bottom:1px solid #f1f5f9; white-space:nowrap; font-size:11px; }
+      .t tr:hover { background:#f8fafc; }
+      .t .sticky-fr { position:sticky; z-index:2; background:#f0f9ff; font-weight:600; box-shadow:0 1px 0 #93c5fd; }
+      .t .sticky-city { position:sticky; z-index:1; background:#fefce8; font-weight:600; box-shadow:0 1px 0 #fde68a; }
+      .t .bar-bg { display:inline-block; height:9px; background:#e5e7eb; border-radius:2px; vertical-align:middle; width:70px; }
+      .t .bar-fill { display:block; height:100%; border-radius:2px; }
+      .t-toolbar { display:flex; align-items:center; gap:8px; margin-bottom:4px; font-size:11px; }
+      .t-toolbar input { padding:3px 6px; font-size:11px; border:1px solid #d1d5db; border-radius:3px; width:140px; }
+      .t-toolbar .info { color:#6b7280; font-size:10px; }
+
+      /* Host table — distinct style */
+      .th { font-size:10px; }
+      .th table { border-collapse:collapse; width:100%; }
+      .th th { background:#fef3c7; border-bottom:2px solid #f59e0b; padding:3px 5px; font-size:9px; cursor:pointer; user-select:none; white-space:nowrap; position:sticky; top:0; z-index:2; }
+      .th td { padding:2px 5px; border-bottom:1px solid #f5f5f4; font-size:10px; white-space:nowrap; }
+      .th tr:hover { background:#fffbeb; }
+
+      /* === CITY ROW (bypass Quarto layout bug) === */
+      .city-row { display:grid; grid-template-columns:40fr 60fr; gap:8px; height:500px; }
+      .city-right { display:grid; grid-template-rows:auto 1fr; grid-template-columns:48fr 12fr; gap:8px; overflow:hidden; }
+      .city-story {
+        grid-column:1/-1; background:#f8fafc; border-radius:6px;
+        padding:6px 12px; font-size:10px; line-height:1.4; color:#475569;
+        display:flex; flex-wrap:wrap; align-items:center; gap:6px 14px;
+      }
+      .city-story .sk { font-size:14px; font-weight:700; color:#0a4c6a; }
+      .city-story .sk.accent { color:#ca5800; }
+      .city-story .sl { font-size:9px; color:#6b7280; }
+      .city-story .sp { font-size:10px; color:#334155; flex-basis:100%; margin-top:2px; }
+      .city-card {
+        background:white; border-radius:6px; box-shadow:0 1px 3px rgba(0,0,0,0.1);
+        overflow:hidden; display:flex; flex-direction:column;
+      }
+      .city-card-header {
+        font-size:12px; font-weight:600; padding:6px 10px;
+        border-bottom:1px solid #e5e7eb; color:#0a4c6a; flex-shrink:0;
+      }
+      /* Top-align card content */
+      .card-body { justify-content:flex-start !important; align-items:stretch !important; }
+      .cell-output-display { align-self:flex-start; width:100%; }
+    </style>
+    <script>
+    // === DASHBOARD HELPERS (global scope) ===
+    var DDICT = {
+      n_listings:{type:"stock",pol:0}, n_hosts:{type:"stock",pol:0},
+      prix_med:{type:"prix",pol:0}, prix_moy:{type:"prix",pol:0},
+      pct_entire:{type:"pct",pol:1}, pct_multi:{type:"pct",pol:-1},
+      pct_longterm:{type:"pct",pol:-1}, dispo_med:{type:"stock",pol:0},
+      reviews_med:{type:"stock",pol:1}, rpm_med:{type:"ind",pol:1},
+      listings_1000hab:{type:"ind",pol:-1}, listings_1000hsg:{type:"ind",pol:-1},
+      ratio_lh:{type:"ind",pol:0}, pct_hosts_50pct:{type:"pct",pol:-1},
+      pct_offre:{type:"pct",pol:0}
+    };
+    function zBarColor(value,mean,std,polarity){
+      if(std===0||mean==null)return{bar:"#A2D4EC",text:"#333"};
+      var z=(value-mean)/std,abs=Math.abs(z),above=value>=mean;
+      var fav=polarity>0?above:polarity<0?!above:true;
+      if(abs<1)return{bar:fav?"#bcdeb4":"#eb99c2",text:fav?"#408941":"#af1f6b"};
+      if(abs<2.5)return{bar:fav?"#98cf90":"#e46aa7",text:fav?"#2c5c2d":"#af1f6b"};
+      return{bar:fav?"#5aaa5a":"#af1f6b",text:fav?"#2c5c2d":"#761548"};
+    }
+    function stockBarColor(value,mean,std){
+      if(std===0)return"#A2D4EC";
+      var z=Math.abs((value-mean)/std);
+      return z<1?"#A2D4EC":z<2.5?"#73BFE2":"#1696D2";
+    }
+    function prixGradient(value,mean,std){
+      // Divergent : bleu (bon marché) → gris (moyenne) → bordeaux (cher)
+      if(std===0)return{bar:"#d5d5d5",text:"#555"};
+      var z=(value-mean)/std;
+      if(z<-2)   return{bar:"#084594",text:"#084594"};     // bleu foncé — très bon marché
+      if(z<-1)   return{bar:"#1696d2",text:"#084594"};     // bleu Urban
+      if(z<-0.5) return{bar:"#a8d4e8",text:"#0a4c6a"};     // bleu clair
+      if(z<=0.5) return{bar:"#d5d5d5",text:"#666"};        // gris — proche moyenne
+      if(z<=1)   return{bar:"#c97b8e",text:"#6d1a36"};     // rosé
+      if(z<=2)   return{bar:"#a63d5a",text:"#5a1430"};     // bordeaux moyen
+      return{bar:"#6d1a36",text:"#4a0e24"};                // bordeaux foncé — très cher
+    }
+    function barCell(val,max,mean,std,key){
+      if(val==null)return"\u2014";
+      var info=DDICT[key]||{type:"stock",pol:0};
+      var w=max>0?Math.min(val/max*100,100):0;
+      var color,textColor="#333";
+      if(info.type==="prix"){
+        var pr=prixGradient(val,mean,std);color=pr.bar;textColor=pr.text;
+      }else if(info.type==="stock"){
+        color=stockBarColor(val,mean,std);
+      }else{
+        var r=zBarColor(val,mean,std,info.pol);color=r.bar;textColor=r.text;
+      }
+      var fmt=info.type==="pct"?val.toFixed(1)+"%":
+        typeof val==="number"&&val>=1000?Math.round(val).toLocaleString("fr-FR"):
+        typeof val==="number"&&val%1!==0?val.toFixed(1):String(Math.round(val));
+      return'<span class="bar-bg"><span class="bar-fill" style="width:'+w+'%;background:'+color+'"></span></span> <span style="color:'+textColor+'">'+fmt+'</span>';
+    }
+    function colStats(data,keys){
+      var s={};
+      for(var i=0;i<keys.length;i++){
+        var k=keys[i];
+        var vals=data.filter(function(d){return d.level==="arr"||d.level==="iris"})
+          .map(function(d){return d[k]}).filter(function(v){return v!=null&&!isNaN(v)});
+        var max=vals.length?Math.max.apply(null,vals):1;
+        var mean=vals.length?vals.reduce(function(a,b){return a+b},0)/vals.length:0;
+        var std=vals.length>1?Math.sqrt(vals.reduce(function(s,v){return s+Math.pow(v-mean,2)},0)/(vals.length-1)):0;
+        s[k]={max:max,mean:mean,std:std};
+      }
+      return s;
+    }
+    function territoryTable(data,containerId){
+      var keys=["n_listings","prix_med","pct_multi","pct_entire","pct_longterm","dispo_med","n_hosts"];
+      var headers=["Listings","Prix \u20ac","% Multi","% Entire","% Long","Dispo.","Hosts"];
+      var stats=colStats(data,keys);
+      var sortCol="n_listings",sortAsc=false,search="";
+      function render(){
+        var rows=data.slice();
+        var fr=rows.find(function(d){return d.level==="country"});
+        var city=rows.find(function(d){return d.level==="city"});
+        var rest=rows.filter(function(d){return d.level!=="country"&&d.level!=="city"});
+        if(search){var q=search.toLowerCase();rest=rest.filter(function(d){return(d.label||"").toLowerCase().indexOf(q)>=0})}
+        rest.sort(function(a,b){var va=a[sortCol]||0,vb=b[sortCol]||0;return typeof va==="string"?(sortAsc?va.localeCompare(vb):vb.localeCompare(va)):(sortAsc?va-vb:vb-va)});
+        if(rest.length>300)rest=rest.slice(0,300);
+        var ths='<th data-col="label" class="'+(sortCol==="label"?"active":"")+'">Territoire'+(sortCol==="label"?(sortAsc?" \u2191":" \u2193"):"")+'</th>'+
+          keys.map(function(k,i){return'<th data-col="'+k+'" class="'+(sortCol===k?"active":"")+'">'+headers[i]+(sortCol===k?(sortAsc?" \u2191":" \u2193"):"")+'</th>'}).join("");
+        function rowHtml(d,cls){
+          return'<tr class="'+cls+'"><td style="font-weight:500;max-width:150px;overflow:hidden;text-overflow:ellipsis;">'+d.label+'</td>'+
+            keys.map(function(k){return'<td>'+barCell(d[k],stats[k].max,stats[k].mean,stats[k].std,k)+'</td>'}).join("")+"</tr>";
+        }
+        var c=document.getElementById(containerId);
+        if(!c)return;
+        var tb=c.querySelector(".t");
+        var info=c.querySelector(".info");
+        if(info)info.textContent=rest.length+" territoires";
+        if(tb){
+          tb.innerHTML='<table><thead><tr>'+ths+'</tr></thead><tbody>'+
+            (fr?rowHtml(fr,"sticky-fr"):"")+
+            (city?rowHtml(city,"sticky-city"):"")+
+            rest.map(function(d){return rowHtml(d,"")}).join("")+
+            "</tbody></table>";
+          // Dynamic sticky positions based on actual rendered heights
+          var thRow=tb.querySelector("thead tr");
+          var thH=thRow?thRow.offsetHeight:22;
+          var frRow=tb.querySelector(".sticky-fr");
+          if(frRow){frRow.style.top=thH+"px";}
+          var frH=frRow?frRow.offsetHeight:0;
+          var cityRow=tb.querySelector(".sticky-city");
+          if(cityRow){cityRow.style.top=(thH+frH)+"px";}
+          tb.querySelectorAll("th").forEach(function(th){
+            th.addEventListener("click",function(){
+              var col=th.dataset.col;
+              if(sortCol===col)sortAsc=!sortAsc;else{sortCol=col;sortAsc=col==="label"}
+              render();
+            });
+          });
+        }
+      }
+      var c=document.getElementById(containerId);
+      if(c){var inp=c.querySelector("input");if(inp)inp.addEventListener("input",function(e){search=e.target.value;render()})}
+      render();
+    }
+    function hostTable(data,containerId){
+      var sortCol="n_listings",sortAsc=false;
+      function render(){
+        var rows=data.slice().sort(function(a,b){return sortAsc?a[sortCol]-b[sortCol]:b[sortCol]-a[sortCol]});
+        var c=document.getElementById(containerId);
+        if(!c)return;
+        var tb=c.querySelector(".th");
+        if(!tb)return;
+        tb.innerHTML='<table><thead><tr><th data-col="host_name">Host</th><th data-col="n_listings">Listings</th></tr></thead><tbody>'+
+          rows.map(function(d){return'<tr><td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;">'+(d.host_name||"\u2014")+'</td><td style="font-weight:600;">'+d.n_listings+' <span style="color:#999;font-size:9px;">('+d.pct_offre+'%)</span></td></tr>'}).join("")+"</tbody></table>";
+        tb.querySelectorAll("th").forEach(function(th){
+          th.addEventListener("click",function(){
+            var col=th.dataset.col;
+            if(sortCol===col)sortAsc=!sortAsc;else{sortCol=col;sortAsc=false}
+            render();
+          });
+        });
+      }
+      render();
+    }
+    function buildMap(container,rows,mode,config){
+      config=config||{};
+      var map=new maplibregl.Map({
+        container:container,
+        style:"https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json",
+        center:config.center||[2.35,48.86],
+        zoom:config.zoom||12,
+        minZoom:10,maxZoom:18,attributionControl:false
+      });
+      map.addControl(new maplibregl.NavigationControl(),"top-right");
+      map.on("load",function(){
+        var geo={type:"FeatureCollection",features:rows.map(function(d){return{type:"Feature",geometry:{type:"Point",coordinates:[d.longitude,d.latitude]},properties:{room_type:d.room_type,price:d.price,is_multi:d.is_multi}}})};
+        map.addSource("pts",{type:"geojson",data:geo});
+        // IRIS choropleth layer
+        if(mode==="iris"&&config.irisJson){
+          map.addSource("iris",{type:"geojson",data:JSON.parse(config.irisJson)});
+          map.addLayer({id:"iris-fill",type:"fill",source:"iris",paint:{"fill-color":["interpolate",["linear"],["get","n"],0,"#f7fbff",20,"#c6dbef",60,"#6baed6",150,"#2171b5",350,"#08306b"],"fill-opacity":0.6}});
+          map.addLayer({id:"iris-border",type:"line",source:"iris",paint:{"line-color":"#1696d2","line-width":0.6,"line-opacity":0.5}});
+          map.addLayer({id:"iris-hl",type:"line",source:"iris",paint:{"line-color":"#0a4c6a","line-width":2.5,"line-opacity":0},filter:["==","code_iris",""]});
+          var pop=null;
+          map.on("mousemove","iris-fill",function(e){
+            var p=e.features[0].properties;
+            map.setFilter("iris-hl",["==","code_iris",p.code_iris]);
+            map.setPaintProperty("iris-hl","line-opacity",1);
+            if(pop)pop.remove();
+            pop=new maplibregl.Popup({offset:10,closeButton:false,closeOnClick:false}).setLngLat(e.lngLat)
+              .setHTML('<div style="font-size:11px"><b>'+(p.nom_iris||"")+'</b> <small>'+(p.arr||"")+'</small><br>'+(p.n||0)+' listings \u00b7 '+(p.prix_med||0)+'\u20ac \u00b7 '+(p.pct_multi||0)+'% multi</div>').addTo(map);
+          });
+          map.on("mouseleave","iris-fill",function(){map.setPaintProperty("iris-hl","line-opacity",0);if(pop){pop.remove();pop=null}});
+        }
+        // Heatmap layer
+        if(mode==="heatmap"){
+          map.addLayer({id:"heat",type:"heatmap",source:"pts",paint:{
+            "heatmap-weight":["interpolate",["linear"],["get","price"],10,0.2,200,0.7,500,1],
+            "heatmap-intensity":["interpolate",["linear"],["zoom"],10,0.4,14,1.2],
+            "heatmap-radius":["interpolate",["linear"],["zoom"],10,6,13,12,16,20],
+            "heatmap-color":["interpolate",["linear"],["heatmap-density"],0,"rgba(0,0,0,0)",0.15,"#ffffb2",0.35,"#fd8d3c",0.55,"#f03b20",0.75,"#bd0026",1,"#800026"],
+            "heatmap-opacity":["interpolate",["linear"],["zoom"],11,0.6,16,0.25]}});
+        }
+        // Points layer (always added)
+        map.addLayer({id:"pts-layer",type:"circle",source:"pts",
+          layout:{visibility:mode==="points"?"visible":"none"},
+          paint:{"circle-radius":["interpolate",["linear"],["zoom"],10,1,14,2.5,17,5],"circle-color":["match",["get","room_type"],"Entire home/apt","#ca5800","Private room","#1696d2","Shared room","#55b748","#999"],"circle-opacity":0.6}});
+        // Click popup on points
+        map.on("click","pts-layer",function(e){
+          var p=e.features[0].properties;
+          new maplibregl.Popup({offset:8}).setLngLat(e.lngLat)
+            .setHTML('<b>'+p.room_type+'</b><br>'+p.price+'\u20ac \u00b7 Multi:'+(p.is_multi?"Oui":"Non")).addTo(map);
+        });
+      });
+      // Points toggle (for iris/heatmap modes)
+      if(mode!=="points"){
+        var tgl=document.createElement("div");
+        tgl.style.cssText="position:absolute;bottom:8px;right:8px;z-index:5;background:rgba(255,255,255,0.92);padding:4px 8px;border-radius:4px;font-size:10px;box-shadow:0 1px 2px rgba(0,0,0,0.12);cursor:pointer;";
+        tgl.innerHTML='<label style="cursor:pointer;display:flex;align-items:center;gap:3px;margin:0;"><input type="checkbox" style="margin:0;"> Points</label>';
+        container.parentNode.appendChild(tgl);
+        tgl.querySelector("input").addEventListener("change",function(e){
+          if(map.isStyleLoaded()) map.setLayoutProperty("pts-layer","visibility",e.target.checked?"visible":"none");
+        });
+      }
+      return map;
+    }
+    function cityStory(ck, cityName, nPts, frKpi, territoryData) {
+      // Find top 3 arrondissements by listings
+      var arrData = (territoryData||[]).filter(function(d){return d.level==="arr"||d.level==="iris"})
+        .slice().sort(function(a,b){return(b.n_listings||0)-(a.n_listings||0)});
+      var top3 = arrData.slice(0,3);
+      var top3share = ck.n_listings ? Math.round(top3.reduce(function(s,d){return s+(d.n_listings||0)},0)/ck.n_listings*100) : 0;
+      var top3names = top3.map(function(d){return d.label}).join(", ");
+
+      var html = '<span><span class="sk">' + (ck.n_listings||0).toLocaleString("fr-FR") + '</span> <span class="sl">listings</span></span>';
+      html += '<span><span class="sk accent">' + (ck.prix_med||0) + ' \u20ac</span> <span class="sl">prix m\u00e9d.</span></span>';
+      html += '<span><span class="sk">' + (ck.pct_multi||0) + '%</span> <span class="sl">multi</span></span>';
+      html += '<span><span class="sk">' + (ck.pct_entire||0) + '%</span> <span class="sl">entire</span></span>';
+      html += '<span class="sp">Top 3 : ' + top3names + ' (' + top3share + '% de l\u2019offre)</span>';
+      return html;
+    }
+    function buildCityRow(id, cityName, points, mapMode, mapConfig, territoryData, hostsData, frKpi) {
+      var row = document.createElement("div");
+      row.className = "city-row";
+      var nPts = points.length;
+      var labels = {iris:"IRIS + Points",points:"Points",heatmap:"Heatmap + Points"};
+      var modeLabel = labels[mapMode] || mapMode;
+
+      // Extract city KPI from territory data
+      var ck = territoryData.find(function(d){return d.level==="city"}) || {};
+
+      // MAP CARD (col 1 — spans full height)
+      var mapCard = document.createElement("div");
+      mapCard.className = "city-card";
+      mapCard.innerHTML = '<div class="city-card-header">' + cityName + ' \u2014 ' + nPts.toLocaleString("fr-FR") + ' listings \u00b7 ' + modeLabel + '</div>';
+      var mapWrap = document.createElement("div");
+      mapWrap.style.cssText = "flex:1;position:relative;min-height:0;";
+      if (mapMode==="iris") {
+        var leg = document.createElement("div");
+        leg.className = "map-legend";
+        leg.innerHTML = '<div style="font-weight:600;">Listings/IRIS</div><div class="lg-bar"><div style="background:#f7fbff"></div><div style="background:#c6dbef"></div><div style="background:#6baed6"></div><div style="background:#2171b5"></div><div style="background:#08306b"></div></div><div class="lg-labels"><span>0</span><span>350</span></div>';
+        mapWrap.appendChild(leg);
+      }
+      if (mapMode==="heatmap") {
+        var leg2 = document.createElement("div");
+        leg2.className = "map-legend";
+        leg2.innerHTML = '<div style="font-weight:600;">Densit\u00e9 prix</div><div class="lg-bar"><div style="background:#ffffb2"></div><div style="background:#fd8d3c"></div><div style="background:#f03b20"></div><div style="background:#bd0026"></div><div style="background:#800026"></div></div><div class="lg-labels"><span>Faible</span><span>Fort</span></div>';
+        mapWrap.appendChild(leg2);
+      }
+      var mapDiv = document.createElement("div");
+      mapDiv.style.cssText = "position:absolute;top:0;left:0;right:0;bottom:0;";
+      mapWrap.appendChild(mapDiv);
+      mapCard.appendChild(mapWrap);
+      row.appendChild(mapCard);
+
+      // RIGHT PANEL (col 2 — sub-grid: story + territory + hosts)
+      var rightPanel = document.createElement("div");
+      rightPanel.className = "city-right";
+
+      // STORY BLOCK (spans both sub-columns)
+      var story = document.createElement("div");
+      story.className = "city-story";
+      story.innerHTML = cityStory(ck, cityName, nPts, frKpi, territoryData);
+      rightPanel.appendChild(story);
+
+      // TERRITORY TABLE CARD
+      var tblCard = document.createElement("div");
+      tblCard.className = "city-card";
+      tblCard.id = "terr-" + id;
+      tblCard.innerHTML = '<div class="city-card-header">Territoire \u00b7 ' + cityName + '</div>' +
+        '<div class="t-toolbar"><input placeholder="Filtrer..."><span class="info"></span></div><div class="t" style="flex:1;"></div>';
+      rightPanel.appendChild(tblCard);
+
+      // HOSTS TABLE CARD
+      var hostCard = document.createElement("div");
+      hostCard.className = "city-card";
+      hostCard.id = "hosts-" + id + "-c";
+      hostCard.innerHTML = '<div class="city-card-header">Top 50 ' + cityName + '</div><div class="th" style="overflow:auto;flex:1;"></div>';
+      rightPanel.appendChild(hostCard);
+
+      row.appendChild(rightPanel);
+
+      return { element:row, init:function(){ buildMap(mapDiv, points, mapMode, mapConfig); territoryTable(territoryData, "terr-"+id); hostTable(hostsData, "hosts-"+id+"-c"); } };
+    }
+    </script>
+execute:
+  warning: false
+  echo: false
+freeze: auto
+---
+
+```{r}
+#| label: setup
+#| include: false
+
+library(sf)
+library(dplyr)
+library(jsonlite)
+
+# === 1. Load all French listings ===
+df_fr <- arrow::read_parquet(
+  "C:/Users/vince/hh/pq/PDS/pbnb-airbnb-log-jrr-jpy/data/interim/dbsumlistings_2506_cons_global.parquet",
+  as_data_frame = FALSE) |>
+  filter(city %in% c("paris", "lyon", "bordeaux"),
+         !is.na(price), price > 0, availability_365 > 0,
+         room_type != "Hotel room", price >= 10, price <= 1000) |>
+  collect() |> as.data.frame()
+
+df_fr$is_multi <- df_fr$calculated_host_listings_count > 1
+df_fr$is_longterm <- df_fr$minimum_nights >= 30
+
+# === 2. KPIs par ville + France ===
+compute_kpi <- function(df, label, level) {
+  data.frame(
+    label = label, level = level,
+    n_listings = nrow(df),
+    n_hosts = length(unique(df$host_id)),
+    prix_med = round(median(df$price), 0),
+    prix_moy = round(mean(df$price), 0),
+    pct_entire = round(mean(df$room_type == "Entire home/apt") * 100, 1),
+    pct_multi = round(mean(df$is_multi) * 100, 1),
+    pct_longterm = round(mean(df$is_longterm) * 100, 1),
+    dispo_med = round(median(df$availability_365), 0),
+    reviews_med = round(median(df$number_of_reviews), 0),
+    rpm_med = round(median(df$reviews_per_month, na.rm = TRUE), 1),
+    stringsAsFactors = FALSE
+  )
+}
+
+france_kpi <- compute_kpi(df_fr, "France (3 villes)", "country")
+paris_kpi <- compute_kpi(df_fr |> filter(city == "paris"), "Paris", "city")
+lyon_kpi <- compute_kpi(df_fr |> filter(city == "lyon"), "Lyon", "city")
+bordeaux_kpi <- compute_kpi(df_fr |> filter(city == "bordeaux"), "Bordeaux", "city")
+
+# === 3. Arrondissement tables (Paris + Lyon) ===
+make_arr_table <- function(df, city_name, city_kpi_row) {
+  arr <- df |>
+    group_by(neighbourhood) |>
+    summarise(
+      n_listings = n(),
+      n_hosts = length(unique(host_id)),
+      prix_med = round(median(price), 0),
+      pct_entire = round(mean(room_type == "Entire home/apt") * 100, 1),
+      pct_multi = round(mean(is_multi) * 100, 1),
+      pct_longterm = round(mean(is_longterm) * 100, 1),
+      dispo_med = round(median(availability_365), 0),
+      .groups = "drop") |>
+    mutate(label = neighbourhood, level = "arr") |>
+    arrange(desc(n_listings)) |>
+    select(label, level, n_listings, n_hosts, prix_med, pct_entire,
+           pct_multi, pct_longterm, dispo_med)
+
+  bind_rows(
+    france_kpi |> select(label, level, n_listings, n_hosts, prix_med,
+                          pct_entire, pct_multi, pct_longterm, dispo_med),
+    city_kpi_row |> select(label, level, n_listings, n_hosts, prix_med,
+                            pct_entire, pct_multi, pct_longterm, dispo_med),
+    arr
+  )
+}
+
+paris_territory <- make_arr_table(df_fr |> filter(city == "paris"), "Paris", paris_kpi)
+lyon_territory <- make_arr_table(df_fr |> filter(city == "lyon"), "Lyon", lyon_kpi)
+bordeaux_territory <- make_arr_table(df_fr |> filter(city == "bordeaux"), "Bordeaux", bordeaux_kpi)
+
+# === 4. Top hosts par ville ===
+make_top_hosts <- function(df, n_top = 50) {
+  total <- nrow(df)
+  df |>
+    group_by(host_id, host_name) |>
+    summarise(
+      n_listings = n(),
+      prix_moy = round(mean(price), 0),
+      pct_entire = round(mean(room_type == "Entire home/apt") * 100, 0),
+      .groups = "drop") |>
+    arrange(desc(n_listings)) |>
+    head(n_top) |>
+    mutate(pct_offre = round(n_listings / total * 100, 2)) |>
+    as.data.frame()
+}
+
+hosts_paris <- make_top_hosts(df_fr |> filter(city == "paris"), 50)
+hosts_lyon <- make_top_hosts(df_fr |> filter(city == "lyon"), 50)
+hosts_bordeaux <- make_top_hosts(df_fr |> filter(city == "bordeaux"), 50)
+hosts_france <- make_top_hosts(df_fr, 100)
+
+# === 5. Benchmark cities (KPI CSV) ===
+bench_cities <- c("london", "paris", "berlin", "lisbon", "rome",
+                   "barcelona", "lyon", "bordeaux")
+kpi_csv <- read.csv(
+  "C:/Users/vince/hh/pq/PDS/pbnb-airbnb-log-jrr-jpy/data/interim/kpi_global_by_city_2506.csv",
+  stringsAsFactors = FALSE)
+benchmark <- kpi_csv |>
+  filter(city %in% bench_cities) |>
+  select(city_fr, n_listings, prix_med, pct_entire, pct_multi,
+         pct_longterm, listings_1000hab, listings_1000hsg, ratio_lh) |>
+  arrange(desc(n_listings))
+
+# === 6. IRIS Paris (GPKG + recap) ===
+gpkg_path <- "C:/Users/vince/DBD-datab/TDC-ref/geo-shape-raw/CONTOURS-IRIS_3-0__GPKG_LAMB93_FXX_2025-01-01/iris.gpkg"
+lyr <- st_layers(gpkg_path)$name[1]
+
+paris_sf <- st_read(gpkg_path,
+  query = sprintf("SELECT * FROM \"%s\" WHERE code_iris LIKE '75%%'", lyr),
+  quiet = TRUE) |>
+  st_transform(4326) |>
+  st_simplify(dTolerance = 0.00005, preserveTopology = TRUE) |>
+  select(code_iris, nom_iris)
+
+recap <- read.csv(
+  "C:/Users/vince/hh/pq/PDS/pbnb-airbnb-log-jrr-jpy/data/interim/recap_iris_paris_2506.csv",
+  stringsAsFactors = FALSE, colClasses = c(code_iris = "character"))
+
+paris_sf <- paris_sf |>
+  left_join(recap |> select(code_iris, n, n_hosts, prix_med, pct_multi,
+                             pct_entire, pct_longterm, dispo_med, reviews_med, arr),
+            by = "code_iris") |>
+  mutate(across(c(n, n_hosts, prix_med, pct_multi, pct_entire,
+                   pct_longterm, dispo_med, reviews_med), ~replace(., is.na(.), 0)))
+
+tmp <- tempfile(fileext = ".geojson")
+st_write(paris_sf, tmp, driver = "GeoJSON", quiet = TRUE)
+iris_json <- paste(readLines(tmp, warn = FALSE), collapse = "\n")
+
+# === 6b. IRIS Lyon (GPKG + spatial join) ===
+lyon_sf <- st_read(gpkg_path,
+  query = sprintf("SELECT * FROM \"%s\" WHERE code_iris LIKE '6938%%'", lyr),
+  quiet = TRUE) |>
+  st_transform(4326) |>
+  st_simplify(dTolerance = 0.00005, preserveTopology = TRUE) |>
+  select(code_iris, nom_iris)
+
+pts_lyon_sf <- st_as_sf(
+  df_fr |> filter(city == "lyon"),
+  coords = c("longitude", "latitude"), crs = 4326)
+lyon_join <- st_join(pts_lyon_sf, lyon_sf, join = st_within) |> st_drop_geometry()
+
+lyon_recap <- lyon_join |>
+  filter(!is.na(code_iris)) |>
+  group_by(code_iris) |>
+  summarise(
+    n = n(), n_hosts = length(unique(host_id)),
+    prix_med = round(median(price), 0),
+    pct_multi = round(mean(is_multi) * 100, 1),
+    pct_entire = round(mean(room_type == "Entire home/apt") * 100, 1),
+    pct_longterm = round(mean(is_longterm) * 100, 1),
+    dispo_med = round(median(availability_365), 0),
+    reviews_med = round(median(number_of_reviews), 0),
+    arr = first(neighbourhood),
+    .groups = "drop")
+
+lyon_sf <- lyon_sf |>
+  left_join(lyon_recap, by = "code_iris") |>
+  mutate(across(c(n, n_hosts, prix_med, pct_multi, pct_entire,
+                   pct_longterm, dispo_med, reviews_med), ~replace(., is.na(.), 0)))
+
+tmp2 <- tempfile(fileext = ".geojson")
+st_write(lyon_sf, tmp2, driver = "GeoJSON", quiet = TRUE)
+iris_lyon_json <- paste(readLines(tmp2, warn = FALSE), collapse = "\n")
+
+# === 7. Points per city ===
+pts_sel <- function(df) {
+  df |> select(latitude, longitude, room_type, price, is_multi)
+}
+pts_paris <- pts_sel(df_fr |> filter(city == "paris"))
+pts_lyon <- pts_sel(df_fr |> filter(city == "lyon"))
+pts_bordeaux <- pts_sel(df_fr |> filter(city == "bordeaux"))
+
+n_paris <- nrow(pts_paris)
+n_lyon <- nrow(pts_lyon)
+n_bordeaux <- nrow(pts_bordeaux)
+
+# === 8. ojs_define ===
+ojs_define(iris_json = iris_json)
+ojs_define(iris_lyon_json = iris_lyon_json)
+ojs_define(pts_paris = pts_paris)
+ojs_define(pts_lyon = pts_lyon)
+ojs_define(pts_bordeaux = pts_bordeaux)
+ojs_define(paris_territory = paris_territory)
+ojs_define(lyon_territory = lyon_territory)
+ojs_define(bordeaux_territory = bordeaux_territory)
+ojs_define(benchmark_data = benchmark)
+ojs_define(hosts_paris = hosts_paris)
+ojs_define(hosts_lyon = hosts_lyon)
+ojs_define(hosts_bordeaux = hosts_bordeaux)
+ojs_define(hosts_france = hosts_france)
+ojs_define(france_kpi_js = france_kpi)
+ojs_define(paris_kpi_js = paris_kpi)
+ojs_define(lyon_kpi_js = lyon_kpi)
+ojs_define(bordeaux_kpi_js = bordeaux_kpi)
+```
+
+## Row {height="220px"}
+
+### Column {width="38%"}
+
+```{ojs}
+//| label: header-kpi
+{
+  const fk = transpose(france_kpi_js)[0];
+  const pk = transpose(paris_kpi_js)[0];
+  const d = document.createElement("div");
+  d.className = "banner";
+  d.innerHTML = `
+    <div style="font-size:13px;font-weight:600;color:#0a4c6a;margin-bottom:8px;">Airbnb France · 3 villes</div>
+    <div class="kpi-row">
+      <div class="kpi-brick"><div class="kv">${Math.round(fk.n_listings).toLocaleString("fr-FR")}</div><div class="kl">listings actifs</div></div>
+      <div class="kpi-brick accent-orange"><div class="kv">${fk.prix_med} €</div><div class="kl">prix médian/nuit</div></div>
+      <div class="kpi-brick accent-green"><div class="kv">${fk.pct_multi}%</div><div class="kl">multi-host</div></div>
+    </div>
+    <div style="font-size:10px;color:#666;margin-top:6px;line-height:1.4;">
+      Paris concentre <b>${Math.round(pk.n_listings).toLocaleString("fr-FR")}</b> annonces (${Math.round(pk.n_listings/fk.n_listings*100)}%).
+      Le marché est dominé par les logements entiers (${fk.pct_entire}%) et ${fk.pct_longterm}% de l'offre est long-terme (≥30 nuits).
+    </div>`;
+  return d;
+}
+```
+
+### Column {width="42%"}
+
+#### Benchmark villes
+
+```{ojs}
+//| label: header-benchmark
+{
+  const d = document.createElement("div");
+  const data = transpose(benchmark_data);
+  const keys = ["n_listings","prix_med","pct_entire","pct_multi","pct_longterm","listings_1000hab","listings_1000hsg","ratio_lh"];
+  const heads = ["Listings","Prix €","% Entire","% Multi","% Long","L/1000h","L/1000log","L/H"];
+  const stats = {};
+  for (const k of keys) {
+    const vals = data.map(r => r[k]).filter(v => v != null);
+    stats[k] = { max: Math.max(...vals), mean: vals.reduce((a,b)=>a+b,0)/vals.length,
+      std: Math.sqrt(vals.reduce((s,v)=>s+(v-vals.reduce((a,b)=>a+b,0)/vals.length)**2,0)/(vals.length-1)) };
+  }
+
+  d.className = "t";
+  d.style.cssText = "overflow:auto;max-height:100%;";
+  d.innerHTML = `<table><thead><tr><th>Ville</th>${keys.map((k,i) => `<th>${heads[i]}</th>`).join("")}</tr></thead>
+    <tbody>${data.map(r => `<tr>
+      <td style="font-weight:500;">${r.city_fr}</td>
+      ${keys.map(k => `<td>${barCell(r[k], stats[k].max, stats[k].mean, stats[k].std, k)}</td>`).join("")}
+    </tr>`).join("")}</tbody></table>`;
+  return d;
+}
+```
+
+### Column {width="20%"}
+
+#### Top 100 hosts France
+
+```{ojs}
+//| label: header-hosts-france
+{
+  const d = document.createElement("div");
+  d.id = "hosts-france-c";
+  d.style.cssText = "overflow:auto;max-height:100%;";
+  d.innerHTML = '<div class="th"></div>';
+  yield d;
+  const data = transpose(hosts_france);
+  hostTable(data, "hosts-france-c");
+}
+```
+
+## Row {height="540px"}
+
+```{ojs}
+//| label: paris-section
+{
+  const fk = transpose(france_kpi_js)[0];
+  const r = buildCityRow("paris", "Paris",
+    transpose(pts_paris), "iris",
+    { center:[2.347,48.859], zoom:12, irisJson:iris_json },
+    transpose(paris_territory), transpose(hosts_paris), fk);
+  yield r.element;
+  r.init();
+}
+```
+
+## Row {height="540px"}
+
+```{ojs}
+//| label: lyon-section
+{
+  const fk = transpose(france_kpi_js)[0];
+  const r = buildCityRow("lyon", "Lyon",
+    transpose(pts_lyon), "iris",
+    { center:[4.835,45.764], zoom:12, irisJson:iris_lyon_json },
+    transpose(lyon_territory), transpose(hosts_lyon), fk);
+  yield r.element;
+  r.init();
+}
+```
+
+## Row {height="540px"}
+
+```{ojs}
+//| label: bordeaux-section
+{
+  const fk = transpose(france_kpi_js)[0];
+  const r = buildCityRow("bordeaux", "Bordeaux",
+    transpose(pts_bordeaux), "heatmap",
+    { center:[-0.573,44.838], zoom:12 },
+    transpose(bordeaux_territory), transpose(hosts_bordeaux), fk);
+  yield r.element;
+  r.init();
+}
+```
