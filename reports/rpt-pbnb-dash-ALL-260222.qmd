@@ -1,0 +1,361 @@
+---
+title: "Airbnb — Explorateur Mondial"
+subtitle: "75 villes · 30 pays · Inside Airbnb juin 2025"
+format:
+  dashboard:
+    orientation: rows
+    scrolling: true
+    theme: cosmo
+resources:
+  - helpers/pbnbdash-util-helper.js
+  - helpers/pbnbdash-util-helper.css
+  - helpers/pbnbdash-maplibre-helper.js
+  - helpers/jcn-scatterojs.js
+  - helpers/jcn-tableojs.js
+  - helpers/ddict-airbnb.json
+include-in-header:
+  text: |
+    <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet">
+    <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+    <link rel="stylesheet" href="helpers/pbnbdash-util-helper.css">
+    <script src="helpers/pbnbdash-util-helper.js"></script>
+    <script src="helpers/pbnbdash-maplibre-helper.js"></script>
+    <!-- scatter + table = ES modules, importés via import() dans OJS -->
+    <style>
+      /* Monde dashboard — overrides (teal header distinct du navy France) */
+      .top-block-header { background:#0d6a5e !important; }
+      .bslib-page-title { background:#0d6a5e !important; color:white !important; padding:8px 16px !important; }
+      .navbar .navbar-title, .navbar-brand { font-weight:700 !important; }
+      h2.anchored { margin-top:0 !important; padding-top:0 !important; }
+
+      /* Scatter container */
+      .scatter-wrap { position:relative; width:100%; height:100%; overflow:hidden; }
+      .scatter-wrap svg { width:100%; height:100%; }
+      .scatter-ctrl {
+        display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+        padding:6px 10px; background:#f8f9fa; border-bottom:1px solid #e5e7eb; font-size:12px;
+      }
+      .scatter-ctrl select { font-size:11px; padding:3px 6px; border:1px solid #94a3b8; border-radius:3px; }
+      .scatter-ctrl label { font-weight:600; color:#0d6a5e; font-size:11px; }
+
+      /* World map */
+      .world-map-wrap { position:relative; height:100%; min-height:460px; }
+      .world-map-wrap .maplibregl-map { position:absolute; top:0; left:0; right:0; bottom:0; }
+      .world-map-ctrl {
+        position:absolute; top:8px; left:8px; z-index:5;
+        background:rgba(255,255,255,0.95); border-radius:6px;
+        padding:8px 12px; font-size:12px; box-shadow:0 1px 4px rgba(0,0,0,0.18);
+        display:flex; flex-direction:column; gap:5px; max-width:220px;
+        border:1px solid #d1d5db;
+      }
+      .world-map-ctrl select { width:100%; font-size:11px; padding:3px 4px; border:1px solid #94a3b8; border-radius:3px; }
+      .world-map-ctrl .mt { font-weight:700; font-size:11px; color:#0d6a5e; }
+      .bubble-legend {
+        position:absolute; bottom:12px; left:8px; z-index:5;
+        background:rgba(255,255,255,0.93); border-radius:4px;
+        padding:6px 10px; font-size:10px; box-shadow:0 1px 2px rgba(0,0,0,0.1);
+      }
+
+      /* Main layout tweaks */
+      .card-body { justify-content:flex-start !important; align-items:flex-start !important; padding-top:4px !important; }
+      .cell-output-display { align-self:flex-start; width:100%; }
+    </style>
+    <!-- JS externalisé dans helpers/pbnbdash-maplibre-helper.js + scatter-helper.js -->
+execute:
+  warning: false
+  echo: false
+freeze: auto
+---
+
+```{r}
+#| label: setup
+#| include: false
+
+library(dplyr)
+
+# Load KPI CSV (75 villes)
+kpi <- read.csv(
+  "C:/Users/vince/hh/pq/PDS/pbnb-airbnb-log-jrr-jpy/data/interim/kpi_global_by_city_2506.csv",
+  stringsAsFactors = FALSE)
+
+# Coordonnées par ville (from city-reference)
+city_ref <- read.csv(
+  "C:/Users/vince/hh/pq/PDS/pbnb-airbnb-log-jrr-jpy/data/external/city-reference-airbnb-260217.csv",
+  stringsAsFactors = FALSE)
+
+# Merge coords
+kpi <- kpi |>
+  left_join(city_ref |> select(city, lat, lon), by = "city") |>
+  rename(latitude = lat, longitude = lon)
+
+# Agrégats globaux
+total_listings <- sum(kpi$n_listings, na.rm = TRUE)
+total_cities <- nrow(kpi)
+total_countries <- length(unique(kpi$country_code))
+total_continents <- length(unique(kpi$continent))
+prix_med_global <- round(median(kpi$prix_med_entire, na.rm = TRUE), 0)
+pct_multi_global <- round(weighted.mean(kpi$pct_multi, kpi$n_listings, na.rm = TRUE), 1)
+pct_entire_global <- round(weighted.mean(kpi$pct_entire, kpi$n_listings, na.rm = TRUE), 1)
+density_med_global <- round(median(kpi$listings_1000hab, na.rm = TRUE), 1)
+rating_med_global <- round(median(kpi$rev_rating_med, na.rm = TRUE), 2)
+
+# Rankings top 3 / bottom 3 pour 4 indicateurs clés
+make_ranking <- function(df, col, n = 3, desc_order = TRUE) {
+  df <- df |> filter(!is.na(.data[[col]]))
+  if (desc_order) df <- df |> arrange(desc(.data[[col]]))
+  else df <- df |> arrange(.data[[col]])
+  top <- head(df, n) |> select(city_fr, country_code, val = !!sym(col))
+  bot <- tail(df, n) |> arrange(.data[[col]]) |> select(city_fr, country_code, val = !!sym(col))
+  if (!desc_order) { tmp <- top; top <- bot; bot <- tmp }
+  list(top = top, bot = bot)
+}
+rk_prix <- make_ranking(kpi, "prix_med_entire")
+rk_density <- make_ranking(kpi, "listings_1000hab")
+rk_multi <- make_ranking(kpi, "pct_multi")
+rk_note <- make_ranking(kpi, "rev_rating_med")
+cr10_global <- round(weighted.mean(kpi$cr_top10_pct, kpi$n_listings, na.rm = TRUE), 1)
+
+# Top 20 hosts globaux (depuis parquet sumlistings)
+top_hosts <- tryCatch({
+  df_sum <- arrow::read_parquet(
+    "C:/Users/vince/hh/pq/PDS/pbnb-airbnb-log-jrr-jpy/data/interim/dbsumlistings_2506_cons_global.parquet",
+    col_select = c("host_id", "host_name", "city", "id"))
+  total_global <- nrow(df_sum)
+  h <- df_sum |>
+    summarise(
+      host_name = first(host_name),
+      n_listings = n(),
+      n_cities = n_distinct(city),
+      .by = host_id) |>
+    arrange(desc(n_listings)) |>
+    head(20) |>
+    mutate(pct_offre = round(n_listings / total_global * 100, 2))
+  h
+}, error = function(e) { data.frame() })
+
+# ojs_define
+ojs_define(kpi_data = kpi)
+ojs_define(total_listings = total_listings)
+ojs_define(total_cities = total_cities)
+ojs_define(total_countries = total_countries)
+ojs_define(total_continents = total_continents)
+ojs_define(prix_med_global = prix_med_global)
+ojs_define(pct_multi_global = pct_multi_global)
+ojs_define(pct_entire_global = pct_entire_global)
+ojs_define(density_med_global = density_med_global)
+ojs_define(rating_med_global = rating_med_global)
+ojs_define(cr10_global = cr10_global)
+ojs_define(rk_prix_top = rk_prix$top)
+ojs_define(rk_prix_bot = rk_prix$bot)
+ojs_define(rk_density_top = rk_density$top)
+ojs_define(rk_density_bot = rk_density$bot)
+ojs_define(rk_multi_top = rk_multi$top)
+ojs_define(rk_multi_bot = rk_multi$bot)
+ojs_define(rk_note_top = rk_note$top)
+ojs_define(rk_note_bot = rk_note$bot)
+ojs_define(top_hosts_data = top_hosts)
+```
+
+## Row {height="220px"}
+
+### Column {width="60%"}
+
+```{ojs}
+//| label: header-kpi
+{
+  // Rankings helpers
+  const fmtRk = (rows, unit, dec) => transpose(rows).map((r,i) => {
+    const v = dec ? (+r.val).toFixed(dec) : Math.round(+r.val).toLocaleString("fr-FR");
+    return `<span style="font-weight:600;">${r.city_fr}</span> <span style="color:#94a3b8;font-size:9px;">${v}${unit}</span>`;
+  }).join(" · ");
+
+  const d = document.createElement("div");
+  d.innerHTML = `
+    <div class="top-block-header" style="display:flex;justify-content:space-between;align-items:center;">
+      <span>Airbnb dans le monde \u00b7 ${total_cities} villes \u00b7 ${total_countries} pays \u00b7 ${total_continents} continents</span>
+      <span style="font-size:10px;opacity:0.7;">Source : Inside Airbnb, juin 2025</span>
+    </div>
+    <div style="padding:10px 14px;background:#f8f9fa;">
+    <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:baseline;">
+      <span><span style="font-size:28px;font-weight:800;color:#0d6a5e;">${Math.round(total_listings).toLocaleString("fr-FR")}</span> <span style="font-size:12px;color:#475569;">annonces</span></span>
+      <span><span style="font-size:28px;font-weight:800;color:#ca5800;">${prix_med_global}\u00a0\u20ac</span> <span style="font-size:12px;color:#475569;">prix m\u00e9d./nuit (entier)</span></span>
+      <span><span style="font-size:28px;font-weight:800;color:#0d6a5e;">${pct_entire_global}%</span> <span style="font-size:12px;color:#475569;">logements entiers</span></span>
+      <span><span style="font-size:28px;font-weight:800;color:#ca5800;">${pct_multi_global}%</span> <span style="font-size:12px;color:#475569;">multi-h\u00f4tes</span></span>
+      <span><span style="font-size:28px;font-weight:800;color:#0d6a5e;">${density_med_global}</span> <span style="font-size:12px;color:#475569;">ann./1\u202f000 hab</span></span>
+      <span><span style="font-size:28px;font-weight:800;color:#55b748;">${rating_med_global}/5</span> <span style="font-size:12px;color:#475569;">note m\u00e9diane</span></span>
+      <span><span style="font-size:28px;font-weight:800;color:#6d1a36;">${cr10_global}%</span> <span style="font-size:12px;color:#475569;">CR10 (concentr.)</span></span>
+    </div>
+    <div style="margin-top:8px;font-size:11px;line-height:1.7;color:#334155;">
+      <div>\u25b2 <span style="color:#0d6a5e;font-weight:600;">Prix</span> : ${fmtRk(rk_prix_top, "\u00a0\u20ac")} &nbsp;\u25bc ${fmtRk(rk_prix_bot, "\u00a0\u20ac")}</div>
+      <div>\u25b2 <span style="color:#0d6a5e;font-weight:600;">Densit\u00e9</span> : ${fmtRk(rk_density_top, "")} &nbsp;\u25bc ${fmtRk(rk_density_bot, "")}</div>
+      <div>\u25b2 <span style="color:#ca5800;font-weight:600;">Multi-h\u00f4tes</span> : ${fmtRk(rk_multi_top, "\u00a0%")} &nbsp;\u25bc ${fmtRk(rk_multi_bot, "\u00a0%")}</div>
+    </div>
+    </div>`;
+  return d;
+}
+```
+
+### Column {width="40%"}
+
+```{ojs}
+//| label: header-top-hosts
+{
+  const rows = transpose(top_hosts_data);
+  const d = document.createElement("div");
+  if (!rows || rows.length === 0) {
+    d.innerHTML = `<div class="top-block-header" style="font-size:12px;">Top h\u00f4tes (non disponible)</div>`;
+    return d;
+  }
+  d.innerHTML = `
+    <div class="top-block-header" style="font-size:12px;">Top 20 h\u00f4tes mondiaux</div>
+    <div style="padding:2px 6px;background:#f8f9fa;font-size:10px;overflow-y:auto;max-height:175px;">
+    <table style="width:100%;border-collapse:collapse;">
+    <thead><tr style="border-bottom:2px solid #94a3b8;">
+      <th style="padding:2px 4px;text-align:left;font-size:9px;color:#6b7280;font-weight:600;">#</th>
+      <th style="padding:2px 4px;text-align:left;font-size:9px;color:#6b7280;font-weight:600;">H\u00f4te</th>
+      <th style="padding:2px 4px;text-align:right;font-size:9px;color:#6b7280;font-weight:600;">Ann.</th>
+      <th style="padding:2px 4px;text-align:right;font-size:9px;color:#6b7280;font-weight:600;">Villes</th>
+      <th style="padding:2px 4px;text-align:right;font-size:9px;color:#6b7280;font-weight:600;">% offre</th>
+    </tr></thead>
+    <tbody>
+    ${rows.map((r, i) => {
+      const name = (r.host_name || "ID:" + r.host_id).substring(0, 20);
+      return `<tr style="border-bottom:1px solid #e5e7eb;">
+        <td style="padding:1px 4px;color:#94a3b8;font-size:9px;">${i+1}</td>
+        <td style="padding:1px 4px;font-weight:500;font-size:10px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name}</td>
+        <td style="padding:1px 4px;text-align:right;font-weight:600;color:#0d6a5e;font-size:10px;">${Math.round(r.n_listings).toLocaleString("fr-FR")}</td>
+        <td style="padding:1px 4px;text-align:right;color:#1696d2;font-size:10px;">${Math.round(r.n_cities)}</td>
+        <td style="padding:1px 4px;text-align:right;color:#ca5800;font-size:9px;">${(+r.pct_offre).toFixed(2)}%</td>
+      </tr>`;
+    }).join("")}
+    </tbody>
+    </table>
+    </div>`;
+  return d;
+}
+```
+
+## Row {height="520px"}
+
+### Column {width="50%"}
+
+#### Carte mondiale
+
+```{ojs}
+//| label: world-map
+{
+  const d = document.createElement("div");
+  d.className = "world-map-wrap";
+  d.style.cssText = "width:100%;min-height:460px;position:relative;";
+  const mapDiv = document.createElement("div");
+  mapDiv.style.cssText = "position:absolute;top:0;left:0;right:0;bottom:0;";
+  d.appendChild(mapDiv);
+  yield d;
+
+  await new Promise(r => setTimeout(r, 80));
+  const data = transpose(kpi_data);
+  const map = buildWorldMap(mapDiv, data, "listings_1000hab");
+  setTimeout(() => { if (map) map.resize(); }, 300);
+}
+```
+
+### Column {width="50%"}
+
+#### Scatter — 75 villes
+
+```{ojs}
+//| label: scatter-full
+{
+  const data = transpose(kpi_data);
+  const scatterMod = await import(new URL("helpers/jcn-scatterojs.js", document.baseURI).href);
+  const metrics = typeof WORLD_METRICS !== "undefined" ? WORLD_METRICS : [];
+
+  const container = document.createElement("div");
+  container.style.cssText = "display:flex;flex-direction:column;width:100%;height:100%;";
+
+  // Controls bar
+  const ctrl = document.createElement("div");
+  ctrl.className = "scatter-ctrl";
+  const optHtml = (sel) => metrics.map(m => {
+    const dd = (window.DDICT || {})[m.key] || {};
+    const label = dd.short || m.label || m.key;
+    return `<option value="${m.key}" ${m.key === sel ? "selected" : ""}>${label}</option>`;
+  }).join("");
+  ctrl.innerHTML = `
+    <label>Axe X</label>
+    <select id="sx">${optHtml("pct_entire")}</select>
+    <label>Axe Y</label>
+    <select id="sy">${optHtml("prix_med")}</select>
+    <span style="margin-left:8px;">
+      <label><input type="radio" name="smode" value="Villes" checked> Villes</label>
+      <label style="margin-left:6px;"><input type="radio" name="smode" value="Pays"> Pays</label>
+    </span>
+  `;
+  container.appendChild(ctrl);
+
+  // Chart area
+  const chartArea = document.createElement("div");
+  chartArea.style.cssText = "flex:1;min-height:400px;overflow:hidden;";
+  container.appendChild(chartArea);
+
+  function renderChart() {
+    const xKey = ctrl.querySelector("#sx").value;
+    const yKey = ctrl.querySelector("#sy").value;
+    const mode = ctrl.querySelector("input[name='smode']:checked").value;
+    chartArea.innerHTML = "";
+    const svg = scatterMod.renderScatter({
+      Plot, d3, data,
+      xCol: xKey, yCol: yKey, mode: mode,
+      width: Math.max(460, container.clientWidth - 16),
+      height: Math.max(360, container.clientHeight - 60)
+    });
+    chartArea.appendChild(svg);
+  }
+
+  ctrl.addEventListener("change", renderChart);
+  yield container;
+
+  // Initial render after DOM attachment
+  await new Promise(r => setTimeout(r, 50));
+  renderChart();
+}
+```
+
+## Row {height="500px"}
+
+### Column {width="100%"}
+
+#### Tableau — 75 villes
+
+```{ojs}
+//| label: world-table
+{
+  const data = transpose(kpi_data);
+  const tableMod = await import(new URL("helpers/jcn-tableojs.js", document.baseURI).href);
+  const container = document.createElement("div");
+  container.id = "world-table-c";
+  yield container;
+
+  tableMod.buildDataTable(container, data, {
+    keys: ["n_listings","prix_med_entire",
+      "pct_multi","cr_host_10plus","cr_offre_10plus","cr_top10_pct","ratio_lh",
+      "pct_entire","pct_longterm",
+      "listings_1000hab","listings_1000hsg",
+      "dispo_med","occupancy_est_med","revenue_est_med","rev_rating_med"],
+    groups: [
+      {label: "Stock", cols: ["n_listings"]},
+      {label: "Prix", cols: ["prix_med_entire"]},
+      {label: "Professionnalisation", cols: ["pct_multi","cr_host_10plus","cr_offre_10plus","cr_top10_pct","ratio_lh"]},
+      {label: "Structure", cols: ["pct_entire","pct_longterm"]},
+      {label: "Pression", cols: ["listings_1000hab","listings_1000hsg"]},
+      {label: "Activité", cols: ["dispo_med","occupancy_est_med","revenue_est_med","rev_rating_med"]}
+    ],
+    labelCol: "city_fr",
+    labelFallback: "city",
+    colorCol: "continent",
+    colorMap: CONT_COL,
+    defaultSort: "n_listings",
+    maxHeight: 420
+  });
+}
+```
