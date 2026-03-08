@@ -127,7 +127,7 @@ city_kpi["pct_multi"] = (city_kpi["pct_multi"] * 100).round(1)
 city_kpi["pct_longterm"] = (city_kpi["pct_longterm"] * 100).round(1)
 
 # Concentration
-conc = df.groupby("city").apply(concentration_50).reset_index(name="pct_hosts_50pct")
+conc = df.groupby("city").apply(concentration_50).reset_index(name="cr_hosts_50pct")
 city_kpi = city_kpi.merge(conc, on="city")
 
 # Population et logements (commune propre)
@@ -163,7 +163,7 @@ cols_city = [
     # Structure
     "pct_entire", "pct_multi", "pct_longterm", "ratio_lh",
     # Concentration
-    "pct_hosts_50pct",
+    "cr_hosts_50pct",
     # Activité
     "dispo_med", "dispo_moy", "reviews_med", "rpm_med",
 ]

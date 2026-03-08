@@ -72,16 +72,16 @@
 /* &e */
 
 /* &s &HOST_TABLE - Tableau top hôtes */
-.th { font-size:11px; }
+.th { font-size:9px; }
 .th table { border-collapse:collapse; width:100%; }
-.th th { background:#fef3c7; border-bottom:2px solid #f59e0b; padding:4px 6px; font-size:10px; cursor:pointer; user-select:none; white-space:nowrap; position:sticky; top:0; z-index:2; }
-.th td { padding:3px 6px; border-bottom:1px solid #f5f5f4; font-size:11px; white-space:nowrap; }
+.th th { background:#fef3c7; border-bottom:2px solid #f59e0b; padding:2px 4px; font-size:8px; cursor:pointer; user-select:none; white-space:nowrap; position:sticky; top:0; z-index:2; }
+.th td { padding:2px 4px; border-bottom:1px solid #f5f5f4; font-size:9px; white-space:nowrap; }
 .th tr:hover { background:#fffbeb; }
 /* &e */
 
 /* &s &CITY_ROW_LAYOUT - Grid bypass Quarto layout bug */
 .city-row { display:grid; grid-template-columns:40fr 60fr; gap:1px; height:500px; background:#d1d5db; border:1px solid #d1d5db; }
-.city-right { display:grid; grid-template-rows:auto 1fr; grid-template-columns:48fr 12fr; gap:4px; overflow:hidden; }
+.city-right { display:grid; grid-template-rows:auto 1fr; grid-template-columns:55fr 8fr; gap:4px; overflow:hidden; }
 .city-story {
   grid-column:1/-1; background:#f8fafc; border-radius:0;
   padding:8px 14px; font-size:12px; line-height:1.5; color:#475569;
@@ -124,6 +124,44 @@
 .navbar .navbar-title, .navbar-brand { font-weight:700 !important; }
 .bslib-page-title { background:#0a4c6a !important; color:white !important; padding:8px 16px !important; }
 h2.anchored { margin-top:0 !important; padding-top:0 !important; }
+/* &e */
+
+/* &s &KPI_GRID - Bloc KPI structuré 3 colonnes + panel hôtes */
+.kpi-grid { display:grid; grid-template-columns:3.5fr 0.8fr; gap:0; height:100%; }
+.kpi-panel { display:flex; flex-direction:column; background:white; border:1px solid #e5e7eb; }
+.kpi-header {
+  background:#0a4c6a; color:white; padding:6px 16px; font-size:12px;
+  display:flex; justify-content:space-between; align-items:center;
+}
+.kpi-blocs { display:flex; flex:1; min-height:0; }
+.kpi-bloc { flex:1; padding:10px 14px; border-right:1px solid #e5e7eb; overflow-y:auto; }
+.kpi-bloc:last-child { border-right:none; }
+.kpi-bloc-title {
+  font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;
+  padding-bottom:4px; margin-bottom:6px; border-bottom:2px solid;
+}
+.kpi-item { margin-bottom:8px; }
+.kpi-item .kv { font-size:20px; font-weight:800; display:inline; }
+.kpi-item .kl { font-size:12px; color:#374151; display:inline; margin-left:6px; }
+.kpi-item .kt { font-size:8.5px; color:#475569; margin-top:2px; line-height:1.3; }
+.kpi-item .kt .u { color:#0a4c6a; } .kpi-item .kt .d { color:#ca5800; }
+.kpi-narr { margin-bottom:8px; font-size:11px; line-height:1.4; color:#374151; }
+.kpi-narr strong { font-size:13px; font-weight:800; }
+.hosts-panel {
+  background:#f8f9fa; border:1px solid #e5e7eb; border-left:none;
+  display:flex; flex-direction:column; overflow:hidden;
+}
+.hosts-panel .hosts-hd {
+  font-size:11px; font-weight:700; color:#374151; padding:6px 12px;
+  background:#e5e7eb; border-bottom:1px solid #d1d5db;
+}
+.hosts-panel .hosts-scroll { overflow-y:auto; flex:1; }
+.hosts-panel table { width:100%; border-collapse:collapse; font-size:10px; }
+.hosts-panel th {
+  position:sticky; top:0; background:#e5e7eb; padding:3px 6px;
+  text-align:left; font-size:9px; font-weight:600; color:#374151;
+}
+.hosts-panel td { padding:2px 6px; border-bottom:1px solid #f1f5f9; }
 /* &e */
 
 /* &s &IRIS_TOOLTIP - Tooltip IRIS enrichi (singleton DOM, inspiré ptod) */

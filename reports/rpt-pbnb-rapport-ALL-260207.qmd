@@ -1,6 +1,6 @@
 ---
 title: "Airbnb : les marchés mondiaux de la location courte durée"
-subtitle: "Analyse comparée — 64 villes, 30 pays, 4 continents · Inside Airbnb juin 2025"
+subtitle: "Analyse comparée — 75 villes, 30 pays, 4 continents · Inside Airbnb juin 2025"
 author: "Vincent R."
 date: today
 date-format: "DD MMMM YYYY"
@@ -10,6 +10,7 @@ execute:
   warning: false
 ---
 
+<!-- Fichier : rpt-pbnb-rapport-ALL-260207.qmd | Type : RAPPORT | Scope : Monde 75 villes -->
 
 ```{r}
 #| label: setup-reticulate
@@ -2348,9 +2349,25 @@ rt_styled(
 ```{r}
 #| label: synthese-pays-reactable
 
-# &s RECAP_PAYS_TABLE - Tableau KPI 30 pays depuis sp08
-kpi_country_path <- "C:/Users/vince/hh/pq/PDS/pbnb-airbnb-log-jrr-jpy/data/interim/kpi_global_by_country_2506.csv"
-df_pays <- read.csv(kpi_country_path, fileEncoding = "UTF-8")
+# &s RECAP_PAYS_TABLE - Tableau KPI 30 pays agrégé depuis villes
+kpi_city_path <- "C:/Users/vince/hh/pq/PDS/pbnb-airbnb-log-jrr-jpy/data/interim/kpi_global_by_city_2506.csv"
+df_city <- read.csv(kpi_city_path, fileEncoding = "UTF-8")
+df_pays <- df_city %>%
+  group_by(country_code) %>%
+  summarise(
+    n_villes = n(),
+    n_listings = sum(n_listings, na.rm = TRUE),
+    n_hosts = sum(n_hosts, na.rm = TRUE),
+    listings_1000hab = mean(listings_1000hab, na.rm = TRUE),
+    entire_1000hsg = mean(entire_1000hsg, na.rm = TRUE),
+    prix_med = median(prix_med, na.rm = TRUE),
+    pct_entire = mean(pct_entire, na.rm = TRUE),
+    pct_multi = mean(pct_multi, na.rm = TRUE),
+    pct_longterm = mean(pct_longterm, na.rm = TRUE),
+    ratio_lh = mean(ratio_lh, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(n_listings))
 
 stats_n <- compute_bar_stats(df_pays$n_listings)
 stats_pres <- compute_bar_stats(df_pays$listings_1000hab)

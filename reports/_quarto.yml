@@ -5,48 +5,56 @@ project:
     - rpt-pbnb-synth-monde-260214.qmd
     - rpt-pbnb-synth-europe-260214.qmd
     - rpt-pbnb-rapport-ALL-260207.qmd
+    - rpt-pbnb-synth-franceparis-260217.qmd
+    - rpt-pbnb-rapport-franceparis-260218.qmd
     - rpt-pbnb-edanbk-ALL-260215.qmd
+    - rpt-pbnb-edanbk-acpfocus-260222.qmd
     - rpt-pbnb-methnbk-acp-260215.qmd
-    - rpt-pbnb-rapport-franceparis-260215.qmd
-    - rpt-pbnb-dash-ALL-260211.qmd
-    - rpt-pbnb-dash-franceparis-260215.qmd
+    - rpt-pbnb-dash-ALL-260222.qmd
+    - rpt-pbnb-dash-franceparis-260218.qmd
 
 website:
-  title: "Airbnb — Marchés Mondiaux Comparés"
+  title: "Airbnb — Analyse des marchés"
   search: false
   navbar:
     background: "#0a3d5c"
     left:
-      - text: "Monde & Europe"
+      - text: "Analyse Monde"
         menu:
-          - text: "Synthèse — 64 villes monde"
-            href: rpt-pbnb-synth-monde-260214.qmd
-          - text: "Synthèse — 36 marchés Europe"
-            href: rpt-pbnb-synth-europe-260214.qmd
-          - text: "---"
-          - text: "Rapport d'analyse"
+          - text: "Rapport d'analyse mondiale"
             href: rpt-pbnb-rapport-ALL-260207.qmd
-      - text: "France"
-        menu:
-          - text: "Rapport — Paris, Lyon, Bordeaux"
-            href: rpt-pbnb-rapport-franceparis-260215.qmd
           - text: "---"
-          - text: "Dashboard cartographique"
-            href: rpt-pbnb-dash-franceparis-260215.qmd
-      - text: "Exploration"
+          - text: "Synthèse — 75 villes monde"
+            href: rpt-pbnb-synth-monde-260214.qmd
+          - text: "Synthèse — 37 marchés Europe"
+            href: rpt-pbnb-synth-europe-260214.qmd
+      - text: "Analyse France"
         menu:
-          - text: "Notebook EDA"
+          - text: "Rapport France — Paris, Lyon, Bordeaux"
+            href: rpt-pbnb-rapport-franceparis-260218.qmd
+          - text: "---"
+          - text: "Synthèse France"
+            href: rpt-pbnb-synth-franceparis-260217.qmd
+      - text: "Notebook & Méthodes"
+        menu:
+          - text: "Notebook EDA — 75 villes"
             href: rpt-pbnb-edanbk-ALL-260215.qmd
+          - text: "ACP & Clustering — Focus"
+            href: rpt-pbnb-edanbk-acpfocus-260222.qmd
+          - text: "---"
           - text: "Annexe méthodologique"
             href: rpt-pbnb-methnbk-acp-260215.qmd
-          - text: "---"
-          - text: "Dashboard interactif (64 villes)"
-            href: rpt-pbnb-dash-ALL-260211.qmd
+    right:
+      - text: "Dashboard Monde"
+        href: rpt-pbnb-dash-ALL-260222.qmd
+        icon: globe
+      - text: "Dashboard France"
+        href: rpt-pbnb-dash-franceparis-260218.qmd
+        icon: map
 
 format:
   html:
-    theme: [cosmo, config/theme-html.scss]
-    include-after-body: config/scrollspy-fix.html
+    theme: [cosmo, config/theme-pbnb-v2.scss]
     toc: true
     toc-depth: 3
     toc-location: right
@@ -64,7 +72,6 @@ format:
     fig-height: 6
     fig-align: center
     mainfont: "Inter, system-ui, sans-serif"
-    # PAS de title-block-banner — titre dans le flux body (aligné SCSS)
 
 execute:
   python: C:/ScoopApps/apps/python/current/python.exe

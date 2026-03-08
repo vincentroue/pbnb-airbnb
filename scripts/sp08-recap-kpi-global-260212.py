@@ -17,6 +17,7 @@ import sys
 # &s &CONFIG
 BASE = Path(r"C:\Users\vince\hh\pq\PDS\pbnb-airbnb-log-jrr-jpy")
 INTERIM_DIR = BASE / "data" / "interim"
+REF_CSV = BASE / "data" / "external" / "city-reference-airbnb-260217.csv"
 
 europe_only = "--europe-only" in sys.argv
 scope = "europe" if europe_only else "global"
@@ -26,64 +27,13 @@ DATA_PATH = INTERIM_DIR / f"dbsumlistings_2506_cons_{scope}.parquet"
 if europe_only and not DATA_PATH.exists():
     DATA_PATH = INTERIM_DIR / "dbsumlistings_2506_cons_global.parquet"
 
-sys.path.insert(0, str(BASE / "scripts"))
-from city_reference_data import CITY_DATA
-
-# Greater Manchester : IA couvre la métropole
-CITY_DATA["greater-manchester"] = {
-    "pop": 2_867_000, "housing": 1_200_000,
-    "pop_source": "ONS Census 2021 (Greater Manchester Combined Authority)",
-    "housing_source": "ONS Census 2021 GMCA: ~1.2M dwellings",
-}
-
-# Taux conversion EUR (mi-2025)
-FX_EUR = {
-    # Europe (hors zone euro)
-    "GBR": 1.17, "HUN": 0.0026, "TUR": 0.028, "DNK": 0.134, "CZE": 0.040,
-    "NOR": 0.085, "SWE": 0.087, "CHE": 1.06, "LVA": 1.0,  # Lettonie = EUR
-    # Americas
-    "USA": 0.92, "CAN": 0.67, "BRA": 0.17, "MEX": 0.052, "ARG": 0.001, "CHL": 0.0010,
-    # Asia-Pacific
-    "JPN": 0.0062, "AUS": 0.60, "SGP": 0.69, "CHN": 0.13,  # HKD
-    "TWN": 0.029, "THA": 0.027,
-    # Africa
-    "ZAF": 0.050,
-}
-
-# Noms français
-CITY_FR = {
-    # Europe
-    "london": "Londres", "paris": "Paris", "rome": "Rome",
-    "istanbul": "Istanbul", "lisbon": "Lisbonne", "madrid": "Madrid",
-    "athens": "Athènes", "barcelona": "Barcelone", "copenhagen": "Copenhague",
-    "budapest": "Budapest", "florence": "Florence", "vienna": "Vienne",
-    "prague": "Prague", "berlin": "Berlin", "bordeaux": "Bordeaux",
-    "venice": "Venise", "amsterdam": "Amsterdam", "brussels": "Bruxelles",
-    "dublin": "Dublin", "lyon": "Lyon", "milan": "Milan", "porto": "Porto",
-    "oslo": "Oslo", "naples": "Naples", "malaga": "Malaga", "valencia": "Valence",
-    "sevilla": "Séville", "greater-manchester": "Manchester (métro)",
-    "munich": "Munich", "edinburgh": "Édimbourg", "stockholm": "Stockholm",
-    "thessaloniki": "Thessalonique", "bologna": "Bologne",
-    "bergamo": "Bergame", "zurich": "Zurich", "riga": "Riga",
-    # USA
-    "new-york-city": "New York", "los-angeles": "Los Angeles",
-    "chicago": "Chicago", "san-francisco": "San Francisco",
-    "washington-dc": "Washington DC", "boston": "Boston", "seattle": "Seattle",
-    "austin": "Austin", "san-diego": "San Diego", "nashville": "Nashville",
-    "denver": "Denver", "portland": "Portland", "dallas": "Dallas",
-    "new-orleans": "La Nouvelle-Orléans",
-    # Canada
-    "toronto": "Toronto", "vancouver": "Vancouver", "montreal": "Montréal",
-    # Asia-Pacific
-    "tokyo": "Tokyo", "sydney": "Sydney", "melbourne": "Melbourne",
-    "brisbane": "Brisbane", "hong-kong": "Hong Kong", "singapore": "Singapour",
-    "taipei": "Taipei", "bangkok": "Bangkok",
-    # Americas (hors USA/CAN)
-    "mexico-city": "Mexico", "rio-de-janeiro": "Rio de Janeiro",
-    "santiago": "Santiago", "buenos-aires": "Buenos Aires",
-    # Africa
-    "cape-town": "Le Cap",
-}
+# Table de référence unique — remplace city_reference_data.py, FX_EUR, CITY_FR
+_ref = pd.read_csv(REF_CSV)
+_ref_idx = _ref[_ref["city"].notna()].set_index("city")
+_fx = _ref.dropna(subset=["country_code", "fx_eur"]).drop_duplicates("country_code")
+FX_EUR = dict(zip(_fx["country_code"], _fx["fx_eur"]))
+CITY_FR = _ref_idx["city_fr"].fillna("").to_dict()
+CITY_REF = _ref_idx[["pop", "housing", "pop_quality"]].to_dict("index")
 # &e
 
 # &s &LOAD_CLEAN
@@ -130,6 +80,25 @@ def concentration_50(group):
     hosts_for_50 = (cumsum <= total * 0.5).sum() + 1
     return round(hosts_for_50 / n_hosts * 100, 1) if n_hosts > 0 else 0
 
+def concentration_metrics(group):
+    """Indicateurs de concentration cr_ par ville."""
+    host_listings = group.groupby("host_id").size().sort_values(ascending=False)
+    total = host_listings.sum()
+    n_hosts = len(host_listings)
+    # CR10 : part de marché des 10 premiers hosts
+    cr_top10_pct = round(host_listings.head(10).sum() / total * 100, 1) if total > 0 else 0
+    # Profil hôtes : % avec ≥5 et ≥10 listings
+    cr_host_5plus = round((host_listings >= 5).sum() / n_hosts * 100, 1) if n_hosts > 0 else 0
+    cr_host_10plus = round((host_listings >= 10).sum() / n_hosts * 100, 1) if n_hosts > 0 else 0
+    # Emprise marché : % listings détenus par hôtes ≥5 et ≥10
+    cr_offre_5plus = round(host_listings[host_listings >= 5].sum() / total * 100, 1) if total > 0 else 0
+    cr_offre_10plus = round(host_listings[host_listings >= 10].sum() / total * 100, 1) if total > 0 else 0
+    return pd.Series({
+        "cr_top10_pct": cr_top10_pct,
+        "cr_host_5plus": cr_host_5plus, "cr_host_10plus": cr_host_10plus,
+        "cr_offre_5plus": cr_offre_5plus, "cr_offre_10plus": cr_offre_10plus,
+    })
+
 city_kpi = df.groupby(["country_code", "city"]).agg(
     n_listings=("id", "count"),
     n_entire=("is_entire_home", "sum"),
@@ -147,6 +116,16 @@ city_kpi = df.groupby(["country_code", "city"]).agg(
     rpm_med=("reviews_per_month", lambda x: x.dropna().median()),
 ).reset_index()
 
+# Prix médian par type de logement
+entire_prix = df[df["room_type"] == "Entire home/apt"].groupby(["country_code", "city"]).agg(
+    prix_med_entire=("price_eur", "median"),
+).reset_index()
+private_prix = df[df["room_type"] == "Private room"].groupby(["country_code", "city"]).agg(
+    prix_med_private=("price_eur", "median"),
+).reset_index()
+city_kpi = city_kpi.merge(entire_prix, on=["country_code", "city"], how="left")
+city_kpi = city_kpi.merge(private_prix, on=["country_code", "city"], how="left")
+
 # Continent
 if "continent" in df.columns:
     cont_map = df.groupby("city")["continent"].first()
@@ -160,52 +139,106 @@ city_kpi["pct_multi"] = (city_kpi["pct_multi"] * 100).round(1)
 city_kpi["pct_longterm"] = (city_kpi["pct_longterm"] * 100).round(1)
 
 # Concentration
-conc = df.groupby("city").apply(concentration_50, include_groups=False).reset_index(name="pct_hosts_50pct")
+conc = df.groupby("city").apply(concentration_50, include_groups=False).reset_index(name="cr_hosts_50pct")
 city_kpi = city_kpi.merge(conc, on="city")
 
-# Population et logements
-# Priorité : city_reference_data.py (commune propre, Europe) > sp07 CITY_META (parquet)
-pop_from_parquet = df.groupby("city")[["city_pop", "city_housing"]].first()
+# Indicateurs cr_ (concentration détaillée)
+cr = df.groupby("city").apply(concentration_metrics, include_groups=False).reset_index()
+city_kpi = city_kpi.merge(cr, on="city")
 
+# Population et logements — depuis CSV de référence unique
 city_kpi["pop"] = city_kpi["city"].map(
-    lambda c: CITY_DATA.get(c, {}).get("pop", np.nan)
+    lambda c: CITY_REF.get(c, {}).get("pop", np.nan)
 )
 city_kpi["housing"] = city_kpi["city"].map(
-    lambda c: CITY_DATA.get(c, {}).get("housing", np.nan)
+    lambda c: CITY_REF.get(c, {}).get("housing", np.nan)
 )
 city_kpi["pop_source"] = city_kpi["city"].map(
-    lambda c: "confirmed" if c in CITY_DATA and "ESTIMATE" not in CITY_DATA.get(c, {}).get("housing_source", "ESTIMATE") else "estimated"
+    lambda c: CITY_REF.get(c, {}).get("pop_quality", "")
 )
 
-# Fallback vers données sp07 (metro) pour villes non-européennes
-for idx, row in city_kpi.iterrows():
-    if pd.isna(row["pop"]) and row["city"] in pop_from_parquet.index:
-        city_kpi.at[idx, "pop"] = pop_from_parquet.loc[row["city"], "city_pop"]
-        city_kpi.at[idx, "housing"] = pop_from_parquet.loc[row["city"], "city_housing"]
-        city_kpi.at[idx, "pop_source"] = "metro_estimate"
+# Correction centre pour agglos — filtre les listings au périmètre commune-centre
+# Pour les villes où Inside Airbnb couvre une agglo/province plus large que la commune
+CENTRE_FILTERS = {
+    "bordeaux":      {"col": "neighbourhood_group", "values": ["Bordeaux"]},
+    "lisbon":        {"col": "neighbourhood_group", "values": ["Lisboa"]},
+    "porto":         {"col": "neighbourhood_group", "values": ["PORTO"]},
+    "bergamo":       {"col": "neighbourhood",       "values": ["Bergamo"]},
+    "los-angeles":   {"col": "neighbourhood_group", "values": ["City of Los Angeles"]},
+    "geneva":        {"col": "neighbourhood",       "values": ["Commune de Genève"]},
+    "thessaloniki":  {"col": "neighbourhood",       "values": ["Thessaloniki"]},
+}
 
-# Ratios de pression
-city_kpi["listings_1000hab"] = (city_kpi["n_listings"] / city_kpi["pop"] * 1000).round(1)
+def count_centre_listings(city_slug, df_clean):
+    """Compte les listings nettoyés dans le périmètre centre (commune) pour les agglos."""
+    filt = CENTRE_FILTERS.get(city_slug)
+    if not filt:
+        return len(df_clean[df_clean["city"] == city_slug])
+    col, vals = filt["col"], filt["values"]
+    mask = (df_clean["city"] == city_slug) & (df_clean[col].isin(vals))
+    return int(mask.sum())
+
+# n_listings_centre pour chaque ville
+city_kpi["n_listings_centre"] = city_kpi["city"].map(lambda c: count_centre_listings(c, df))
+
+# Ratios de pression — listings_1000hab = centre (référence), _agglo = total périmètre IA
+city_kpi["listings_1000hab"] = (city_kpi["n_listings_centre"] / city_kpi["pop"] * 1000).round(1)
+city_kpi["listings_1000hab_agglo"] = np.where(
+    city_kpi["city"].isin(CENTRE_FILTERS),
+    (city_kpi["n_listings"] / city_kpi["pop"] * 1000).round(1),
+    np.nan
+)
 city_kpi["listings_1000hsg"] = (city_kpi["n_listings"] / city_kpi["housing"] * 1000).round(1)
 city_kpi["entire_1000hsg"] = (city_kpi["n_entire"] / city_kpi["housing"] * 1000).round(1)
+
+# Densité annonces / km² — depuis area_centre_km2 du fichier référence enrichi
+_ref_area = _ref.set_index("city")["area_geo_centre_km2"].to_dict() if "area_geo_centre_km2" in _ref.columns else {}
+if not _ref_area:
+    # Fallback : lire depuis audit si pas dans ref
+    _audit_path = INTERIM_DIR / "audit_geo_scope_2506.csv"
+    if _audit_path.exists():
+        _audit = pd.read_csv(_audit_path)
+        _ref_area = _audit.set_index("city")["area_centre_km2"].to_dict()
+city_kpi["area_centre_km2"] = city_kpi["city"].map(_ref_area)
+city_kpi["density_l_km2"] = (city_kpi["n_listings_centre"] / city_kpi["area_centre_km2"]).round(1)
+
+# Log agglos corrigées
+agglo_cities = city_kpi[city_kpi["city"].isin(CENTRE_FILTERS)]
+if len(agglo_cities) > 0:
+    print(f"\nCorrection centre ({len(CENTRE_FILTERS)} agglos):")
+    for _, r in agglo_cities.iterrows():
+        print(f"  {r['city']:20s} L={r['n_listings']:>6d}  L_centre={r['n_listings_centre']:>6d}  "
+              f"L/1Kh={r['listings_1000hab']:>5.1f} (agglo={r['listings_1000hab_agglo']:.1f})")
 
 # Nom français
 city_kpi["city_fr"] = city_kpi["city"].map(lambda c: CITY_FR.get(c, c.replace("-", " ").title()))
 
 # Arrondir
-for col in ["prix_med", "prix_moy", "prix_q25", "prix_q75", "dispo_med", "dispo_moy",
-            "reviews_med", "rpm_med"]:
-    city_kpi[col] = city_kpi[col].round(1)
+for col in ["prix_med", "prix_med_entire", "prix_med_private",
+            "prix_moy", "prix_q25", "prix_q75",
+            "dispo_med", "dispo_moy", "reviews_med", "rpm_med"]:
+    if col in city_kpi.columns:
+        city_kpi[col] = city_kpi[col].round(1)
+
+# Swap n_listings -> n_listings_agglo, n_listings_centre -> n_listings
+# Le dashboard et les rapports affichent n_listings = commune centre (coherent avec listings_1000hab)
+# n_listings_agglo conserve le scope complet Inside Airbnb (pour reference)
+city_kpi = city_kpi.rename(columns={"n_listings": "n_listings_agglo", "n_listings_centre": "n_listings"})
 
 # Ordre des colonnes
 cols_city = [
     "continent", "country_code", "city", "city_fr", "pop_source",
-    "n_listings", "n_entire", "n_hosts",
+    "n_listings", "n_listings_agglo", "n_entire", "n_hosts",
     "pop", "housing",
-    "listings_1000hab", "listings_1000hsg", "entire_1000hsg",
-    "prix_med", "prix_moy", "prix_q25", "prix_q75", "prix_iqr",
+    "listings_1000hab", "listings_1000hab_agglo", "density_l_km2",
+    "listings_1000hsg", "entire_1000hsg",
+    "area_centre_km2",
+    "prix_med", "prix_med_entire", "prix_med_private",
+    "prix_moy", "prix_q25", "prix_q75", "prix_iqr",
     "pct_entire", "pct_multi", "pct_longterm", "ratio_lh",
-    "pct_hosts_50pct",
+    "cr_hosts_50pct",
+    "cr_top10_pct", "cr_host_5plus", "cr_host_10plus",
+    "cr_offre_5plus", "cr_offre_10plus",
     "dispo_med", "dispo_moy", "reviews_med", "rpm_med",
 ]
 # Filtrer colonnes existantes
@@ -234,6 +267,16 @@ country_kpi = df.groupby("country_code").agg(
     rpm_med=("reviews_per_month", lambda x: x.dropna().median()),
 ).reset_index()
 
+# Prix médian par type de logement — par pays
+entire_prix_c = df[df["room_type"] == "Entire home/apt"].groupby("country_code").agg(
+    prix_med_entire=("price_eur", "median"),
+).reset_index()
+private_prix_c = df[df["room_type"] == "Private room"].groupby("country_code").agg(
+    prix_med_private=("price_eur", "median"),
+).reset_index()
+country_kpi = country_kpi.merge(entire_prix_c, on="country_code", how="left")
+country_kpi = country_kpi.merge(private_prix_c, on="country_code", how="left")
+
 country_kpi["ratio_lh"] = (country_kpi["n_listings"] / country_kpi["n_hosts"]).round(2)
 country_kpi["prix_iqr"] = (country_kpi["prix_q75"] - country_kpi["prix_q25"]).round(0)
 country_kpi["pct_entire"] = (country_kpi["pct_entire"] * 100).round(1)
@@ -249,20 +292,36 @@ country_kpi["listings_1000hab"] = (country_kpi["n_listings"] / country_kpi["pop_
 country_kpi["listings_1000hsg"] = (country_kpi["n_listings"] / country_kpi["housing_total"] * 1000).round(1)
 country_kpi["entire_1000hsg"] = (country_kpi["n_entire"] / country_kpi["housing_total"] * 1000).round(1)
 
-for col in ["prix_med", "prix_moy", "prix_q25", "prix_q75", "dispo_med", "dispo_moy",
-            "reviews_med", "rpm_med"]:
-    country_kpi[col] = country_kpi[col].round(1)
+for col in ["prix_med", "prix_med_entire", "prix_med_private", "prix_moy",
+            "prix_q25", "prix_q75", "dispo_med", "dispo_moy", "reviews_med", "rpm_med"]:
+    if col in country_kpi.columns:
+        country_kpi[col] = country_kpi[col].round(1)
 
 cols_country = [
     "country_code", "n_villes",
     "n_listings", "n_entire", "n_hosts",
     "pop_total", "housing_total",
     "listings_1000hab", "listings_1000hsg", "entire_1000hsg",
-    "prix_med", "prix_moy", "prix_q25", "prix_q75", "prix_iqr",
+    "prix_med", "prix_med_entire", "prix_med_private",
+    "prix_moy", "prix_q25", "prix_q75", "prix_iqr",
     "pct_entire", "pct_multi", "pct_longterm", "ratio_lh",
     "dispo_med", "dispo_moy", "reviews_med", "rpm_med",
 ]
+cols_country = [c for c in cols_country if c in country_kpi.columns]
 country_kpi = country_kpi[cols_country].sort_values("n_listings", ascending=False)
+# &e
+
+# &s &MERGE_GZ - Fusion KPI gz (reviews, capacité, host, occupancy)
+gz_path = INTERIM_DIR / f"kpi_gz_{scope}_by_city_2506.csv"
+if gz_path.exists():
+    print(f"\nFusion KPI gz ({gz_path.name})...")
+    kpi_gz = pd.read_csv(gz_path)
+    # Colonnes à fusionner (exclure meta déjà présentes)
+    gz_merge_cols = [c for c in kpi_gz.columns if c not in ["continent", "country_code", "n_gz"]]
+    city_kpi = city_kpi.merge(kpi_gz[gz_merge_cols], on="city", how="left")
+    print(f"  {len(kpi_gz)} villes gz fusionnées, {len(city_kpi.columns)} colonnes total")
+else:
+    print(f"\n[INFO] Pas de KPI gz ({gz_path.name}), lancer sp08b d'abord")
 # &e
 
 # &s &EXPORT

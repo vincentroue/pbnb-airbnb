@@ -57,7 +57,8 @@ COL_GREEN = "#55b748"
 COL_MAGENTA = "#ec008b"
 COL_YELLOW = "#fdbf11"
 COL_GRAY = "#999999"
-PAL_URBAN = [COL_CYAN, COL_ORANGE, COL_GREEN, COL_MAGENTA, COL_YELLOW]
+COL_SPACEGRAY = "#5c5859"
+PAL_URBAN = [COL_CYAN, COL_YELLOW, COL_SPACEGRAY, COL_GREEN, COL_MAGENTA, COL_ORANGE]
 LABEL_SIZE = 11
 
 # Fix Plotly 6 + reticulate
@@ -67,7 +68,7 @@ _mod.patch_plotly_reticulate()
 from jcn_graph import fig_title, plotly_layout
 
 # Couleurs par ville France
-CITY_COLORS = {"Paris": COL_CYAN, "Bordeaux": COL_ORANGE, "Lyon": COL_GREEN}
+CITY_COLORS = {"Paris": COL_CYAN, "Bordeaux": COL_MAGENTA, "Lyon": COL_GREEN}
 CITY_ORDER = ["Paris", "Bordeaux", "Lyon"]
 
 # Pays comparables
@@ -200,7 +201,7 @@ clog.result("france_overview", {
 # &e
 ```
 
-# Cadrage {.unnumbered}
+## Cadrage {.unnumbered}
 
 ::: {.callout-note}
 ## Question centrale
@@ -255,23 +256,65 @@ clog.result("france_overview", {
 
 ### Parcours de lecture {.unnumbered}
 
-::: {.callout-tip collapse="false"}
+::: {.callout-tip collapse="true"}
 ## Sommaire détaillé
 
 1. [**KPI comparées**](#sec-kpi) — Trois villes en chiffres : volumes, prix, pression, professionnalisation
 2. [**Positionnement européen**](#sec-europe) — Paris, Lyon, Bordeaux face aux 18 marchés comparables
-3. [**Structure de l'offre**](#sec-structure) — Types de logement, entire home, chambres privées
+3. [**Structure de l'offre**](#sec-structure) — Types de logement, logements entiers, chambres privées
 4. [**Pression sur le parc de logements**](#sec-pression) — Ratio par habitant et par logement, benchmark européen
 5. [**Pression infra-communale**](#sec-arrondissements) — Arrondissements de Paris et Lyon, croisement IRIS × INSEE
 6. [**Trajectoire récente**](#sec-trajectoire) — Évolution 3 snapshots, effet loi Le Meur
 7. [**Distribution des prix**](#sec-prix) — Écarts intra-ville, IQR, prix par type
-8. [**Professionnalisation des hosts**](#sec-hosts) — Multi-hosts, concentration, Gini
+8. [**Professionnalisation des hôtes**](#sec-hosts) — Multi-loueurs, concentration, Gini
 9. [**Synthèse et enseignements**](#sec-synthese) — Réponses aux questions, positionnement France
 :::
 
+## Synthèse exécutive {.unnumbered}
+
+```{python}
+#| label: kpi-exec-summary
+#| output: asis
+
+paris_kpi = kpi_fra[kpi_fra["city"] == "paris"].iloc[0]
+bordeaux_kpi = kpi_fra[kpi_fra["city"] == "bordeaux"].iloc[0]
+lyon_kpi = kpi_fra[kpi_fra["city"] == "lyon"].iloc[0]
+
+import re as _re
+kpi_html = f"""<div class="kpi-card-grid">
+<div class="kpi-card">
+<div class="kpi-value">{N_FRA:,.0f}</div>
+<div class="kpi-label">annonces actives</div>
+<div class="kpi-context">3 villes françaises · juin 2025</div>
+</div>
+<div class="kpi-card accent-orange">
+<div class="kpi-value">{bordeaux_kpi['listings_1000hab']:.0f}</div>
+<div class="kpi-label">annonces / 1 000 hab. Bordeaux</div>
+<div class="kpi-context">×3 Lyon · +30 % vs Paris</div>
+</div>
+<div class="kpi-card accent-green">
+<div class="kpi-value">{paris_kpi['prix_med']:.0f} €</div>
+<div class="kpi-label">prix médian Paris</div>
+<div class="kpi-context">×2 vs Lyon et Bordeaux (~78 €)</div>
+</div>
+<div class="kpi-card accent-magenta">
+<div class="kpi-value">{paris_kpi['pct_entire']:.0f} %</div>
+<div class="kpi-label">logements entiers Paris</div>
+<div class="kpi-context">Parmi les taux les plus élevés d'Europe</div>
+</div>
+</div>"""
+print(_re.sub(r'>\s+<', '><', kpi_html).strip())
+```
+
+**1.** Paris concentre **79 % des annonces françaises** mais Bordeaux subit la pression la plus forte : **31 annonces pour 1 000 habitants**, comparable à Florence et Porto.
+
+**2.** Le prix médian parisien (**156 €**) est le double de celui de Lyon et Bordeaux (~78 €) — un écart modéré comparé au facteur 4 Amsterdam-Budapest, mais qui confirme la fracture Paris/province.
+
+**3.** La professionnalisation française (37-44 % de multi-loueurs) reste contenue face aux marchés sud-européens (73-81 % en Espagne). La loi Le Meur (nov. 2024) produit un signal précoce de baisse des volumes à Paris (–5 % en 6 mois).
+
 ---
 
-# Méthodologie {.unnumbered}
+## Méthodologie {.unnumbered}
 
 Ce rapport exploite les mêmes données et le même pipeline de nettoyage que le [rapport mondial](rpt-pbnb-rapport-ALL-260207.html) (prix non null, dispo > 0, excl. hôtels, prix 10-1000 EUR). Seul le filtre géographique change : `country_code == "FRA"`.
 
@@ -289,6 +332,10 @@ Quatre niveaux de référence sont systématiquement utilisés :
 ---
 
 ## KPI comparées : trois villes françaises en chiffres {#sec-kpi}
+
+::: {.chapeau}
+Paris domine en volume (51 000 annonces, 2e marché mondial), mais Bordeaux concentre la plus forte pression relative (31 annonces pour 1 000 habitants). Le prix médian parisien (156 €) est double de celui des deux autres villes. La professionnalisation reste modérée à l'échelle européenne.
+:::
 
 ```{python}
 #| label: kpi-france
@@ -346,15 +393,28 @@ print(html)
 # &e
 ```
 
-[**Paris concentre 79 % des listings français mais Bordeaux subit la pression la plus forte : 31 L/1000 hab contre 24 pour Paris et 10 pour Lyon**]{.insight}
+[**Paris concentre 79 % des annonces françaises mais Bordeaux subit la pression la plus forte : 31 annonces/1 000 hab contre 24 pour Paris et 10 pour Lyon**]{.insight}
 
-Avec **51 000 listings**, Paris est le 2e marché mondial derrière Londres. Mais la taille de la commune (2,1M habitants) dilue la pression relative : **24 listings pour 1 000 habitants**. Bordeaux, trois fois plus petit en volume (8 000), affiche une pression de **31 L/1000 hab** — 30 % supérieure à Paris. Lyon reste modéré à **10 L/1000 hab**.
+::: {.column-margin}
+**51 000**
+Annonces actives Paris
+2e marché mondial
+derrière Londres (61K)
+:::
 
-Le prix médian reflète une fracture Paris/province : **156 EUR** à Paris contre **79 EUR** à Bordeaux et **77 EUR** à Lyon — un facteur 2. La professionnalisation est contenue : 40-44 % de multi-hosts en France, nettement sous les niveaux espagnols (70-80 %) ou italiens (58-68 %).
+Avec **51 000 annonces**, Paris est le 2e marché mondial derrière Londres. Mais la taille de la commune (2,1M habitants) dilue la pression relative : **24 annonces pour 1 000 habitants**. Bordeaux, trois fois plus petit en volume (8 000), affiche une pression de **31 annonces/1 000 hab** — 30 % supérieure à Paris. Lyon reste modéré à **10 annonces/1 000 hab**.
+
+Le prix médian reflète une fracture Paris/province : **156 €** à Paris contre **79 €** à Bordeaux et **77 €** à Lyon — un facteur 2. La professionnalisation est contenue : 40-44 % de multi-loueurs en France, nettement sous les niveaux espagnols (70-80 %) ou italiens (58-68 %).
+
+Comment ces trois marchés se positionnent-ils face aux capitales européennes comparables ?
 
 ---
 
 ## Positionnement européen : la France face aux marchés comparables {#sec-europe}
+
+::: {.chapeau}
+Le scatter prix × pression situe Paris dans le quadrant premium / pression modérée, aux côtés de Londres et Amsterdam. Bordeaux s'approche de Florence et Porto — pression forte, prix contenus. Lyon reste dans la moyenne basse européenne.
+:::
 
 ```{python}
 #| label: europe-benchmark
@@ -407,8 +467,8 @@ fig.add_vline(x=avg_eur_pression, line_dash="dot", line_color=COL_GREEN,
               annotation_text=f"Moy. Europe {avg_eur_pression:.1f}", annotation_position="top right")
 
 fig.update_layout(
-    title=fig_title(1, "Positionnement France vs marchés européens comparables",
-          subtitle="Prix médian (EUR) × Pression (L/1000 hab) — 21 villes, 6 pays"),
+    title=fig_title(1, "Paris dans le quadrant premium, Bordeaux proche de Florence et Porto",
+          subtitle="Prix médian (€) × Pression (annonces/1 000 hab) — 21 villes, 6 pays — Source : Inside Airbnb, juin 2025"),
     height=600, width=900,
     xaxis_title="Listings pour 1 000 habitants",
     yaxis_title="Prix médian (EUR/nuit)",
@@ -421,13 +481,26 @@ fig.show()
 
 [**Paris se positionne dans le quadrant premium / pression modérée, Bordeaux dans le quadrant budget / pression forte — un profil proche de Florence et Porto**]{.insight}
 
-Le scatter prix × pression situe les trois villes françaises dans l'espace européen. Paris (156 EUR, 24 L/1000 hab) rejoint le segment des capitales premium (Londres, Amsterdam) mais avec une pression relative inférieure. Bordeaux (79 EUR, 31 L/1000 hab) se rapproche des villes patrimoniales sous tension (Florence 31, Porto 55). Lyon (77 EUR, 10 L/1000 hab) reste dans la moyenne basse européenne.
+::: {.column-margin}
+**156 €**
+Prix médian Paris
+vs 79 € Bordeaux
+et 77 € Lyon
+:::
+
+Le scatter prix × pression situe les trois villes françaises dans l'espace européen. Paris (156 €, 24 annonces/1 000 hab) rejoint le segment des capitales premium (Londres, Amsterdam) mais avec une pression relative inférieure. Bordeaux (79 €, 31 annonces/1 000 hab) se rapproche des villes patrimoniales sous tension (Florence 31, Porto 55). Lyon (77 €, 10 annonces/1 000 hab) reste dans la moyenne basse européenne.
 
 Les lignes de référence montrent que Paris est au-dessus de la moyenne européenne de prix, tandis que Lyon et Bordeaux sont en dessous. En pression, seul Bordeaux dépasse la moyenne européenne.
+
+Ce positionnement différencié se reflète-t-il dans la structure de l'offre ?
 
 ---
 
 ## Structure de l'offre : types de logement comparés {#sec-structure}
+
+::: {.chapeau}
+Le marché français est massivement orienté vers le logement entier (79-91 %), un taux parmi les plus élevés d'Europe. Le partage de logement (chambre chez l'habitant) a quasiment disparu — à l'inverse de Londres où les chambres privées représentent encore 31 %.
+:::
 
 ```{python}
 #| label: structure-france
@@ -454,8 +527,8 @@ fig = px.bar(
     color_discrete_sequence=PAL_URBAN,
 )
 fig.update_layout(
-    title=fig_title(2, "Structure par type de logement — 3 villes françaises",
-          subtitle="Part de chaque type (%)"),
+    title=fig_title(2, "Plus de 80 % de logements entiers dans les trois villes, un record européen",
+          subtitle="Part de chaque type (%) — Source : Inside Airbnb, juin 2025"),
     height=300,
     barmode="stack",
     yaxis=dict(tickfont=dict(size=13)),
@@ -466,13 +539,26 @@ fig.show()
 # &e
 ```
 
-[**Paris affiche 91 % d'entire home — un taux parmi les plus élevés d'Europe, supérieur à Londres (67 %) et comparable à Rome (78 %)**]{.insight}
+[**Paris affiche 91 % de logements entiers — un taux parmi les plus élevés d'Europe, supérieur à Londres (67 %) et comparable à Rome (78 %)**]{.insight}
 
-La France est un marché massivement orienté vers le **logement entier**. Paris domine avec **91 %** d'entire home, suivi de Lyon (83 %) et Bordeaux (79 %). Ce profil signale un marché où le *partage de logement* (colocation, chambre chez l'habitant) a quasiment disparu — à l'inverse de Londres où les chambres privées représentent encore 31 %.
+::: {.column-margin}
+**91 %**
+Logements entiers à Paris
+vs 67 % à Londres
+et 56 % à Dublin
+:::
+
+La France est un marché massivement orienté vers le **logement entier**. Paris domine avec **91 %**, suivi de Lyon (83 %) et Bordeaux (79 %). Ce profil signale un marché où le *partage de logement* (colocation, chambre chez l'habitant) a quasiment disparu — à l'inverse de Londres où les chambres privées représentent encore 31 %.
+
+Cette offre concentrée sur le logement entier exerce-t-elle une pression mesurable sur le parc résidentiel ?
 
 ---
 
 ## Pression sur le parc de logements : commune vs métropole {#sec-pression}
+
+::: {.chapeau}
+Bordeaux (31 annonces/1 000 hab) dépasse Florence et s'approche de Porto — une pression 3 fois supérieure à Lyon. La pression par logement accentue les écarts : 49 annonces/1 000 logements à Bordeaux, 37 à Paris, 17 à Lyon.
+:::
 
 ```{python}
 #| label: pression-france
@@ -509,8 +595,8 @@ fig.add_vline(x=avg_eur_pression, line_dash="dot", line_color=COL_GREEN,
               annotation_text=f"Moy. Europe {avg_eur_pression:.1f}", annotation_position="bottom right")
 
 fig.update_layout(
-    title=fig_title(3, "Pression Airbnb : listings pour 1 000 habitants",
-          subtitle=f"21 villes de 6 pays comparables — France surlignée · lignes moy. France et Europe"),
+    title=fig_title(3, "Bordeaux au niveau de Florence, Paris en milieu de peloton européen",
+          subtitle=f"Annonces / 1 000 habitants — 21 villes, 6 pays comparables — Source : Inside Airbnb, juin 2025"),
     height=700,
     yaxis=dict(tickfont=dict(size=LABEL_SIZE)),
     margin=dict(l=160, r=100, t=100),
@@ -519,9 +605,16 @@ fig.show()
 # &e
 ```
 
-[**Bordeaux (31 L/1000 hab) dépasse Florence et s'approche de Porto — une pression 3 fois supérieure à Lyon et 13 fois supérieure à Berlin**]{.insight}
+[**Bordeaux (31 annonces/1 000 hab) dépasse Florence et s'approche de Porto — une pression 3 fois supérieure à Lyon et 13 fois supérieure à Berlin**]{.insight}
 
-La pression Airbnb sur les villes françaises est contrastée. Bordeaux, avec ses **260 000 habitants** et **8 000 listings**, supporte une charge relative de **31 listings pour 1 000 habitants** — comparable aux villes patrimoniales italiennes (Florence 31, Venise 27). Paris (24 L/1000 hab) se situe au-dessus de la moyenne européenne mais reste modéré face aux records de Porto (55) ou Lisbonne (38). Lyon (10 L/1000 hab) est proche de la moyenne des grandes capitales.
+::: {.column-margin}
+**31**
+Annonces / 1 000 hab.
+à Bordeaux — comparable
+à Florence et Porto
+:::
+
+La pression Airbnb sur les villes françaises est contrastée. Bordeaux, avec ses **260 000 habitants** et **8 000 annonces**, supporte une charge relative de **31 annonces pour 1 000 habitants** — comparable aux villes patrimoniales italiennes (Florence 31, Venise 27). Paris (24 annonces/1 000 hab) se situe au-dessus de la moyenne européenne mais reste modéré face aux records de Porto (55) ou Lisbonne (38). Lyon (10 annonces/1 000 hab) est proche de la moyenne des grandes capitales.
 
 Trois enseignements :
 
@@ -529,7 +622,9 @@ Trois enseignements :
 - Paris bénéficie d'un effet de dilution lié à la taille de la commune (2,1M hab)
 - Lyon présente un profil modéré comparable à Madrid (5,6) ou Berlin (2,4)
 
-La pression par logement accentue les écarts : Bordeaux atteint **49 L/1000 logements**, Paris **37**, Lyon **17**.
+La pression par logement accentue les écarts : Bordeaux atteint **49 annonces/1 000 logements**, Paris **37**, Lyon **17**.
+
+Ces moyennes communales masquent-elles des disparités internes plus fortes à l'échelle des arrondissements ?
 
 ---
 
@@ -578,11 +673,18 @@ fig.show()
 # &e
 ```
 
-[**Le 2e arrondissement concentre 123 Airbnb pour 1 000 logements — 3 fois la moyenne parisienne et un record européen à l'échelle du quartier**]{.insight}
+[**Le 2e arrondissement concentre 123 annonces Airbnb pour 1 000 logements — 3 fois la moyenne parisienne et un record européen à l'échelle du quartier**]{.insight}
 
-Les arrondissements centraux et touristiques (1er-4e, 6e, 8e) dépassent **80 listings pour 1 000 logements**, soit une pression bien supérieure à la moyenne communale (37 L/1000 logements). Le **2e arrondissement** (Sentier, Bourse), avec seulement 13 000 logements INSEE mais une forte attractivité touristique, atteint **123 L/1000 logements** — un niveau comparable aux quartiers les plus saturés de Lisbonne ou Florence.
+::: {.column-margin}
+**123**
+Annonces / 1 000 logements
+dans le 2e arrondissement
+×3 la moyenne parisienne
+:::
 
-À l'inverse, les arrondissements résidentiels de l'Est (13e, 19e, 20e) restent sous **20 L/1000 logements**, un gradient centre-périphérie qui reproduit le schéma observé dans toutes les villes européennes étudiées.
+Les arrondissements centraux et touristiques (1er-4e, 6e, 8e) dépassent **80 annonces pour 1 000 logements**, soit une pression bien supérieure à la moyenne communale (37 annonces/1 000 logements). Le **2e arrondissement** (Sentier, Bourse), avec seulement 13 000 logements INSEE mais une forte attractivité touristique, atteint **123 annonces/1 000 logements** — un niveau comparable aux quartiers les plus saturés de Lisbonne ou Florence.
+
+À l'inverse, les arrondissements résidentiels de l'Est (13e, 19e, 20e) restent sous **20 annonces/1 000 logements**, un gradient centre-périphérie qui reproduit le schéma observé dans toutes les villes européennes étudiées.
 
 ```{python}
 #| label: paris-arr-table
@@ -685,6 +787,10 @@ Les arrondissements centraux de Lyon (1er — Croix-Rousse/Terreaux, 2e — Pres
 
 ## Trajectoire récente : 3 snapshots, effet loi Le Meur {#sec-trajectoire}
 
+::: {.chapeau}
+Paris perd 5 % de ses annonces en 6 mois (mars-septembre 2025) — un signal précoce de l'effet loi Le Meur, à rebours de la tendance haussière européenne. Le pic post-JO 2024 (98 000 annonces) est en cours de correction.
+:::
+
 ```{python}
 #| label: trajectoire-france
 #| output: asis
@@ -773,19 +879,32 @@ print(html)
 # &e
 ```
 
-[**Paris perd 5 % de ses listings en 6 mois (mars-septembre 2025) — un signal précoce de l'effet loi Le Meur, à rebours de la tendance haussière européenne**]{.insight}
+[**Paris perd 5 % de ses annonces en 6 mois (mars-septembre 2025) — un signal précoce de l'effet loi Le Meur, à rebours de la tendance haussière européenne**]{.insight}
 
-La trajectoire des volumes bruts entre mars et septembre 2025 révèle une **décrue parisienne** (-5 %) qui contraste avec la dynamique européenne. Sur les 20 villes du panel Inside Airbnb, la tendance médiane est stable à légèrement haussière (+2 à +5 %). La baisse parisienne coïncide avec l'entrée en vigueur du plafond de **90 jours/an** au 1er janvier 2025 et le retrait des hôtes opportunistes post-JO 2024.
+::: {.column-margin}
+**–5 %**
+Baisse des annonces Paris
+mars → septembre 2025
+vs +2 à +5 % en Europe
+:::
 
-Bordeaux et Lyon montrent des trajectoires distinctes : Bordeaux avait déjà subi une correction de -30 % entre 2019 et 2022 après régulation, tandis que Lyon connaît une croissance modérée.
+La trajectoire des volumes bruts entre mars et septembre 2025 révèle une **décrue parisienne** (–5 %) qui contraste avec la dynamique européenne. Sur les 20 villes du panel Inside Airbnb, la tendance médiane est stable à légèrement haussière (+2 à +5 %). La baisse parisienne coïncide avec l'entrée en vigueur du plafond de **90 jours/an** au 1er janvier 2025 et le retrait des hôtes opportunistes post-JO 2024.
+
+Bordeaux et Lyon montrent des trajectoires distinctes : Bordeaux avait déjà subi une correction de –30 % entre 2019 et 2022 après régulation, tandis que Lyon connaît une croissance modérée.
 
 ::: {.grey-section}
-**Contextualisation** — Les JO 2024 avaient créé un pic d'offre artificiel à Paris (98 000 annonces en juillet 2024, +47 % sur un an). Le RevPAR de l'été 2024 a chuté de -24 % par rapport à 2023 (effet oversupply), et 27 % de listings en moins au French Open 2025 vs 2024. La loi Le Meur renforce la tendance baissière en alourdissant la fiscalité et en abaissant le plafond de location.
+**Contextualisation** — Les JO 2024 avaient créé un pic d'offre artificiel à Paris (98 000 annonces en juillet 2024, +47 % sur un an). Le RevPAR de l'été 2024 a chuté de –24 % par rapport à 2023 (effet suroffre), et 27 % d'annonces en moins au French Open 2025 vs 2024. La loi Le Meur renforce la tendance baissière en alourdissant la fiscalité et en abaissant le plafond de location.
 :::
+
+Au-delà des volumes, comment se distribue le niveau de prix entre les trois marchés ?
 
 ---
 
 ## Distribution des prix : la fracture Paris / province {#sec-prix}
+
+::: {.chapeau}
+Paris s'inscrit dans le segment premium européen (156 € la nuitée), avec un IQR de 158 € qui révèle une coexistence studios/haussmanniens. Lyon et Bordeaux forment un duo quasi identique (~78 €) mais avec des dispersions différentes.
+:::
 
 ```{python}
 #| label: prix-france
@@ -821,8 +940,8 @@ fig.add_vline(x=avg_fra_prix, line_dash="dash", line_color=COL_CYAN,
 fig.add_vline(x=avg_eur_prix, line_dash="dot", line_color=COL_GREEN,
               annotation_text=f"Moy. Europe {avg_eur_prix:.0f}€", annotation_position="bottom right")
 
-fig.update_layout(title=fig_title(9, "Distribution des prix — 3 villes françaises",
-          subtitle="EUR/nuit — boxplots tronqués à 300 EUR · lignes moy. France et Europe"))
+fig.update_layout(title=fig_title(9, "Paris à 156 €, le double de Lyon et Bordeaux — un marché très dispersé",
+          subtitle="€/nuit — boxplots tronqués à 300 € — Source : Inside Airbnb, juin 2025"))
 fig.update_xaxes(range=[0, 310])
 fig.update_layout(
     xaxis_title="Prix EUR/nuit",
@@ -834,15 +953,28 @@ fig.show()
 # &e
 ```
 
-[**Le prix médian parisien (156 EUR) est double de celui de Lyon et Bordeaux (~78 EUR) — un IQR de 158 EUR à Paris révèle un marché très hétérogène**]{.insight}
+[**Le prix médian parisien (156 €) est double de celui de Lyon et Bordeaux (~78 €) — un IQR de 158 € à Paris révèle un marché très hétérogène**]{.insight}
 
-Paris s'inscrit dans le segment premium européen (4e derrière Amsterdam, Édimbourg et San Diego). L'écart interquartile (IQR) de **158 EUR** (Q1=101, Q3=259) dépasse celui de Londres (165 EUR) et signale un marché où coexistent studios à 80 EUR et appartements haussmanniens à 300+ EUR.
+::: {.column-margin}
+**158 €**
+Écart interquartile Paris
+(Q1=101, Q3=259)
+marché très dispersé
+:::
 
-Lyon et Bordeaux forment un duo quasi identique en prix médian (**77-79 EUR**) mais avec des dispersions différentes : IQR de **78 EUR** à Bordeaux contre **58 EUR** à Lyon — Bordeaux a un segment haut de gamme plus marqué.
+Paris s'inscrit dans le segment premium européen (4e derrière Amsterdam, Édimbourg et San Diego). L'écart interquartile (IQR) de **158 €** (Q1=101, Q3=259) dépasse celui de Londres (165 €) et signale un marché où coexistent studios à 80 € et appartements haussmanniens à 300+ €.
+
+Lyon et Bordeaux forment un duo quasi identique en prix médian (**77-79 €**) mais avec des dispersions différentes : IQR de **78 €** à Bordeaux contre **58 €** à Lyon — Bordeaux a un segment haut de gamme plus marqué.
+
+Cette hétérogénéité des prix reflète-t-elle un marché dominé par des hôtes professionnels ou par des particuliers ?
 
 ---
 
-## Professionnalisation des hosts : un modèle français modéré {#sec-hosts}
+## Professionnalisation des hôtes : un modèle français modéré {#sec-hosts}
+
+::: {.chapeau}
+La France (37-44 % de multi-loueurs) se situe en milieu de peloton européen — loin des 73-81 % espagnols mais au-dessus d'Amsterdam (22 %). La réglementation française semble contenir l'expansion des gestionnaires professionnels.
+:::
 
 ```{python}
 #| label: hosts-france
@@ -878,8 +1010,8 @@ fig.add_vline(x=avg_eur_multi, line_dash="dot", line_color=COL_GREEN,
               annotation_text=f"Moy. Europe {avg_eur_multi:.0f}%", annotation_position="bottom right")
 
 fig.update_layout(
-    title=fig_title(10, "Taux de multi-hosts : France vs pays comparables",
-          subtitle=f"21 villes, 6 pays — France surlignée · lignes moy. France et Europe"),
+    title=fig_title(10, "La France (37-44 %) en milieu de peloton, loin des 73-81 % espagnols",
+          subtitle=f"Part de multi-loueurs (%) — 21 villes, 6 pays — Source : Inside Airbnb, juin 2025"),
     height=700,
     yaxis=dict(tickfont=dict(size=LABEL_SIZE)),
     margin=dict(l=160, r=100, t=100),
@@ -888,15 +1020,22 @@ fig.show()
 # &e
 ```
 
-[**La France (37-44 % multi-hosts) se situe en milieu de peloton européen — loin des 73-81 % espagnols mais au-dessus d'Amsterdam (22 %) et Copenhague (16 %)**]{.insight}
+[**La France (37-44 % de multi-loueurs) se situe en milieu de peloton européen — loin des 73-81 % espagnols mais au-dessus d'Amsterdam (22 %) et Copenhague (16 %)**]{.insight}
 
-Le multi-hosting français est modéré comparé aux marchés sud-européens. Paris affiche **40 %** de multi-hosts, Lyon **44 %** et Bordeaux **38 %**. Ces niveaux restent nettement sous les taux espagnols (Barcelone 81 %, Madrid 73 %) et italiens (Florence 69 %, Rome 58 %), mais au-dessus des marchés régulés du Nord (Amsterdam 22 %, Berlin 54 %).
+::: {.column-margin}
+**40 %**
+Multi-loueurs à Paris
+vs 81 % à Barcelone
+et 22 % à Amsterdam
+:::
+
+Le multi-louage français est modéré comparé aux marchés sud-européens. Paris affiche **40 %** de multi-loueurs, Lyon **44 %** et Bordeaux **38 %**. Ces niveaux restent nettement sous les taux espagnols (Barcelone 81 %, Madrid 73 %) et italiens (Florence 69 %, Rome 58 %), mais au-dessus des marchés régulés du Nord (Amsterdam 22 %, Berlin 54 %).
 
 La professionnalisation française semble contenue par la **réglementation** : le seuil des 120 nuits à Paris, l'enregistrement obligatoire et la compensation limitent l'expansion des gestionnaires professionnels.
 
 ---
 
-# Synthèse et enseignements {#sec-synthese}
+## Synthèse et enseignements {#sec-synthese .unnumbered}
 
 ```{python}
 #| label: synthese-france
@@ -924,15 +1063,15 @@ clog.save()
 ::: {.callout-tip}
 ## Réponses aux questions directrices
 
-**Q1. Volumes et positionnement** — La France pèse **64 000 listings** sur les 3 villes étudiées. Paris est le 2e marché mondial (51K) derrière Londres (61K). Mais rapportée à la population, Paris (24 L/1000 hab) reste modérée face à Porto (55) ou Lisbonne (38).
+**Q1. Volumes et positionnement** — La France pèse **64 000 annonces** sur les 3 villes étudiées. Paris est le 2e marché mondial (51K) derrière Londres (61K). Mais rapportée à la population, Paris (24 annonces/1 000 hab) reste modérée face à Porto (55) ou Lisbonne (38).
 
-**Q2. Pression territoriale** — Oui : Bordeaux (**31 L/1000 hab**, 49 L/1000 logements) subit une pression relative 30 % supérieure à Paris et comparable à Florence. Lyon reste modéré (10 L/1000 hab). L'effet taille de la commune est un facteur clé.
+**Q2. Pression territoriale** — Oui : Bordeaux (**31 annonces/1 000 hab**, 49 annonces/1 000 logements) subit une pression relative 30 % supérieure à Paris et comparable à Florence. Lyon reste modéré (10 annonces/1 000 hab). L'effet taille de la commune est un facteur clé.
 
-**Q3. Niveaux de prix** — La fracture Paris/province est un facteur **2** (156 vs ~78 EUR). Ce ratio est plus modéré que l'écart Amsterdam-Budapest (facteur 4) mais Paris reste dans le segment premium européen.
+**Q3. Niveaux de prix** — La fracture Paris/province est un facteur **2** (156 vs ~78 €). Ce ratio est plus modéré que l'écart Amsterdam-Budapest (facteur 4) mais Paris reste dans le segment premium européen.
 
-**Q4. Professionnalisation** — Le multi-hosting français (37-44 %) est modéré à l'échelle européenne. Les villes espagnoles (73-81 %) et italiennes (58-69 %) sont nettement plus professionnalisées. La réglementation française (120 nuits, enregistrement) semble contenir la concentration.
+**Q4. Professionnalisation** — Le multi-louage français (37-44 %) est modéré à l'échelle européenne. Les villes espagnoles (73-81 %) et italiennes (58-69 %) sont nettement plus professionnalisées. La réglementation française (120 nuits, enregistrement) semble contenir la concentration.
 
-**Q5. Régulation** — Les traces sont mesurables : **14 % de longterm** à Paris (vs 82 % à New York, 42 % à Barcelone), et une **baisse de -5 % des volumes** entre mars et septembre 2025 — signal précoce de la loi Le Meur. Le 2e arrondissement, avec **123 L/1000 logements**, illustre l'hyperconcentration que la réglementation tente de contenir. Le PLU bioclimatique interdit désormais toute création de meublé touristique dans les arrondissements 1 à 11.
+**Q5. Régulation** — Les traces sont mesurables : **14 % de location longue durée** à Paris (vs 82 % à New York, 42 % à Barcelone), et une **baisse de –5 % des volumes** entre mars et septembre 2025 — signal précoce de la loi Le Meur. Le 2e arrondissement, avec **123 annonces/1 000 logements**, illustre l'hyperconcentration que la réglementation tente de contenir. Le PLU bioclimatique interdit désormais toute création de meublé touristique dans les arrondissements 1 à 11.
 :::
 
 ---

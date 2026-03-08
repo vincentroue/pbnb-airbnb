@@ -84,3 +84,31 @@ notebooks*
 rgd-guide*\357*
 rgd-guide*cp C*
 notebooks*cp C*
+
+# Notes PKM perso (pas dans le repo public)
+,,*
+,n*
+,e*
+
+# Documentation interne / recherche
+bki-doc/
+_ibx/
+rgd-guide/
+gdmeth-*.md
+CLAUDE.md
+.claude/
+
+# Données externes (hors geo)
+data/aed/
+data/external/*.csv
+data/external/*.xlsx
+data/external/*.md
+
+# Freeze cache + site build
+reports/_freeze/
+reports/data/
+_site/
+docs/
+
+# Quarto render intermediates
+reports/*.rmarkdown

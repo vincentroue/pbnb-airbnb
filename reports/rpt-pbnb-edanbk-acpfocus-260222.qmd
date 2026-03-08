@@ -1,0 +1,1283 @@
+---
+title: "ACP & Clustering — Profils de marchés"
+subtitle: "74 villes monde · 38 marchés Europe · 10 variables enrichies · Inside Airbnb juin 2025"
+author: "Vincent R."
+date: today
+date-format: "DD MMMM YYYY"
+categories: ["Notebook ACP"]
+number-sections: false
+format:
+  html:
+    theme: [cosmo, config/theme-pbnb-v2.scss]
+    toc: true
+    toc-location: left
+    toc-depth: 3
+    code-fold: true
+    code-summary: "Code"
+    code-tools: true
+    fig-width: 10
+    fig-height: 6
+    grid:
+      body-width: 900px
+      sidebar-width: 250px
+      margin-width: 200px
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+<!-- Fichier : rpt-pbnb-edanbk-acpfocus-260222.qmd | Type : NOTEBOOK | Scope : ACP 75 villes + Europe 37 -->
+
+<!-- Notebook ACP dédié (rpt-pbnb-edanbk-acpfocus-260222)
+     Type : NOTEBOOK (code visible, code-fold, exploratoire)
+     Extracted from : rpt-pbnb-edanbk-ALL-260215.qmd (ACP+clustering+KW)
+                      rpt-pbnb-synth-europe-260214.qmd (ACP R/FactoMineR)
+                      rpt-pbnb-methnbk-acp-260215.qmd (méthodologie)
+     Données : kpi_global_by_city_2506.csv (74 villes × 65 indicateurs, Europe filtrée depuis global)
+     Objectif : ACP enrichie (10 vars), clustering Ward, Kruskal-Wallis, profils
+     Scope : Monde (74 villes) + Europe (38 marchés)
+-->
+
+::: {.callout-note}
+## Objectif — Analyse inter-villes : du micro au macro
+
+Ce notebook concentre les **analyses multivariées au niveau ville** (KPI agrégés) :
+
+- **ACP** : projection des marchés dans un espace réduit (10 variables enrichies)
+- **Clustering Ward** : regroupement en profils homogènes (silhouette-optimisé)
+- **Kruskal-Wallis** : tests de différences significatives entre continents / clusters
+- **Profils** : caractérisation des groupes par médianes et interprétation
+
+Deux périmètres : **Monde** (74 villes, 4 continents) puis **Europe** (38 marchés, 21 pays).
+
+Les analyses listing-level (distributions, corrélations, dython) restent dans le [notebook EDA](rpt-pbnb-edanbk-ALL-260215.qmd).
+:::
+
+---
+
+<details>
+<summary style="cursor:pointer; font-weight:600; font-size:14px; color:#666; margin:8px 0;">
+Plan de travail auto-généré (cliquer pour déplier)
+</summary>
+
+*Commentaires : écrire `<!-- vvr: texte -->` dans le corps du rapport (pas ici). Le plan se met à jour au render.*
+
+```{r}
+#| label: auto-plan-parse
+#| results: asis
+#| echo: false
+source("C:/Users/vince/hh/pq/PDS/mutils/jrr/jcn-auto-plan.R")
+generate_auto_plan(knitr::current_input(),
+                   fallback = "rpt-pbnb-edanbk-acpfocus-260222.qmd",
+                   exclude_chunks = c("setup-reticulate", "setup-python", "auto-plan-parse"))
+```
+
+</details>
+
+# Setup {.unnumbered}
+
+```{r}
+#| label: setup-reticulate
+#| include: false
+
+library(reticulate)
+use_python("C:/ScoopApps/apps/python/current/python.exe", required = TRUE)
+
+# ACP R (FactoMineR) — utilisé pour l'Europe
+library(FactoMineR)
+library(factoextra)
+library(ggplot2)
+library(ggrepel)
+library(patchwork)
+library(dplyr)
+library(reactable)
+library(reactablefmtr)
+
+source("C:/Users/vince/hh/pq/PDS/mutils/jrr/jcn-setup.R")
+source("C:/Users/vince/hh/pq/PDS/mutils/jrr/jcn-table.R")
+source("C:/Users/vince/hh/pq/PDS/mutils/jrr/jcn-acp-pca-plots.R")
+```
+
+```{python}
+#| label: setup-python
+#| code-fold: false
+
+from pathlib import Path
+import sys
+import pandas as pd
+import numpy as np
+import warnings
+warnings.filterwarnings('ignore')
+
+import plotly.express as px
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+# Helpers
+MUTILS_JPY = Path(r"C:\Users\vince\hh\pq\PDS\mutils\jpy")
+if str(MUTILS_JPY) not in sys.path:
+    sys.path.insert(0, str(MUTILS_JPY))
+
+import importlib.util
+_spec_graph = importlib.util.spec_from_file_location("jcn_graph", MUTILS_JPY / "jcn-graph.py")
+_mod = importlib.util.module_from_spec(_spec_graph)
+_spec_graph.loader.exec_module(_mod)
+_mod.init_style()
+_mod.patch_plotly_reticulate()
+
+# ClaudeLog
+_spec_log = importlib.util.spec_from_file_location("jcn_claude_log", MUTILS_JPY / "jcn-claude-log.py")
+_mod_log = importlib.util.module_from_spec(_spec_log)
+_spec_log.loader.exec_module(_mod_log)
+ClaudeLog = _mod_log.ClaudeLog
+
+COL_CYAN = _mod.COL_CYAN
+COL_ORANGE = _mod.COL_ORANGE
+COL_GREEN = _mod.COL_GREEN
+COL_MAGENTA = _mod.COL_MAGENTA
+
+# Données
+BASE = Path(r"C:\Users\vince\hh\pq\PDS\pbnb-airbnb-log-jrr-jpy")
+kpi_monde = pd.read_csv(BASE / "data" / "interim" / "kpi_global_by_city_2506.csv")
+## kpi_europe dérivé de kpi_monde (le CSV Europe séparé est obsolète — 38 cols vs 65)
+kpi_europe = kpi_monde[kpi_monde["continent"] == "Europe"].copy()
+
+clog = ClaudeLog("acpfocus", output_dir=str(BASE / "reports" / "outputs"))
+clog.step("LOAD_KPI", n_monde=len(kpi_monde), n_europe=len(kpi_europe),
+          n_cols=kpi_monde.shape[1])
+
+print(f"KPI Monde  : {len(kpi_monde)} villes × {kpi_monde.shape[1]} colonnes")
+print(f"KPI Europe : {len(kpi_europe)} villes × {kpi_europe.shape[1]} colonnes")
+```
+
+## Variables ACP — Jeu enrichi (10 variables)
+
+```{python}
+#| label: acp-vars-definition
+#| code-fold: false
+#| results: hold
+
+# &s &ACP_VARS - 10 variables enrichies (v2, février 2026)
+
+# Évolution par rapport au jeu précédent (12 vars) :
+#   ✚ prix_med_1br    (remplace prix_med — comparable entre villes, logement entier 1BR)
+#   ✚ cr_offre_10plus (remplace cr_top10_pct — % offre pro, comparable entre villes)
+#   ✚ pct_superhost   (NOUVEAU — qualité/maturité du marché)
+#   ✚ rev_rating_med  (remplace reviews_med — satisfaction, pas volume)
+#   ✚ occupancy_est_med (NOUVEAU — dynamisme/tension du marché)
+#   ✗ prix_iqr, entire_1000hsg, cr_hosts_50pct, rpm_med — retirés (redondance, bruit)
+
+ACP_VARS = [
+    "prix_med_1br",       # Prix médian logement entier 1 chambre (€)
+    "listings_1000hab",   # Pression touristique (annonces / 1000 habitants)
+    "pct_entire",         # Structure offre : % logements entiers
+    "pct_multi",          # Professionnalisation : % multi-loueurs
+    "cr_offre_10plus",       # Concentration : % offre détenue par hôtes ≥10 annonces
+    "dispo_med",          # Disponibilité médiane (jours/an)
+    "pct_longterm",       # Effet régulation : % séjour min ≥ 30 jours
+    "pct_superhost",      # Qualité/maturité : % superhosts
+    "rev_rating_med",     # Satisfaction : note médiane globale
+    "occupancy_est_med",  # Dynamisme : taux d'occupation estimé médian (%)
+]
+
+ACP_LABELS = {
+    "prix_med_1br": "Prix 1BR (€)",
+    "listings_1000hab": "Pression (L/1000h)",
+    "pct_entire": "% logement entier",
+    "pct_multi": "% multi-loueurs",
+    "cr_offre_10plus": "% offre pro (≥10)",
+    "dispo_med": "Disponibilité (j/an)",
+    "pct_longterm": "% longterm (≥30j)",
+    "pct_superhost": "% superhosts",
+    "rev_rating_med": "Note globale",
+    "occupancy_est_med": "Occupation est. (%)",
+}
+
+# &e
+
+# Vérification disponibilité
+for scope, kpi in [("Monde", kpi_monde), ("Europe", kpi_europe)]:
+    na_counts = kpi[ACP_VARS].isna().sum()
+    n_na = na_counts.sum()
+    print(f"\n{scope} ({len(kpi)} villes) — NA par variable :")
+    for v in ACP_VARS:
+        na = na_counts[v]
+        status = "✅" if na == 0 else f"⚠️ {na} NA"
+        print(f"  {v:<25s} {status}")
+    print(f"  → Total NA : {n_na}")
+```
+
+::: {.callout-tip}
+## Pourquoi ces 10 variables ?
+
+Le choix privilégie **5 dimensions analytiques** avec 2 variables chacune :
+
+| Dimension | Variables | Justification |
+|:----------|:----------|:-------------|
+| **Pression** | `listings_1000hab`, `pct_longterm` | Intensité + réponse réglementaire |
+| **Prix** | `prix_med_1br`, `dispo_med` | Niveau tarifaire comparable + tension calendrier |
+| **Structure** | `pct_entire`, `pct_multi` | Composition offre + professionnalisation |
+| **Concentration** | `cr_offre_10plus`, `pct_superhost` | Emprise opérateurs pro + maturité |
+| **Satisfaction** | `rev_rating_med`, `occupancy_est_med` | Qualité perçue + dynamisme |
+
+`prix_med_1br` (logement entier, 1 chambre) est préféré à `prix_med` (tous types confondus) car il rend les villes **comparables** indépendamment de la structure de l'offre.
+:::
+
+---
+
+# ACP Monde — 74 villes, 4 continents
+
+::: {.callout-note}
+## Changement d'échelle
+
+Les variables qui comptent au niveau listing (room_type, prix) deviennent des **proportions** et **médianes** au niveau ville, révélant des dynamiques de marché invisibles au niveau individuel.
+:::
+
+## Standardisation et matrice de corrélation
+
+```{python}
+#| label: monde-prep
+#| results: hold
+
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+from scipy.cluster.hierarchy import linkage, fcluster
+
+X_monde = kpi_monde[ACP_VARS].copy()
+scaler_monde = StandardScaler()
+X_monde_scaled = scaler_monde.fit_transform(X_monde)
+
+clog.step("ACP_MONDE_PREP", n_villes=X_monde.shape[0], n_vars=X_monde.shape[1],
+          variables=ACP_VARS)
+
+print(f"ACP Monde : {X_monde.shape[0]} villes × {X_monde.shape[1]} variables actives\n")
+print(f"{'Variable':<25s} {'Moyenne':>10s} {'Écart-type':>12s} {'CV (%)':>8s}")
+print("-" * 58)
+for v in ACP_VARS:
+    m, s = X_monde[v].mean(), X_monde[v].std()
+    cv = s / m * 100 if m != 0 else float('inf')
+    print(f"{v:<25s} {m:>10.1f} {s:>12.1f} {cv:>8.0f}")
+```
+
+```{python}
+#| label: fig-monde-corr
+#| output: asis
+
+# Matrice de corrélation des 10 variables ACP
+corr = X_monde.rename(columns=ACP_LABELS).corr()
+
+fig = go.Figure(data=go.Heatmap(
+    z=corr.values, x=corr.columns, y=corr.columns,
+    colorscale="RdBu_r", zmid=0, zmin=-1, zmax=1,
+    text=corr.values.round(2), texttemplate="%{text}",
+    textfont=dict(size=10)))
+fig.update_layout(
+    title=_mod.fig_title(1,
+        "Corrélations entre les 10 variables ACP — Monde",
+        "Pearson · 74 villes · Variables centrées"),
+    height=550, width=650, margin=dict(l=150, b=150))
+fig.show()
+```
+
+::: {.callout-tip collapse="true"}
+## Comment lire la matrice de corrélation
+
+- **Bleu foncé** = corrélation positive forte (les deux variables augmentent ensemble)
+- **Rouge foncé** = corrélation négative forte (quand l'une augmente, l'autre diminue)
+- **Blanc** = pas de lien linéaire entre les variables
+- Les corrélations fortes (|r| > 0.5) indiquent des **redondances potentielles** dans l'ACP — deux variables qui mesurent presque la même chose. L'ACP les synthétisera en un axe commun.
+- Les corrélations faibles (|r| < 0.3) signifient que les variables apportent une **information complémentaire** — bon signe pour la diversité du jeu de variables.
+:::
+
+```{python}
+#| label: monde-corr-insights
+#| results: hold
+
+# Corrélations fortes (|r| > 0.5)
+corr_raw = X_monde.corr()
+print("Corrélations fortes (|r| > 0.5) :")
+pairs_seen = set()
+for i, v1 in enumerate(ACP_VARS):
+    for j, v2 in enumerate(ACP_VARS):
+        if i < j and abs(corr_raw.iloc[i, j]) > 0.5:
+            r = corr_raw.iloc[i, j]
+            pairs_seen.add((v1, v2))
+            print(f"  {v1} × {v2} : r = {r:+.2f}")
+
+if not pairs_seen:
+    print("  Aucune corrélation > 0.5 — bon signe de non-redondance")
+```
+
+## Screeplot — Variance expliquée
+
+```{python}
+#| label: fig-monde-screeplot
+#| output: asis
+
+pca_monde = PCA(n_components=min(len(ACP_VARS), X_monde.shape[0]))
+coords_monde = pca_monde.fit_transform(X_monde_scaled)
+
+var_exp = pca_monde.explained_variance_ratio_ * 100
+cum_var = np.cumsum(var_exp)
+
+fig = go.Figure()
+fig.add_trace(go.Bar(x=[f"PC{i+1}" for i in range(len(var_exp))],
+                     y=var_exp, name="% variance",
+                     marker_color=COL_CYAN, opacity=0.7))
+fig.add_trace(go.Scatter(x=[f"PC{i+1}" for i in range(len(var_exp))],
+                         y=cum_var, name="% cumulé",
+                         mode="lines+markers", marker_color=COL_ORANGE,
+                         line=dict(width=2)))
+fig.add_hline(y=80, line_dash="dash", line_color="#999",
+              annotation_text="80%", annotation_position="bottom right")
+fig.update_layout(
+    title=_mod.fig_title(2, "Screeplot — Variance expliquée par composante",
+                         f"ACP sur {len(ACP_VARS)} variables × {X_monde.shape[0]} villes"),
+    xaxis_title="Composante", yaxis_title="% variance expliquée",
+    height=420, showlegend=True, legend=dict(x=0.7, y=0.5))
+fig.show()
+```
+
+::: {.callout-tip collapse="true"}
+## Comment lire le screeplot
+
+- Chaque **barre** = part de variance expliquée par une composante principale (axe)
+- La **courbe orange** = variance cumulée — on cherche le coude où elle atteint ~80%
+- **PC1** capture la dimension la plus structurante du jeu de données (souvent le gradient prix/pression)
+- **PC2** capture la 2ᵉ dimension indépendante (souvent structure/professionnalisation)
+- **Règle du coude** : on retient les composantes avant que la courbe ne s'aplatisse (rendements décroissants)
+- Si PC1+PC2 > 50% : le biplot 2D est une bonne représentation ; si < 40% : les axes suivants comptent aussi
+:::
+
+```{python}
+#| label: monde-variance-summary
+#| results: hold
+
+clog.result("monde_variance_pc1_pc2", round(float(cum_var[1]), 1),
+            interpret=f"PC1+PC2 = {cum_var[1]:.1f}% de la variance totale")
+n_80 = int(np.argmax(cum_var >= 80) + 1)
+clog.result("monde_n_composantes_80pct", n_80,
+            interpret=f"{n_80} composantes pour 80% de la variance")
+
+print(f"Variance expliquée par les premières composantes :")
+for i in range(min(5, len(var_exp))):
+    bar = "█" * int(var_exp[i] / 2)
+    print(f"  PC{i+1}: {var_exp[i]:5.1f}% (cumulé: {cum_var[i]:5.1f}%) {bar}")
+print(f"\n→ 2 premières composantes : {cum_var[1]:.1f}% de la variance")
+print(f"→ {n_80} composantes nécessaires pour 80% de la variance")
+```
+
+## Contributions des variables aux axes
+
+```{python}
+#| label: fig-monde-loadings
+#| output: asis
+
+loadings_monde = pd.DataFrame(pca_monde.components_.T, index=ACP_VARS,
+                               columns=[f"PC{i+1}" for i in range(pca_monde.n_components_)])
+
+fig = go.Figure()
+for i, pc in enumerate(["PC1", "PC2"]):
+    vals = loadings_monde[pc].sort_values()
+    colors = [COL_CYAN if v >= 0 else COL_ORANGE for v in vals]
+    fig.add_trace(go.Bar(y=vals.index, x=vals.values, orientation="h",
+                         name=pc, marker_color=colors if i == 0 else None,
+                         visible=True if i == 0 else "legendonly"))
+fig.update_layout(
+    title=_mod.fig_title(3, "Contributions des variables — PC1 et PC2",
+                         "Loadings (corrélation variable-composante) · Monde"),
+    xaxis_title="Loading", height=450, margin=dict(l=180),
+    barmode="group", showlegend=True)
+fig.show()
+```
+
+::: {.callout-tip collapse="true"}
+## Comment lire les loadings
+
+- Un **loading** mesure la corrélation entre une variable et un axe factoriel (entre -1 et +1)
+- **Loading élevé** (+0.4 à +1) : la variable contribue fortement dans le sens positif de l'axe
+- **Loading négatif** (-1 à -0.4) : la variable contribue dans le sens opposé
+- **Loading faible** (-0.3 à +0.3) : la variable est mal représentée sur cet axe — regarder les axes suivants
+- Les variables avec des loadings opposés sur un même axe forment un **gradient** (ex : prix élevé ↔ pression forte)
+- L'interprétation des axes se fait en nommant le gradient : "axe prix-qualité", "axe pression-régulation", etc.
+:::
+
+```{python}
+#| label: monde-loadings-table
+#| results: hold
+
+print("Loadings (PC1 à PC4) — Monde :")
+print(loadings_monde[["PC1", "PC2", "PC3", "PC4"]].round(3).to_string())
+```
+
+## Biplot — Projection des 74 villes (PC1 × PC2)
+
+```{python}
+#| label: fig-monde-biplot
+#| output: asis
+
+kpi_monde["PC1"] = coords_monde[:, 0]
+kpi_monde["PC2"] = coords_monde[:, 1]
+
+fig = px.scatter(kpi_monde, x="PC1", y="PC2", color="continent",
+                 color_discrete_map=_mod.CONTINENT_COLORS,
+                 hover_name="city", hover_data=["country_code", "listings_1000hab",
+                                                 "prix_med_1br", "cr_offre_10plus"],
+                 text="city")
+fig.update_traces(textposition="top center", textfont_size=8, marker_size=8)
+
+# Flèches variables (loadings × scale)
+scale = max(abs(coords_monde[:, 0]).max(), abs(coords_monde[:, 1]).max()) * 0.8
+for j, var in enumerate(ACP_VARS):
+    fig.add_annotation(
+        x=loadings_monde.iloc[j, 0] * scale, y=loadings_monde.iloc[j, 1] * scale,
+        ax=0, ay=0, xref="x", yref="y", axref="x", ayref="y",
+        showarrow=True, arrowhead=2, arrowsize=1.2, arrowwidth=1.5,
+        arrowcolor="#888")
+    fig.add_annotation(
+        x=loadings_monde.iloc[j, 0] * scale * 1.12,
+        y=loadings_monde.iloc[j, 1] * scale * 1.12,
+        text=ACP_LABELS.get(var, var), showarrow=False,
+        font=dict(size=9, color="#555"))
+
+fig.update_layout(
+    title=_mod.fig_title(4, f"Biplot — Projection des {len(kpi_monde)} villes (PC1 × PC2)",
+                         f"PC1 ({var_exp[0]:.1f}%) × PC2 ({var_exp[1]:.1f}%) = {cum_var[1]:.1f}% variance · Monde"),
+    height=650, width=900, margin=dict(l=60, r=60))
+fig.show()
+```
+
+::: {.callout-tip collapse="true"}
+## Comment lire le biplot
+
+- Chaque **point** = une ville, projetée dans le plan PC1 × PC2
+- La **couleur** = continent (variable supplémentaire, ne participe pas au calcul)
+- Les **flèches** = variables actives. La direction indique le sens d'augmentation de la variable
+- Deux villes **proches** sur le biplot ont des profils similaires sur les 10 variables
+- Une ville **proche d'une flèche** a une valeur élevée sur cette variable
+- Les villes **à l'opposé d'une flèche** ont une valeur faible sur cette variable
+- L'**angle entre deux flèches** reflète la corrélation : angle aigu = corrélation positive, angle droit = indépendance, angle obtus = corrélation négative
+- Les villes au **centre** ont un profil moyen (ou sont mal représentées — vérifier les axes 3-4)
+:::
+
+## Clustering Ward — Profils de marchés (Monde)
+
+```{python}
+#| label: monde-clustering-ward
+#| results: hold
+
+from sklearn.metrics import silhouette_score
+
+# Clustering Ward sur composantes principales
+n_pc = min(4, len(var_exp))
+Z_monde = linkage(coords_monde[:, :n_pc], method="ward")
+
+print("Choix du nombre de clusters (silhouette) — Monde :")
+best_k, best_sil = 3, -1
+for k in range(3, 7):
+    labels = fcluster(Z_monde, k, criterion="maxclust")
+    sil = silhouette_score(coords_monde[:, :n_pc], labels)
+    marker = " ← best" if sil > best_sil else ""
+    if sil > best_sil:
+        best_k, best_sil = k, sil
+    print(f"  k={k} : silhouette = {sil:.3f}{marker}")
+
+k_monde = best_k
+kpi_monde["cluster"] = fcluster(Z_monde, k_monde, criterion="maxclust")
+clog.result("monde_clustering_k", k_monde,
+            interpret=f"k={k_monde} clusters (silhouette={best_sil:.3f})")
+print(f"\n→ Retenu : k={k_monde} clusters (silhouette = {best_sil:.3f})")
+print(f"\nRépartition :")
+for cl in sorted(kpi_monde["cluster"].unique()):
+    cities = kpi_monde[kpi_monde["cluster"] == cl]["city"].tolist()
+    print(f"  Cluster {cl} ({len(cities)} villes) : {', '.join(cities[:10])}{'...' if len(cities) > 10 else ''}")
+```
+
+```{python}
+#| label: fig-monde-clusters-biplot
+#| output: asis
+
+fig = px.scatter(kpi_monde, x="PC1", y="PC2", color=kpi_monde["cluster"].astype(str),
+                 hover_name="city", text="city",
+                 hover_data=["continent", "listings_1000hab", "prix_med_1br"],
+                 color_discrete_sequence=[COL_CYAN, COL_ORANGE, COL_GREEN,
+                                          COL_MAGENTA, "#fdbf11", "#5c5859"])
+fig.update_traces(textposition="top center", textfont_size=8, marker_size=9)
+fig.update_layout(
+    title=_mod.fig_title(5, f"Clustering Ward — {k_monde} profils de marchés (PC1 × PC2)",
+                         "Projection ACP colorée par cluster · Monde"),
+    height=600, width=900, legend_title="Cluster")
+fig.show()
+```
+
+## Profils moyens par cluster (Monde)
+
+```{python}
+#| label: monde-cluster-profiles
+#| results: hold
+
+profile_vars = ACP_VARS.copy()
+
+profiles_monde = kpi_monde.groupby("cluster")[profile_vars].median().round(1)
+profiles_monde.insert(0, "n_villes", kpi_monde.groupby("cluster").size())
+
+print(f"Profils médians par cluster (k={k_monde}) — Monde :\n")
+print(profiles_monde.to_string())
+
+# Interprétation automatique
+print("\nInterprétation :")
+for cl in sorted(profiles_monde.index):
+    p = profiles_monde.loc[cl]
+    traits = []
+    if p["prix_med_1br"] > profiles_monde["prix_med_1br"].median():
+        traits.append("prix élevés")
+    else:
+        traits.append("prix modérés")
+    if p["listings_1000hab"] > profiles_monde["listings_1000hab"].median():
+        traits.append("forte pression")
+    else:
+        traits.append("pression modérée")
+    if p["pct_longterm"] > 20:
+        traits.append("longterm important")
+    if p["pct_multi"] > profiles_monde["pct_multi"].median():
+        traits.append("professionnalisé")
+    if p["cr_offre_10plus"] > profiles_monde["cr_offre_10plus"].median():
+        traits.append("concentré")
+    if p["pct_superhost"] > profiles_monde["pct_superhost"].median():
+        traits.append("mature (superhosts)")
+    print(f"  Cluster {cl} ({int(p['n_villes'])} villes) : {', '.join(traits)}")
+```
+
+::: {.callout-tip collapse="true"}
+## Comment lire les profils de cluster
+
+- Chaque ligne = un cluster identifié par le Ward. Les valeurs sont les **médianes** des variables ACP pour les villes du cluster.
+- Comparer les colonnes : une valeur nettement au-dessus/dessous de la médiane globale caractérise le profil.
+- Le **score silhouette** mesure la qualité de la partition (0 à 1). Au-dessus de 0.3 = structure raisonnable, >0.5 = bonne.
+- **Nommer les profils** : identifier 2-3 traits dominants par cluster (ex : "pression touristique forte + prix modéré" → profil "tourisme de masse").
+- Les clusters mono-ville ou très petits (n=2) sont souvent des **outliers** — les interpréter avec prudence.
+:::
+
+## Dendrogramme (Monde)
+
+::: {.callout-tip collapse="true"}
+## Comment lire le dendrogramme
+
+- L'axe vertical = **distance d'agrégation** (Ward). Plus la barre de fusion est haute, plus les groupes fusionnés étaient différents.
+- La **ligne rouge** horizontale = coupe retenue pour former k clusters. Les branches en dessous forment les groupes.
+- Des branches **longues** avant la coupe = clusters bien séparés (bonne structure).
+- Des branches **courtes** = les villes de ce sous-groupe se ressemblent beaucoup.
+- Si deux villes fusionnent très tôt (en bas), elles sont presque identiques sur les 10 variables.
+:::
+
+```{python}
+#| label: fig-monde-dendrogramme
+
+from scipy.cluster.hierarchy import dendrogram
+
+fig_dend, ax = plt.subplots(figsize=(16, 6))
+dendrogram(Z_monde, labels=kpi_monde["city"].values, leaf_rotation=90, leaf_font_size=6,
+           color_threshold=Z_monde[-(k_monde-1), 2], ax=ax)
+ax.set_title(f"Dendrogramme Ward — {len(kpi_monde)} villes monde (coupe k={k_monde})")
+ax.set_ylabel("Distance")
+ax.axhline(y=Z_monde[-(k_monde-1), 2], color="red", linestyle="--", alpha=0.5)
+plt.tight_layout()
+plt.show()
+```
+
+---
+
+# Tests statistiques — Monde
+
+## Kruskal-Wallis par continent
+
+```{python}
+#| label: monde-kruskal-wallis
+#| results: hold
+
+from scipy.stats import kruskal
+
+test_vars = ACP_VARS.copy()
+
+clog.step("KRUSKAL_WALLIS_MONDE", grouping="continent",
+          n_groups=kpi_monde["continent"].nunique())
+
+print(f"Tests de Kruskal-Wallis — Variable ~ Continent ({kpi_monde['continent'].nunique()} groupes)\n")
+print(f"{'Variable':<25s} {'H stat':>8s} {'p-value':>10s} {'Signif':>8s}")
+print("-" * 55)
+kw_results_monde = {}
+for var in test_vars:
+    groups = [g[var].dropna().values for _, g in kpi_monde.groupby("continent")]
+    groups = [g for g in groups if len(g) >= 2]
+    if len(groups) >= 2:
+        h_stat, p_val = kruskal(*groups)
+        sig = "***" if p_val < 0.001 else "**" if p_val < 0.01 else "*" if p_val < 0.05 else "ns"
+        print(f"{var:<25s} {h_stat:>8.2f} {p_val:>10.4f} {sig:>8s}")
+        kw_results_monde[var] = {"H": round(h_stat, 2), "p": round(p_val, 4), "sig": sig}
+
+sig_vars = [v for v, r in kw_results_monde.items() if r["sig"] != "ns"]
+clog.result("kw_monde_significant", sig_vars,
+            interpret=f"{len(sig_vars)}/{len(kw_results_monde)} variables significativement différentes entre continents")
+```
+
+::: {.callout-tip collapse="true"}
+## Comment lire les tests de Kruskal-Wallis
+
+- **Kruskal-Wallis** = test non paramétrique qui compare les distributions d'une variable entre k groupes (continents ou clusters)
+- **H stat** = statistique du test. Plus elle est élevée, plus les groupes diffèrent sur cette variable
+- **p-value** = probabilité d'observer cette différence par hasard. Seuils : *** < 0.001, ** < 0.01, * < 0.05
+- **ns** (non significatif) = les groupes ne diffèrent pas significativement sur cette variable
+- Variables significatives entre **continents** → la géographie structure le marché Airbnb sur cette dimension
+- Variables significatives entre **clusters** → la variable contribue effectivement à la différenciation des profils (cohérence ACP↔clustering)
+- **Attention** : avec k > 2 groupes, KW dit "il y a une différence" mais pas *entre quels groupes*. Pour ça il faudrait un test post-hoc (Dunn).
+:::
+
+## Kruskal-Wallis par cluster
+
+```{python}
+#| label: monde-kruskal-wallis-cluster
+#| results: hold
+
+print(f"Tests de Kruskal-Wallis — Variable ~ Cluster ({kpi_monde['cluster'].nunique()} groupes)\n")
+print(f"{'Variable':<25s} {'H stat':>8s} {'p-value':>10s} {'Signif':>8s}")
+print("-" * 55)
+kw_cluster_monde = {}
+for var in test_vars:
+    groups = [g[var].dropna().values for _, g in kpi_monde.groupby("cluster")]
+    groups = [g for g in groups if len(g) >= 2]
+    if len(groups) >= 2:
+        h_stat, p_val = kruskal(*groups)
+        sig = "***" if p_val < 0.001 else "**" if p_val < 0.01 else "*" if p_val < 0.05 else "ns"
+        print(f"{var:<25s} {h_stat:>8.2f} {p_val:>10.4f} {sig:>8s}")
+        kw_cluster_monde[var] = {"H": round(h_stat, 2), "p": round(p_val, 4), "sig": sig}
+```
+
+## CART — Seuils discriminants (Monde)
+
+::: {.callout-note}
+## Pourquoi un arbre de décision après le clustering ?
+
+Le clustering (Ward) identifie **quels groupes** existent. L'arbre de décision (CART) explique **pourquoi** une ville appartient à tel groupe : il identifie les **seuils de coupure** sur les variables les plus discriminantes. C'est la version interprétable et explicable des profils.
+
+**Lecture** : à chaque nœud, l'arbre teste une condition (ex : "pression > 12 ?"). Les branches gauche/droite mènent à des sous-groupes de plus en plus homogènes. Les feuilles indiquent le profil prédit.
+:::
+
+```{python}
+#| label: fig-monde-cart
+#| results: hold
+
+from sklearn.tree import DecisionTreeClassifier, export_text, plot_tree
+
+# CART : cluster labels comme cible, variables ACP comme features
+dt_monde = DecisionTreeClassifier(
+    max_depth=3,              # Limiter profondeur pour lisibilité
+    min_samples_leaf=4,       # Au moins 4 villes par feuille
+    random_state=42
+)
+dt_monde.fit(X_monde[ACP_VARS], kpi_monde["cluster"])
+
+# Importance des variables (Gini)
+importance_monde = pd.Series(
+    dt_monde.feature_importances_, index=ACP_VARS
+).sort_values(ascending=False)
+
+print("Importance des variables (Gini) — CART Monde :\n")
+for var, imp in importance_monde.items():
+    bar = "█" * int(imp * 40)
+    label = ACP_LABELS.get(var, var)
+    print(f"  {label:<25s} {imp:.3f} {bar}")
+
+# Accuracy sur données d'entraînement (indicatif)
+acc = dt_monde.score(X_monde[ACP_VARS], kpi_monde["cluster"])
+print(f"\nAccuracy (entraînement) : {acc:.1%}")
+print(f"Profondeur effective : {dt_monde.get_depth()}")
+print(f"Nombre de feuilles : {dt_monde.get_n_leaves()}")
+
+clog.result("cart_monde_accuracy", round(acc * 100, 1),
+            interpret=f"CART Monde: accuracy {acc:.1%}, profondeur {dt_monde.get_depth()}")
+clog.result("cart_monde_top_vars",
+            importance_monde.head(3).index.tolist(),
+            interpret="Top 3 variables discriminantes CART Monde")
+```
+
+```{python}
+#| label: monde-cart-text
+#| results: hold
+
+# Arbre en texte — règles de décision lisibles
+tree_text = export_text(
+    dt_monde,
+    feature_names=[ACP_LABELS.get(v, v) for v in ACP_VARS],
+    max_depth=3,
+    decimals=1
+)
+print("Règles de décision — CART Monde :\n")
+print(tree_text)
+```
+
+```{python}
+#| label: fig-monde-cart-plot
+
+# Visualisation graphique de l'arbre
+fig_tree, ax = plt.subplots(figsize=(18, 8))
+plot_tree(
+    dt_monde,
+    feature_names=[ACP_LABELS.get(v, v) for v in ACP_VARS],
+    class_names=[f"Profil {i}" for i in sorted(kpi_monde["cluster"].unique())],
+    filled=True, rounded=True, fontsize=8,
+    proportion=True,
+    ax=ax
+)
+ax.set_title(f"CART — Seuils discriminants entre {k_monde} profils ({len(kpi_monde)} villes monde)",
+             fontsize=14, fontweight="bold", pad=15)
+plt.tight_layout()
+plt.show()
+```
+
+::: {.callout-tip collapse="true"}
+## Comment lire l'arbre CART
+
+- Chaque **nœud** contient : la condition de split, le nombre d'échantillons (villes), et la distribution entre les classes (profils)
+- **Gini** = mesure d'impureté (0 = pur, 0.5 = mélange maximal). L'arbre cherche à minimiser le Gini à chaque split.
+- Les **couleurs** correspondent aux profils majoritaires dans chaque nœud
+- L'**importance Gini** d'une variable = contribution totale de cette variable à la réduction d'impureté dans l'arbre. Variable importante = très discriminante pour séparer les profils.
+- **Lire le chemin** : suivre une ville depuis la racine jusqu'à la feuille donne les conditions qui définissent son profil
+- **Limites** : l'arbre est ajusté sur les mêmes données que le clustering (pas de validation croisée) — l'accuracy est indicative, pas une mesure de généralisation
+:::
+
+```{python}
+#| label: fig-monde-cart-importance
+#| output: asis
+
+# Barplot importance des variables
+fig = go.Figure(go.Bar(
+    x=importance_monde.values,
+    y=[ACP_LABELS.get(v, v) for v in importance_monde.index],
+    orientation="h",
+    marker_color=[COL_CYAN if i < 3 else "#d2d2d2" for i in range(len(importance_monde))]
+))
+fig.update_layout(
+    title=_mod.fig_title(5.5,
+        f"Les {importance_monde.head(3).index.size} variables les plus discriminantes séparent les profils monde",
+        "Importance Gini · CART profondeur 3 · Monde"),
+    xaxis_title="Importance (Gini)",
+    height=380, margin=dict(l=200),
+    yaxis=dict(autorange="reversed"))
+fig.show()
+```
+
+---
+
+# ACP Europe — 38 marchés, 21 pays
+
+::: {.callout-note}
+## Focus européen
+
+L'ACP Europe restreint le périmètre aux 38 villes européennes pour capturer les spécificités intra-continentales (régulation, gradient nord/sud, premium nordique) que l'ACP mondiale dilue.
+:::
+
+## Standardisation
+
+```{python}
+#| label: europe-prep
+#| results: hold
+
+X_europe = kpi_europe[ACP_VARS].copy()
+scaler_europe = StandardScaler()
+X_europe_scaled = scaler_europe.fit_transform(X_europe)
+
+clog.step("ACP_EUROPE_PREP", n_villes=X_europe.shape[0], n_vars=X_europe.shape[1])
+
+print(f"ACP Europe : {X_europe.shape[0]} villes × {X_europe.shape[1]} variables actives\n")
+print(f"{'Variable':<25s} {'Moyenne':>10s} {'Écart-type':>12s} {'CV (%)':>8s}")
+print("-" * 58)
+for v in ACP_VARS:
+    m, s = X_europe[v].mean(), X_europe[v].std()
+    cv = s / m * 100 if m != 0 else float('inf')
+    print(f"{v:<25s} {m:>10.1f} {s:>12.1f} {cv:>8.0f}")
+```
+
+## Screeplot Europe
+
+```{python}
+#| label: fig-europe-screeplot
+#| output: asis
+
+pca_europe = PCA(n_components=min(len(ACP_VARS), X_europe.shape[0]))
+coords_europe = pca_europe.fit_transform(X_europe_scaled)
+
+var_exp_eu = pca_europe.explained_variance_ratio_ * 100
+cum_var_eu = np.cumsum(var_exp_eu)
+
+fig = go.Figure()
+fig.add_trace(go.Bar(x=[f"PC{i+1}" for i in range(len(var_exp_eu))],
+                     y=var_exp_eu, name="% variance",
+                     marker_color=COL_CYAN, opacity=0.7))
+fig.add_trace(go.Scatter(x=[f"PC{i+1}" for i in range(len(var_exp_eu))],
+                         y=cum_var_eu, name="% cumulé",
+                         mode="lines+markers", marker_color=COL_ORANGE,
+                         line=dict(width=2)))
+fig.add_hline(y=80, line_dash="dash", line_color="#999",
+              annotation_text="80%", annotation_position="bottom right")
+fig.update_layout(
+    title=_mod.fig_title(6, "Screeplot — Variance expliquée par composante",
+                         f"ACP sur {len(ACP_VARS)} variables × {X_europe.shape[0]} villes · Europe"),
+    xaxis_title="Composante", yaxis_title="% variance expliquée",
+    height=420, showlegend=True, legend=dict(x=0.7, y=0.5))
+fig.show()
+```
+
+```{python}
+#| label: europe-variance-summary
+#| results: hold
+
+clog.result("europe_variance_pc1_pc2", round(float(cum_var_eu[1]), 1),
+            interpret=f"PC1+PC2 = {cum_var_eu[1]:.1f}% de la variance totale (Europe)")
+n_80_eu = int(np.argmax(cum_var_eu >= 80) + 1)
+
+print(f"Variance expliquée — Europe :")
+for i in range(min(5, len(var_exp_eu))):
+    bar = "█" * int(var_exp_eu[i] / 2)
+    print(f"  PC{i+1}: {var_exp_eu[i]:5.1f}% (cumulé: {cum_var_eu[i]:5.1f}%) {bar}")
+print(f"\n→ 2 premières composantes : {cum_var_eu[1]:.1f}% de la variance")
+```
+
+## Loadings Europe
+
+```{python}
+#| label: fig-europe-loadings
+#| output: asis
+
+loadings_europe = pd.DataFrame(pca_europe.components_.T, index=ACP_VARS,
+                                columns=[f"PC{i+1}" for i in range(pca_europe.n_components_)])
+
+fig = go.Figure()
+for i, pc in enumerate(["PC1", "PC2"]):
+    vals = loadings_europe[pc].sort_values()
+    colors = [COL_CYAN if v >= 0 else COL_ORANGE for v in vals]
+    fig.add_trace(go.Bar(y=vals.index, x=vals.values, orientation="h",
+                         name=pc, marker_color=colors if i == 0 else None,
+                         visible=True if i == 0 else "legendonly"))
+fig.update_layout(
+    title=_mod.fig_title(7, "Contributions des variables — PC1 et PC2",
+                         "Loadings · Europe"),
+    xaxis_title="Loading", height=450, margin=dict(l=180),
+    barmode="group", showlegend=True)
+fig.show()
+```
+
+```{python}
+#| label: europe-loadings-table
+#| results: hold
+
+print("Loadings (PC1 à PC4) — Europe :")
+print(loadings_europe[["PC1", "PC2", "PC3", "PC4"]].round(3).to_string())
+```
+
+## Biplot Europe (PC1 × PC2, Python)
+
+```{python}
+#| label: fig-europe-biplot-py
+#| output: asis
+
+kpi_europe["PC1"] = coords_europe[:, 0]
+kpi_europe["PC2"] = coords_europe[:, 1]
+
+fig = px.scatter(kpi_europe, x="PC1", y="PC2", color="country_code",
+                 hover_name="city_fr",
+                 hover_data=["listings_1000hab", "prix_med_1br", "cr_offre_10plus"],
+                 text="city_fr")
+fig.update_traces(textposition="top center", textfont_size=8, marker_size=9)
+
+# Flèches variables
+scale_eu = max(abs(coords_europe[:, 0]).max(), abs(coords_europe[:, 1]).max()) * 0.8
+for j, var in enumerate(ACP_VARS):
+    fig.add_annotation(
+        x=loadings_europe.iloc[j, 0] * scale_eu,
+        y=loadings_europe.iloc[j, 1] * scale_eu,
+        ax=0, ay=0, xref="x", yref="y", axref="x", ayref="y",
+        showarrow=True, arrowhead=2, arrowsize=1.2, arrowwidth=1.5,
+        arrowcolor="#888")
+    fig.add_annotation(
+        x=loadings_europe.iloc[j, 0] * scale_eu * 1.12,
+        y=loadings_europe.iloc[j, 1] * scale_eu * 1.12,
+        text=ACP_LABELS.get(var, var), showarrow=False,
+        font=dict(size=9, color="#555"))
+
+fig.update_layout(
+    title=_mod.fig_title(8, f"Biplot — {len(kpi_europe)} marchés européens (PC1 × PC2)",
+                         f"PC1 ({var_exp_eu[0]:.1f}%) × PC2 ({var_exp_eu[1]:.1f}%) = {cum_var_eu[1]:.1f}% variance"),
+    height=650, width=900)
+fig.show()
+```
+
+## ACP Europe — Biplot R (FactoMineR)
+
+```{r}
+#| label: europe-acp-r-data
+#| include: false
+
+# Variables ACP enrichies (10 indicateurs)
+acp_vars_r <- c("prix_med_1br", "listings_1000hab", "pct_entire", "pct_multi",
+                "cr_offre_10plus", "dispo_med", "pct_longterm", "pct_superhost",
+                "rev_rating_med", "occupancy_est_med")
+
+# Charger KPI global et filtrer Europe (le CSV Europe séparé est obsolète)
+kpi_r <- read.csv("C:/Users/vince/hh/pq/PDS/pbnb-airbnb-log-jrr-jpy/data/interim/kpi_global_by_city_2506.csv",
+                   fileEncoding = "UTF-8")
+kpi_r <- kpi_r[kpi_r$continent == "Europe", ]
+
+df_acp <- kpi_r[, acp_vars_r]
+rownames(df_acp) <- kpi_r$city_fr
+
+# ACP FactoMineR
+pca_res <- FactoMineR::PCA(df_acp, scale.unit = TRUE, ncp = 5, graph = FALSE)
+
+# Clustering Ward sur données centrées-réduites
+df_scaled <- scale(df_acp)
+hc <- hclust(dist(df_scaled), method = "ward.D2")
+clusters <- cutree(hc, k = 4)
+kpi_r$cluster <- factor(clusters, labels = paste("Profil", 1:4))
+```
+
+```{r}
+#| label: fig-europe-screeplot-r
+#| fig-width: 8
+#| fig-height: 4
+
+plot_screeplot(pca_res, ncp = 8, title = "Éboulis des valeurs propres — 38 marchés Europe (10 vars)")
+```
+
+```{r}
+#| label: fig-europe-biplot-r
+#| fig-width: 10
+#| fig-height: 7
+
+plot_biplot(pca_res,
+            quali = kpi_r$cluster,
+            ind_labels = TRUE,
+            top_ind = 38,
+            var_filter = 0.2,
+            title = "Biplot ACP — 38 marchés européens (10 variables enrichies)")
+```
+
+::: {.figure-source}
+ACP sur 10 indicateurs centrés-réduits · Classification hiérarchique ascendante (Ward, k=4)
+:::
+
+```{r}
+#| label: fig-europe-varcircle-r
+#| fig-width: 10
+#| fig-height: 5
+
+plot_var_ind_pair(pca_res, cos2_threshold = 0.3, top_pct = 0.25)
+```
+
+## Clustering Ward Europe
+
+```{python}
+#| label: europe-clustering-ward
+#| results: hold
+
+n_pc_eu = min(4, len(var_exp_eu))
+Z_europe = linkage(coords_europe[:, :n_pc_eu], method="ward")
+
+print("Choix du nombre de clusters (silhouette) — Europe :")
+best_k_eu, best_sil_eu = 3, -1
+for k in range(3, 7):
+    labels = fcluster(Z_europe, k, criterion="maxclust")
+    sil = silhouette_score(coords_europe[:, :n_pc_eu], labels)
+    marker = " ← best" if sil > best_sil_eu else ""
+    if sil > best_sil_eu:
+        best_k_eu, best_sil_eu = k, sil
+    print(f"  k={k} : silhouette = {sil:.3f}{marker}")
+
+k_europe = best_k_eu
+kpi_europe["cluster"] = fcluster(Z_europe, k_europe, criterion="maxclust")
+clog.result("europe_clustering_k", k_europe,
+            interpret=f"k={k_europe} clusters Europe (silhouette={best_sil_eu:.3f})")
+print(f"\n→ Retenu : k={k_europe} clusters (silhouette = {best_sil_eu:.3f})")
+print(f"\nRépartition :")
+for cl in sorted(kpi_europe["cluster"].unique()):
+    cities = kpi_europe[kpi_europe["cluster"] == cl]["city_fr"].tolist()
+    print(f"  Cluster {cl} ({len(cities)} villes) : {', '.join(cities[:8])}{'...' if len(cities) > 8 else ''}")
+```
+
+## Profils par cluster — Europe
+
+```{python}
+#| label: europe-cluster-profiles
+#| results: hold
+
+profiles_europe = kpi_europe.groupby("cluster")[ACP_VARS].median().round(1)
+profiles_europe.insert(0, "n_villes", kpi_europe.groupby("cluster").size())
+
+print(f"Profils médians par cluster (k={k_europe}) — Europe :\n")
+print(profiles_europe.to_string())
+
+print("\nInterprétation :")
+for cl in sorted(profiles_europe.index):
+    p = profiles_europe.loc[cl]
+    traits = []
+    if p["prix_med_1br"] > profiles_europe["prix_med_1br"].median():
+        traits.append("prix élevés")
+    else:
+        traits.append("prix modérés")
+    if p["listings_1000hab"] > profiles_europe["listings_1000hab"].median():
+        traits.append("forte pression")
+    else:
+        traits.append("pression modérée")
+    if p["pct_longterm"] > 20:
+        traits.append("longterm important")
+    if p["pct_multi"] > profiles_europe["pct_multi"].median():
+        traits.append("professionnalisé")
+    if p["cr_offre_10plus"] > profiles_europe["cr_offre_10plus"].median():
+        traits.append("concentré")
+    if p["pct_superhost"] > profiles_europe["pct_superhost"].median():
+        traits.append("mature (superhosts)")
+    if p["rev_rating_med"] > profiles_europe["rev_rating_med"].median():
+        traits.append("bien noté")
+    print(f"  Cluster {cl} ({int(p['n_villes'])} villes) : {', '.join(traits)}")
+```
+
+```{r}
+#| label: tbl-europe-profils
+
+# Tableau profils R (reactable) — identique à synth-europe
+profils <- kpi_r %>%
+  group_by(cluster) %>%
+  summarise(
+    n_villes = n(),
+    prix_1br = round(median(prix_med_1br, na.rm = TRUE), 0),
+    pression = round(median(listings_1000hab, na.rm = TRUE), 1),
+    pct_multi = round(median(pct_multi, na.rm = TRUE), 0),
+    pct_entire = round(median(pct_entire, na.rm = TRUE), 0),
+    cr_offre10 = round(median(cr_offre_10plus, na.rm = TRUE), 1),
+    superhost = round(median(pct_superhost, na.rm = TRUE), 0),
+    rating = round(median(rev_rating_med, na.rm = TRUE), 2),
+    occup = round(median(occupancy_est_med, na.rm = TRUE), 0),
+    villes = paste(head(city_fr[order(-n_listings)], 5), collapse = ", "),
+    .groups = "drop"
+  )
+
+reactable(profils,
+  columns = list(
+    cluster = colDef(name = "Profil", width = 90),
+    n_villes = colDef(name = "N", width = 45, align = "center"),
+    prix_1br = colDef(name = "Prix 1BR €", width = 80, align = "right"),
+    pression = colDef(name = "L/1000h", width = 75, align = "right"),
+    pct_multi = colDef(name = "% multi", width = 70, align = "right",
+                       format = colFormat(suffix = " %")),
+    pct_entire = colDef(name = "% entier", width = 75, align = "right",
+                        format = colFormat(suffix = " %")),
+    cr_offre10 = colDef(name = "% offre≥10", width = 80, align = "right"),
+    superhost = colDef(name = "% super", width = 70, align = "right",
+                       format = colFormat(suffix = " %")),
+    rating = colDef(name = "Note", width = 60, align = "right"),
+    occup = colDef(name = "Occup %", width = 70, align = "right",
+                   format = colFormat(suffix = " %")),
+    villes = colDef(name = "Principales villes", minWidth = 200)
+  ),
+  defaultPageSize = 5, striped = TRUE, highlight = TRUE,
+  bordered = TRUE, compact = TRUE,
+  style = list(fontSize = "0.82rem")
+)
+```
+
+## Dendrogramme Europe
+
+```{python}
+#| label: fig-europe-dendrogramme
+
+fig_dend, ax = plt.subplots(figsize=(14, 6))
+dendrogram(Z_europe, labels=kpi_europe["city_fr"].values, leaf_rotation=90, leaf_font_size=7,
+           color_threshold=Z_europe[-(k_europe-1), 2], ax=ax)
+ax.set_title(f"Dendrogramme Ward — {len(kpi_europe)} marchés Europe (coupe k={k_europe})")
+ax.set_ylabel("Distance")
+ax.axhline(y=Z_europe[-(k_europe-1), 2], color="red", linestyle="--", alpha=0.5)
+plt.tight_layout()
+plt.show()
+```
+
+---
+
+# Tests statistiques — Europe
+
+## Kruskal-Wallis par cluster Europe
+
+```{python}
+#| label: europe-kruskal-wallis
+#| results: hold
+
+print(f"Tests de Kruskal-Wallis — Variable ~ Cluster Europe ({kpi_europe['cluster'].nunique()} groupes)\n")
+print(f"{'Variable':<25s} {'H stat':>8s} {'p-value':>10s} {'Signif':>8s}")
+print("-" * 55)
+kw_results_eu = {}
+for var in ACP_VARS:
+    groups = [g[var].dropna().values for _, g in kpi_europe.groupby("cluster")]
+    groups = [g for g in groups if len(g) >= 2]
+    if len(groups) >= 2:
+        h_stat, p_val = kruskal(*groups)
+        sig = "***" if p_val < 0.001 else "**" if p_val < 0.01 else "*" if p_val < 0.05 else "ns"
+        print(f"{var:<25s} {h_stat:>8.2f} {p_val:>10.4f} {sig:>8s}")
+        kw_results_eu[var] = {"H": round(h_stat, 2), "p": round(p_val, 4), "sig": sig}
+
+sig_eu = [v for v, r in kw_results_eu.items() if r["sig"] != "ns"]
+clog.result("kw_europe_significant", sig_eu,
+            interpret=f"{len(sig_eu)}/{len(kw_results_eu)} variables significatives entre clusters Europe")
+```
+
+## CART — Seuils discriminants (Europe)
+
+```{python}
+#| label: fig-europe-cart
+#| results: hold
+
+dt_europe = DecisionTreeClassifier(
+    max_depth=3,
+    min_samples_leaf=3,       # Seuil plus bas (38 villes)
+    random_state=42
+)
+dt_europe.fit(X_europe[ACP_VARS], kpi_europe["cluster"])
+
+importance_europe = pd.Series(
+    dt_europe.feature_importances_, index=ACP_VARS
+).sort_values(ascending=False)
+
+print("Importance des variables (Gini) — CART Europe :\n")
+for var, imp in importance_europe.items():
+    bar = "█" * int(imp * 40)
+    label = ACP_LABELS.get(var, var)
+    print(f"  {label:<25s} {imp:.3f} {bar}")
+
+acc_eu = dt_europe.score(X_europe[ACP_VARS], kpi_europe["cluster"])
+print(f"\nAccuracy (entraînement) : {acc_eu:.1%}")
+print(f"Profondeur effective : {dt_europe.get_depth()}")
+
+clog.result("cart_europe_accuracy", round(acc_eu * 100, 1),
+            interpret=f"CART Europe: accuracy {acc_eu:.1%}")
+clog.result("cart_europe_top_vars",
+            importance_europe.head(3).index.tolist(),
+            interpret="Top 3 variables discriminantes CART Europe")
+```
+
+```{python}
+#| label: europe-cart-text
+#| results: hold
+
+tree_text_eu = export_text(
+    dt_europe,
+    feature_names=[ACP_LABELS.get(v, v) for v in ACP_VARS],
+    max_depth=3,
+    decimals=1
+)
+print("Règles de décision — CART Europe :\n")
+print(tree_text_eu)
+```
+
+```{python}
+#| label: fig-europe-cart-plot
+
+fig_tree_eu, ax = plt.subplots(figsize=(18, 8))
+plot_tree(
+    dt_europe,
+    feature_names=[ACP_LABELS.get(v, v) for v in ACP_VARS],
+    class_names=[f"Profil {i}" for i in sorted(kpi_europe["cluster"].unique())],
+    filled=True, rounded=True, fontsize=8,
+    proportion=True,
+    ax=ax
+)
+ax.set_title(f"CART — Seuils discriminants entre {k_europe} profils ({len(kpi_europe)} marchés Europe)",
+             fontsize=14, fontweight="bold", pad=15)
+plt.tight_layout()
+plt.show()
+```
+
+```{python}
+#| label: fig-europe-cart-importance
+#| output: asis
+
+fig = go.Figure(go.Bar(
+    x=importance_europe.values,
+    y=[ACP_LABELS.get(v, v) for v in importance_europe.index],
+    orientation="h",
+    marker_color=[COL_CYAN if i < 3 else "#d2d2d2" for i in range(len(importance_europe))]
+))
+fig.update_layout(
+    title=_mod.fig_title(11.5,
+        f"Variables discriminantes des profils européens",
+        "Importance Gini · CART profondeur 3 · Europe"),
+    xaxis_title="Importance (Gini)",
+    height=380, margin=dict(l=200),
+    yaxis=dict(autorange="reversed"))
+fig.show()
+```
+
+---
+
+# Comparaison Monde vs Europe
+
+```{python}
+#| label: comparaison-monde-europe
+#| results: hold
+
+print("=" * 60)
+print("COMPARAISON ACP MONDE vs EUROPE")
+print("=" * 60)
+
+print(f"\n{'Indicateur':<35s} {'Monde':>12s} {'Europe':>12s}")
+print("-" * 60)
+print(f"{'Nombre de villes':<35s} {len(kpi_monde):>12d} {len(kpi_europe):>12d}")
+print(f"{'Variance PC1+PC2 (%)':<35s} {cum_var[1]:>12.1f} {cum_var_eu[1]:>12.1f}")
+print(f"{'N composantes pour 80%':<35s} {n_80:>12d} {n_80_eu:>12d}")
+print(f"{'K clusters retenu':<35s} {k_monde:>12d} {k_europe:>12d}")
+print(f"{'Silhouette':<35s} {best_sil:>12.3f} {best_sil_eu:>12.3f}")
+print(f"{'KW significatifs (clusters)':<35s} {len([v for v in kw_cluster_monde.values() if v['sig'] != 'ns']):>12d} {len(sig_eu):>12d}")
+print(f"{'KW significatifs (continent)':<35s} {len(sig_vars):>12d} {'—':>12s}")
+print(f"{'CART accuracy':<35s} {acc*100:>11.0f}% {acc_eu*100:>11.0f}%")
+
+# Top contributeurs PC1
+print(f"\nTop 3 contributeurs PC1 :")
+for scope, load in [("Monde", loadings_monde), ("Europe", loadings_europe)]:
+    top3 = load["PC1"].abs().nlargest(3)
+    print(f"  {scope}: {', '.join([f'{v} ({load.loc[v, 'PC1']:+.2f})' for v in top3.index])}")
+```
+
+---
+
+::: {.callout-tip}
+## Prochaines étapes
+
+- [x] CART : arbres de décision — seuils discriminants entre profils (Monde + Europe)
+- [ ] Phase 3 — Régressions explicatives : PIB, tourisme, régulation → indicateurs Airbnb (niveau ville)
+- [ ] Stabilité des clusters : bootstrap / leave-one-out
+- [ ] ACP sur sous-ensemble France (Paris + Bordeaux + Lyon) avec variables IRIS
+- [ ] Enrichissement : variable régulation (codage manuel 0-5) en variable illustrative
+:::
+
+::: {.callout-note collapse="true"}
+## Méthodologie
+
+**Variables actives** : 10 indicateurs centrés-réduits (z-scores) couvrant 5 dimensions : pression, prix, structure, concentration, satisfaction.
+
+**ACP** : décomposition en valeurs propres de la matrice de corrélation (sklearn PCA + FactoMineR).
+
+**Clustering** : Ward sur les 4 premières composantes principales. Choix de k par score silhouette (k ∈ {3..6}).
+
+**Pourquoi Ward sur composantes ?** Les variables ont des échelles très différentes (pression 0–55, prix 37–300, pourcentages 0–98). L'ACP apporte décorrélation (distance euclidienne cohérente), réduction de bruit (composantes mineures exclues) et interprétabilité (clusters lisibles sur le biplot).
+
+**Sources** : Inside Airbnb (sumlistings + listings.gz, juin 2025), populations ville-centre (recensements nationaux), taux de change BCE février 2026.
+
+**Limites** : snapshot unique (pas de temporalité), périmètre géographique variable entre villes, populations parfois estimées.
+:::
+
+```{python}
+#| label: clog-save
+#| include: false
+
+clog.save()
+print(f"ClaudeLog sauvegardé : {len(clog._log['steps'])} étapes → reports/outputs/")
+```

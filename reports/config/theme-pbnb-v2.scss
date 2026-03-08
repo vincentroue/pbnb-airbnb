@@ -1,0 +1,997 @@
+/*-- scss:defaults --*/
+// ============================================================
+// THEME PBNB v2 — Master consolidé Urban Institute + INSEE
+// Fusion theme-html.scss (v3.1) + theme-insee.scss → fichier unique
+// v2.0 2026-02-26
+// Usage: theme: [cosmo, config/theme-pbnb-v2.scss]
+// ============================================================
+
+// === PALETTE URBAN INSTITUTE ===
+$primary: #1696d2;
+$secondary: #5c5859;
+$success: #55b748;
+$warning: #fdbf11;
+$danger: #db2b27;
+
+$cyan-dark: #0a4c6a;
+$cyan-light: #73bfe2;
+$gray-light: #d2d2d2;
+$gray-lighter: #f8f9fa;
+
+// === TEXTE ET FOND ===
+$body-color: #333333;
+$body-bg: #ffffff;
+$headings-color: #1a5276;
+
+// === LIENS ===
+$link-color: $primary;
+$link-hover-color: $cyan-dark;
+
+// === TYPOGRAPHIE ===
+$font-family-sans-serif: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+$font-family-monospace: "Fira Code", "JetBrains Mono", Consolas, monospace;
+$headings-font-weight: 600;
+$font-size-base: 0.94rem;
+
+// === CODE BLOCKS ===
+$code-bg: $gray-lighter;
+$code-color: $danger;
+
+/*-- scss:rules --*/
+
+// Empêcher scrollbar horizontal des éléments pleine largeur
+body {
+  overflow-x: clip;
+}
+
+// Justification texte corps de rapport
+#quarto-document-content p {
+  text-align: justify;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+}
+
+// ============================================================
+// S1 — ESPACEMENTS TITRES
+// ============================================================
+
+h1 {
+  margin-top: 2.5rem;
+  margin-bottom: 1rem;
+  font-size: 1.8rem;
+}
+h2 {
+  margin-top: 2.5rem;
+  margin-bottom: 0.8rem;
+  font-size: 1.4rem;
+  color: #1a5276;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid $gray-light;
+}
+h3 {
+  margin-top: 1.8rem;
+  margin-bottom: 0.5rem;
+  font-size: 1.15rem;
+  color: #333;
+  font-weight: 600;
+  border-left: 3px solid rgba($primary, 0.4);
+  padding-left: 0.6rem;
+  margin-left: -1rem;
+}
+h4 {
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 1rem;
+}
+
+// Premier H2 après title-block : pas de marge excessive
+.quarto-title + section > h2:first-child,
+#quarto-content > section:first-child > h2:first-child {
+  margin-top: 1rem;
+}
+
+// ============================================================
+// S2 — TITLE BLOCK (sans banner, dans le flux body)
+// ============================================================
+
+#title-block-header {
+  position: relative;
+  padding: 0.8rem 0 1.2rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid #e5e5e5;
+  display: flex;
+  flex-direction: column;
+}
+// Fond gris qui ne déborde PAS dans le sidebar (toc-location: left)
+#title-block-header::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -2rem;
+  right: -100vw;
+  background: linear-gradient(135deg, rgba(#777, 0.14) 0%, rgba(#bbb, 0.07) 100%);
+  border-bottom: 1px solid #e5e5e5;
+  z-index: -1;
+}
+
+// Barre sous titre supprimée (v2.1)
+
+#title-block-header h1.title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  line-height: 1.2;
+  margin-bottom: 0.3rem;
+}
+
+#title-block-header p.subtitle {
+  font-size: 1rem;
+  color: $secondary;
+  font-weight: 400;
+  margin-bottom: 0.8rem;
+}
+
+#title-block-header .quarto-title {
+  order: 1;
+  display: flex;
+  flex-direction: column;
+}
+#title-block-header .quarto-title .quarto-categories {
+  order: -1;
+  margin-bottom: 0.4rem;
+}
+#title-block-header > div:last-of-type {
+  order: 2;
+}
+#title-block-header .quarto-title-meta {
+  order: 3;
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.3rem;
+  margin-bottom: 0;
+}
+
+#title-block-header .quarto-title-meta-heading {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+#title-block-header .quarto-title-meta-contents {
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #888;
+}
+#title-block-header .quarto-title-meta-contents p {
+  margin: 0;
+}
+
+#title-block-header .abstract {
+  font-size: 0.96rem;
+  color: #444;
+  line-height: 1.6;
+  margin-top: 0.3rem;
+  margin-bottom: 0.5rem;
+  max-width: 900px;
+}
+#title-block-header .abstract .abstract-title,
+#title-block-header .abstract .block-title {
+  display: none;
+}
+
+.source-filename {
+  display: none;
+}
+
+// ============================================================
+// S3 — BADGES TYPE DOCUMENT
+// ============================================================
+
+#title-block-header .quarto-categories {
+  margin-bottom: 0.6rem;
+  padding: 0;
+  display: flex;
+  gap: 6px;
+}
+
+#title-block-header .quarto-category {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 3px 10px;
+  border-radius: 3px;
+  text-decoration: none;
+  cursor: default;
+  background: $cyan-dark;
+  color: #fff;
+  border: none;
+}
+
+// ============================================================
+// S4 — LAYOUT BODY + GRID
+// ============================================================
+
+#quarto-document-content {
+  padding: 0 1rem 0 2rem;
+}
+
+#quarto-document-content img {
+  max-width: 100%;
+  height: auto;
+}
+
+.column-body-outset,
+.page-columns .column-body-outset {
+  grid-column: body-start-outset / body-end-outset !important;
+}
+
+.column-page,
+.page-columns .column-page {
+  grid-column: body-content-start / page-end !important;
+}
+
+// ============================================================
+// S5 — WIDGETS PLOTLY / HTML
+// ============================================================
+
+// Widgets pleine largeur body
+.cell-output-display .html-widget {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.plotly,
+.js-plotly-plot {
+  width: 100% !important;
+  max-width: none !important;
+}
+
+// Plotly — fond blanc forcé (override template plotly.js)
+.js-plotly-plot .plotly .main-svg .bglayer rect {
+  fill: #ffffff !important;
+}
+
+// ============================================================
+// S6 — GREY SECTIONS + HIGHLIGHT
+// ============================================================
+
+.grey-section {
+  background-color: #f8f9fa;
+  padding: 1.5rem 2rem;
+  margin: 1.5rem -1rem;
+  border-radius: 6px;
+}
+
+.highlight-section {
+  background-color: rgba($primary, 0.05);
+  border-left: 4px solid $primary;
+  padding: 1.5rem;
+  margin: 1.5rem 0;
+}
+
+// ============================================================
+// S7 — SÉPARATEURS
+// ============================================================
+
+// Short HR — Trait court bleu centré (style Le Monde / INSEE Première)
+main hr {
+  border: none;
+  height: 2px;
+  background-color: $primary;
+  margin: 2.5rem auto;
+  max-width: 120px;
+}
+hr.thick {
+  height: 2px;
+  background: linear-gradient(to right, transparent, $primary, transparent);
+}
+
+// ============================================================
+// S8 — BLOCKQUOTES + CALLOUTS
+// ============================================================
+
+blockquote {
+  border-left: 4px solid $primary;
+  padding-left: 1rem;
+  margin-left: 0;
+  color: $secondary;
+  font-style: italic;
+}
+
+div.callout.callout {
+  border: none;
+  padding: 0.6em 1em;
+  border-left: 4px solid;
+  border-radius: 0;
+}
+.callout-note {
+  border-left-color: $primary;
+  background-color: rgba($primary, 0.05);
+}
+.callout-tip {
+  border-left-color: $success;
+  background-color: rgba($success, 0.05);
+}
+.callout-warning {
+  border-left-color: $warning;
+  background-color: rgba($warning, 0.05);
+}
+.callout-important, .callout-caution {
+  border-left-color: $danger;
+  background-color: rgba($danger, 0.05);
+}
+
+// ============================================================
+// S9 — CODE
+// ============================================================
+
+code {
+  background-color: $gray-lighter;
+  padding: 0.15em 0.4em;
+  border-radius: 3px;
+  color: $danger;
+  font-size: 0.9em;
+}
+
+pre.sourceCode {
+  border-left: 3px solid $primary;
+  padding-left: 1rem;
+  background-color: $gray-lighter;
+  border-radius: 0 4px 4px 0;
+}
+
+.code-fold summary {
+  color: $secondary;
+  font-size: 0.85em;
+}
+
+// ============================================================
+// S10 — TABLES + REACTABLE
+// ============================================================
+
+.table {
+  --bs-table-striped-bg: rgba($primary, 0.03);
+  font-size: 0.9rem;
+}
+
+.reactable {
+  width: 100% !important;
+  font-size: 0.9rem;
+}
+
+table.dataTable tbody td {
+  padding: 6px 10px;
+  font-size: 0.85rem;
+}
+table.dataTable thead th {
+  background-color: $gray-lighter;
+  border-bottom: 2px solid $primary;
+}
+
+// Reactable — Sticky colonnes 1-2 (rang + ville)
+.rt-table .rt-td:nth-child(1),
+.rt-table .rt-th:nth-child(1),
+.rt-table .rt-td:nth-child(2),
+.rt-table .rt-th:nth-child(2) {
+  position: sticky !important;
+  z-index: 1;
+  background: white;
+}
+.rt-table .rt-td:nth-child(1),
+.rt-table .rt-th:nth-child(1) {
+  left: 0;
+}
+.rt-table .rt-td:nth-child(2),
+.rt-table .rt-th:nth-child(2) {
+  left: 50px;
+  border-right: 1px solid #eee;
+}
+// Scrollbar reactable discret
+.rt-table {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+.rt-table:hover {
+  scrollbar-color: #ccc transparent;
+}
+
+// ============================================================
+// S11 — TOC GAUCHE (sidebar)
+// ============================================================
+
+#quarto-sidebar {
+  position: sticky;
+  top: 60px;
+  max-height: calc(100vh - 70px);
+  overflow-y: auto;
+  font-size: 0.82em;
+  padding: 0.5rem 0.8rem 1rem 0.5rem;
+  background-color: #ffffff;
+  z-index: 10;
+}
+
+nav[role="doc-toc"] {
+  border-top: 2px solid $primary;
+  margin-top: 0.6rem;
+  padding-top: 0.5rem;
+}
+
+nav[role="doc-toc"] > h2,
+nav[role="doc-toc"] > .sidebar-title {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #bbb;
+  margin-bottom: 0.5rem;
+}
+
+nav[role="doc-toc"] a,
+nav[role="doc-toc"] .nav-link {
+  font-size: 0.85em;
+  line-height: 1.4;
+  color: #555;
+  font-weight: 400;
+  text-decoration: none;
+  padding: 0.3rem 0.5rem;
+  display: block;
+  border-left: 3px solid transparent;
+  transition: all 0.15s ease;
+}
+
+nav[role="doc-toc"] a:hover,
+nav[role="doc-toc"] .nav-link:hover {
+  color: $primary;
+  background-color: rgba($primary, 0.03);
+}
+
+nav[role="doc-toc"] a.active,
+nav[role="doc-toc"] .nav-link.active {
+  color: $primary !important;
+  font-weight: 600;
+  border-left: 3px solid $primary;
+  background-color: rgba($primary, 0.08);
+}
+
+#quarto-margin-sidebar {
+  font-size: 0.82em;
+  padding: 0.3rem 0.5rem;
+}
+
+// ============================================================
+// S12 — FIGURES + IMAGES
+// ============================================================
+
+figure {
+  margin: 1.5rem 0;
+}
+figcaption {
+  color: $secondary;
+  font-size: 0.85rem;
+  font-style: normal;
+  font-weight: 500;
+  margin-top: 0.5rem;
+}
+
+.table-caption, caption {
+  color: $secondary;
+  font-size: 0.85rem;
+  font-style: normal;
+  font-weight: 500;
+  caption-side: top;
+  padding: 0.4rem 0;
+}
+.quarto-figure-center > figure > img {
+  display: block;
+  margin: 0 auto;
+}
+
+// Figure source / note sous graphiques (INSEE)
+.figure-source {
+  font-size: 0.78rem;
+  color: #888;
+  font-style: italic;
+  text-align: right;
+  margin-top: 0.3rem;
+  margin-bottom: 1rem;
+}
+
+.figure-note {
+  font-size: 0.78rem;
+  color: #666;
+  margin-top: 0.3rem;
+  padding-left: 0;
+}
+
+// Titre figure autoporté
+.figure-title {
+  font-size: 1em;
+  font-weight: 600;
+  color: $secondary;
+  margin-bottom: 0.2rem;
+}
+
+// Méta figure (source, période)
+.figure-meta {
+  font-size: 0.78rem;
+  color: #888;
+  margin-bottom: 0.5rem;
+}
+
+// ============================================================
+// S13 — TABSETS
+// ============================================================
+
+.panel-tabset .nav-tabs {
+  border-bottom: 2px solid $gray-light;
+  gap: 0.25rem;
+}
+.panel-tabset .nav-link {
+  color: $secondary;
+  border: none;
+  padding: 0.5rem 1.2rem;
+  font-weight: 500;
+  font-size: 0.9rem;
+  border-radius: 4px 4px 0 0;
+  background: $gray-lighter;
+  transition: all 0.15s ease;
+}
+.panel-tabset .nav-link.active {
+  color: $primary;
+  font-weight: 600;
+  border-bottom: 3px solid $primary;
+  background: white;
+}
+.panel-tabset .nav-link:hover:not(.active) {
+  color: $primary;
+  background: rgba($primary, 0.06);
+}
+.panel-tabset .tab-content {
+  margin-right: -1.5rem;
+  padding-right: 1.5rem;
+}
+
+// ============================================================
+// S14 — CHAPEAU — Lead paragraph (version INSEE)
+// ============================================================
+// Border-left + fond léger, supporte puces (ul/li) et prose courte
+
+.chapeau {
+  font-size: 0.92em;
+  font-weight: 400;
+  color: #333;
+  line-height: 1.55;
+  margin-bottom: 1.5rem;
+  padding: 0.8rem 1.2rem;
+  border-left: 4px solid #1a5276;
+  border-bottom: none;
+  background: rgba(22, 150, 210, 0.04);
+  border-radius: 0 4px 4px 0;
+}
+.chapeau ul {
+  margin: 0.3rem 0 0;
+  padding-left: 1.2em;
+}
+.chapeau li {
+  margin-bottom: 0.2em;
+}
+
+// ============================================================
+// S15 — TEXTE 2 COLONNES (INSEE)
+// ============================================================
+
+.col-text {
+  column-count: 2;
+  column-gap: 2.5rem;
+  column-rule: 1px solid #e0e0e0;
+  text-align: justify;
+  hyphens: auto;
+  margin-bottom: 0.5rem;
+}
+
+.col-text p {
+  margin-bottom: 0.85em;
+  orphans: 3;
+  widows: 3;
+}
+
+.col-text strong {
+  color: #333;
+}
+
+// Figure break — Graph pleine largeur cassant les colonnes
+.figure-break {
+  column-span: all;
+  margin: 1.8rem 0 1.2rem;
+  padding: 0;
+}
+
+.figure-break .cell-output-display {
+  margin: 0;
+}
+
+// ============================================================
+// S16 — ENCADRÉS (INSEE)
+// ============================================================
+
+.encadre {
+  background: #f8f9fa;
+  border: 1px solid #d2d2d2;
+  padding: 1.2rem 1.5rem;
+  margin: 1.2rem 0;
+  border-radius: 3px;
+  break-inside: avoid;
+  font-size: 0.92em;
+}
+
+.encadre p:last-child {
+  margin-bottom: 0;
+}
+
+.encadre-titre {
+  font-weight: 600;
+  color: $cyan-dark;
+  font-size: 0.95em;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.encadre-accent {
+  background: rgba($primary, 0.04);
+  border: 1px solid rgba($primary, 0.2);
+  border-left: 4px solid $primary;
+  padding: 1.2rem 1.5rem;
+  margin: 1.2rem 0;
+  border-radius: 0 3px 3px 0;
+  break-inside: avoid;
+  font-size: 0.92em;
+}
+
+// ============================================================
+// S17 — KPI CARDS + STRIPE (INSEE)
+// ============================================================
+
+// KPI Card Grid — Infographie chiffres clés (auto-fit responsive)
+.kpi-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0 2rem;
+}
+
+.kpi-card {
+  background: white;
+  border-left: 4px solid $primary;
+  padding: 1.2rem 1.5rem;
+  border-radius: 0 6px 6px 0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+.kpi-card .kpi-value {
+  font-size: 2em;
+  font-weight: 700;
+  color: $cyan-dark;
+  line-height: 1.1;
+}
+
+.kpi-card .kpi-label {
+  font-size: 0.88em;
+  color: $secondary;
+  margin-top: 0.3em;
+  font-weight: 500;
+}
+
+.kpi-card .kpi-context {
+  font-size: 0.78em;
+  color: #999;
+  margin-top: 0.4em;
+  font-style: italic;
+}
+
+.kpi-card .kpi-trend {
+  font-size: 0.8rem;
+  color: #888;
+  margin-top: 0.15rem;
+}
+
+// Accent variants
+.kpi-card.accent-orange {
+  border-left-color: #ca5800;
+}
+.kpi-card.accent-orange .kpi-value {
+  color: #ca5800;
+}
+
+.kpi-card.accent-green {
+  border-left-color: $success;
+}
+.kpi-card.accent-green .kpi-value {
+  color: $success;
+}
+
+.kpi-card.accent-magenta {
+  border-left-color: #ec008b;
+}
+.kpi-card.accent-magenta .kpi-value {
+  color: #ec008b;
+}
+
+// KPI Grid — Layout fixe 2 colonnes (ptod style)
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.2rem;
+  margin: 1.5rem 0;
+}
+
+// KPI Stripe — Bandeau horizontal (INSEE)
+.kpi-stripe {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  background: linear-gradient(135deg, $cyan-dark 0%, $primary 100%);
+  color: white;
+  padding: 1.2rem 2rem;
+  margin: 1.5rem 0 2rem;
+  border-radius: 4px;
+}
+
+.kpi-stripe .kpi-item {
+  text-align: center;
+  flex: 1;
+}
+
+.kpi-stripe .kpi-number {
+  font-size: 1.8em;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.kpi-stripe .kpi-desc {
+  font-size: 0.78em;
+  opacity: 0.85;
+  margin-top: 0.2rem;
+}
+
+// KPI Strip horizontal (ptod style — border-left)
+.kpi-strip {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  margin: 1rem 0 1.5rem;
+  padding: 0.8rem 1rem;
+  background: $gray-lighter;
+  border-radius: 4px;
+  border-left: 4px solid $primary;
+}
+.kpi-strip .kpi-item {
+  display: flex;
+  flex-direction: column;
+  min-width: 120px;
+}
+.kpi-strip .kpi-value {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: $primary;
+  line-height: 1.1;
+}
+.kpi-strip .kpi-label {
+  font-size: 0.78rem;
+  color: #888;
+  margin-top: 0.15rem;
+}
+
+// Cell output R/Python
+.cell-output-display {
+  margin: 0.3rem 0 1.2rem;
+}
+
+// Source données
+.source-note {
+  font-size: 0.78rem;
+  color: #888;
+  border-top: 1px solid #ddd;
+  padding-top: 0.4rem;
+  margin-top: 1.5rem;
+}
+
+// ============================================================
+// S18 — UTILITAIRES
+// ============================================================
+
+.fig-panel-title {
+  font-size: 1.05em;
+  font-weight: 600;
+  color: $secondary;
+  margin-bottom: 0.3rem;
+}
+
+.note-lecture {
+  font-size: 0.82em;
+  font-style: italic;
+  color: #666;
+  margin-top: 0.5rem;
+  margin-bottom: 0.8rem;
+  padding: 4px 0 4px 10px;
+  border-left: 3px solid #ddd;
+}
+
+// Insight — phrase-clé chiffrée sous H3
+.insight {
+  color: #1a5276;
+  font-weight: 600;
+  font-size: 1.02em;
+  line-height: 1.5;
+}
+p:has(> .insight) {
+  margin-top: 1.2em;
+  margin-bottom: 1em;
+  padding: 0.3em 0;
+}
+
+// Intertitre — H3 style rapport INSEE (pas italique)
+.rapport-body h3 {
+  font-style: normal;
+  font-weight: 600;
+  color: $cyan-dark;
+  font-size: 1.1rem;
+  margin-top: 2rem;
+  margin-bottom: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  border-bottom: none;
+}
+
+// Chiffres clés inline
+.chiffre-cle {
+  font-weight: 700;
+  color: $primary;
+  font-size: 1.15em;
+}
+
+.chiffre-orange {
+  font-weight: 700;
+  color: #ca5800;
+  font-size: 1.15em;
+}
+
+// Numéro publication
+.pub-number {
+  font-size: 0.85em;
+  color: #888;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.small-text, .source-text {
+  font-size: 0.8rem;
+  color: $secondary;
+}
+.center { text-align: center; }
+
+.highlight {
+  background-color: rgba($warning, 0.2);
+  padding: 0.1em 0.3em;
+  border-radius: 2px;
+}
+
+.badge-urban {
+  background-color: $primary;
+  color: white;
+  padding: 0.2em 0.6em;
+  border-radius: 3px;
+  font-size: 0.8em;
+}
+
+// ============================================================
+// S19 — POUR EN SAVOIR PLUS (INSEE)
+// ============================================================
+
+.pour-en-savoir-plus {
+  border-top: 2px solid $primary;
+  padding-top: 1rem;
+  margin-top: 2.5rem;
+  font-size: 0.9em;
+}
+
+.pour-en-savoir-plus h3 {
+  color: $cyan-dark !important;
+  font-style: normal !important;
+  font-weight: 600 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-size: 1rem !important;
+  margin-top: 0 !important;
+}
+
+.pour-en-savoir-plus ul {
+  list-style: none;
+  padding-left: 0;
+}
+
+.pour-en-savoir-plus li {
+  padding: 0.3rem 0;
+  border-bottom: 1px solid #eee;
+}
+
+.pour-en-savoir-plus li:last-child {
+  border-bottom: none;
+}
+
+// ============================================================
+// S20 — LARGEUR ÉTENDUE
+// ============================================================
+
+.full-width {
+  width: 100vw;
+  margin-left: calc(-50vw + 50%);
+  padding: 1rem 2rem;
+}
+
+.wide {
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.corr-matrix {
+  overflow-x: auto;
+  font-size: 0.85rem;
+}
+
+// ============================================================
+// S21 — RESPONSIVE
+// ============================================================
+
+@media (max-width: 768px) {
+  .col-text {
+    column-count: 1;
+  }
+  .kpi-stripe {
+    flex-direction: column;
+    gap: 0.8rem;
+  }
+}
+
+// ============================================================
+// S22 — PRINT
+// ============================================================
+
+@media print {
+  .full-width, .wide {
+    width: 100%;
+    margin-left: 0;
+  }
+  #quarto-margin-sidebar {
+    display: none;
+  }
+  .column-margin {
+    display: none;
+  }
+  .kpi-strip, .kpi-stripe {
+    break-inside: avoid;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .col-text {
+    column-count: 2;
+    column-gap: 2rem;
+  }
+  .panel-tabset > .tab-content > .tab-pane {
+    display: block !important;
+  }
+  h2, h3 {
+    page-break-after: avoid;
+  }
+  figure {
+    page-break-inside: avoid;
+  }
+}

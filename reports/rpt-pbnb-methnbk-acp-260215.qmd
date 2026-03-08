@@ -1,6 +1,6 @@
 ---
 title: "Méthodologie — Pipeline ETL et indicateurs"
-subtitle: "Annexe technique · Inside Airbnb juin 2025 · 64 villes"
+subtitle: "Annexe technique · Inside Airbnb juin 2025 · 75 villes"
 author: "Vincent R."
 date: today
 date-format: "DD MMMM YYYY"
@@ -8,7 +8,7 @@ categories: ["Annexe méthodologique"]
 number-sections: false
 format:
   html:
-    theme: [cosmo, config/theme-html.scss]
+    theme: [cosmo, config/theme-pbnb-v2.scss]
     toc: true
     toc-location: left
     toc-depth: 3
@@ -22,6 +22,8 @@ execute:
   warning: false
   message: false
 ---
+
+<!-- Fichier : rpt-pbnb-methnbk-acp-260215.qmd | Type : METHNBK | Scope : Annexe méthodologique -->
 
 <!-- Notebook méthodologique (rpt-pbnb-methnbk-acp-260215)
      Type : METHNBK (code visible, annexe technique)
@@ -252,7 +254,7 @@ kpi_defs = pd.DataFrame([
     ("Disponibilité", "dispo_moy", "Disponibilité moyenne", "Mean(availability_365)"),
     ("Activité", "reviews_med", "Reviews médian par listing", "Median(number_of_reviews)"),
     ("Activité", "rpm_med", "Reviews/mois médian", "Median(reviews_per_month)"),
-    ("Concentration", "pct_hosts_50pct", "% hôtes détenant 50% de l'offre", "Lorenz-based"),
+    ("Concentration", "cr_hosts_50pct", "% hôtes détenant 50% de l'offre", "Lorenz-based"),
 ], columns=["Catégorie", "Variable", "Description", "Formule"])
 
 print(f"25 indicateurs en 7 catégories :\n")
@@ -335,7 +337,7 @@ print(f"\n{len(fx)} devises converties. Pays EUR : pas de conversion.")
 
 acp_vars = ["listings_1000hab", "entire_1000hsg", "prix_med", "prix_iqr",
             "pct_entire", "pct_multi", "pct_longterm", "ratio_lh",
-            "pct_hosts_50pct", "dispo_med", "reviews_med", "rpm_med"]
+            "cr_hosts_50pct", "dispo_med", "reviews_med", "rpm_med"]
 
 print(f"ACP sur {len(acp_vars)} variables actives :\n")
 print("Variables retenues (ratios et pourcentages normalisés) :")

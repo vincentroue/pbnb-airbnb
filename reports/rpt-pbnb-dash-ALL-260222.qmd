@@ -28,33 +28,73 @@ include-in-header:
       .navbar .navbar-title, .navbar-brand { font-weight:700 !important; }
       h2.anchored { margin-top:0 !important; padding-top:0 !important; }
 
-      /* Scatter container */
-      .scatter-wrap { position:relative; width:100%; height:100%; overflow:hidden; }
-      .scatter-wrap svg { width:100%; height:100%; }
-      .scatter-ctrl {
-        display:flex; gap:10px; align-items:center; flex-wrap:wrap;
-        padding:6px 10px; background:#f8f9fa; border-bottom:1px solid #e5e7eb; font-size:12px;
+      /* Row 1 — KPI + Top hosts grid */
+      .kpi-grid { display:grid; grid-template-columns:3.5fr 0.8fr; gap:0; height:100%; }
+      .kpi-panel { display:flex; flex-direction:column; background:white; border:1px solid #e5e7eb; }
+      .kpi-header {
+        background:#0d6a5e; color:white; padding:6px 16px; font-size:12px;
+        display:flex; justify-content:space-between; align-items:center;
       }
-      .scatter-ctrl select { font-size:11px; padding:3px 6px; border:1px solid #94a3b8; border-radius:3px; }
-      .scatter-ctrl label { font-weight:600; color:#0d6a5e; font-size:11px; }
+      .kpi-blocs { display:flex; flex:1; min-height:0; }
+      .kpi-bloc { flex:1; padding:10px 14px; border-right:1px solid #e5e7eb; overflow-y:auto; }
+      .kpi-bloc:last-child { border-right:none; }
+      .kpi-bloc-title {
+        font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;
+        padding-bottom:4px; margin-bottom:6px; border-bottom:2px solid;
+      }
+      .kpi-item { margin-bottom:8px; }
+      .kpi-item .kv { font-size:20px; font-weight:800; display:inline; }
+      .kpi-item .kl { font-size:12px; color:#374151; display:inline; margin-left:6px; }
+      .kpi-item .kt { font-size:8.5px; color:#475569; margin-top:2px; line-height:1.3; }
+      .kpi-item .kt .u { color:#0d6a5e; } .kpi-item .kt .d { color:#ca5800; }
+      .kpi-narr { margin-bottom:8px; font-size:11px; line-height:1.4; color:#374151; }
+      .kpi-narr strong { font-size:13px; font-weight:800; }
+      .hosts-panel {
+        background:#f8f9fa; border:1px solid #e5e7eb; border-left:none;
+        display:flex; flex-direction:column; overflow:hidden;
+      }
+      .hosts-panel .hosts-hd {
+        font-size:11px; font-weight:700; color:#374151; padding:6px 12px;
+        background:#e5e7eb; border-bottom:1px solid #d1d5db;
+      }
+      .hosts-panel .hosts-scroll { overflow-y:auto; flex:1; }
+      .hosts-panel table { width:100%; border-collapse:collapse; font-size:10px; }
+      .hosts-panel th {
+        position:sticky; top:0; background:#e5e7eb; padding:3px 6px;
+        text-align:left; font-size:9px; font-weight:600; color:#374151;
+      }
+      .hosts-panel td { padding:2px 6px; border-bottom:1px solid #f1f5f9; }
 
-      /* World map */
-      .world-map-wrap { position:relative; height:100%; min-height:460px; }
-      .world-map-wrap .maplibregl-map { position:absolute; top:0; left:0; right:0; bottom:0; }
-      .world-map-ctrl {
-        position:absolute; top:8px; left:8px; z-index:5;
-        background:rgba(255,255,255,0.95); border-radius:6px;
-        padding:8px 12px; font-size:12px; box-shadow:0 1px 4px rgba(0,0,0,0.18);
-        display:flex; flex-direction:column; gap:5px; max-width:220px;
-        border:1px solid #d1d5db;
+      /* Row 2 — Maps + Scatter grid */
+      .r1-grid {
+        display:grid; grid-template-columns:25fr 40fr 35fr; grid-template-rows:auto 1fr;
+        gap:2px; height:100%; min-height:460px; background:#d1d5db;
       }
-      .world-map-ctrl select { width:100%; font-size:11px; padding:3px 4px; border:1px solid #94a3b8; border-radius:3px; }
-      .world-map-ctrl .mt { font-weight:700; font-size:11px; color:#0d6a5e; }
-      .bubble-legend {
-        position:absolute; bottom:12px; left:8px; z-index:5;
-        background:rgba(255,255,255,0.93); border-radius:4px;
-        padding:6px 10px; font-size:10px; box-shadow:0 1px 2px rgba(0,0,0,0.1);
+      .r1-ctrl {
+        background:white; padding:6px 12px;
+        display:flex; align-items:center; gap:12px; font-size:11px;
       }
+      .r1-ctrl select { font-size:11px; padding:3px 6px; border:1px solid #94a3b8; border-radius:3px; }
+      .r1-ctrl label { font-weight:600; color:#0d6a5e; font-size:11px; }
+      .r1-cell { position:relative; background:#e8e8e8; overflow:hidden; }
+      .r1-cell .cell-lbl {
+        position:absolute; top:4px; left:4px; z-index:5;
+        background:rgba(255,255,255,0.88); padding:2px 8px; font-size:10px;
+        font-weight:600; color:#0d6a5e; border-radius:3px; box-shadow:0 1px 2px rgba(0,0,0,0.1);
+      }
+
+      /* Scatter zoom controls */
+      .scatter-zoom-ctrl {
+        position:absolute; top:8px; right:8px; z-index:10;
+        display:flex; flex-direction:column; gap:2px;
+      }
+      .sz-btn {
+        width:26px; height:26px; border:1px solid #94a3b8; border-radius:3px;
+        background:white; cursor:pointer; font-size:14px; font-weight:700;
+        color:#374151; display:flex; align-items:center; justify-content:center;
+        box-shadow:0 1px 2px rgba(0,0,0,0.1);
+      }
+      .sz-btn:hover { background:#f1f5f9; }
 
       /* Main layout tweaks */
       .card-body { justify-content:flex-start !important; align-items:flex-start !important; padding-top:4px !important; }
@@ -115,7 +155,16 @@ rk_multi <- make_ranking(kpi, "pct_multi")
 rk_note <- make_ranking(kpi, "rev_rating_med")
 cr10_global <- round(weighted.mean(kpi$cr_top10_pct, kpi$n_listings, na.rm = TRUE), 1)
 
-# Top 20 hosts globaux (depuis parquet sumlistings)
+# Nouveaux agrégats
+n_hosts_total <- sum(kpi$n_hosts, na.rm = TRUE)
+revenue_med_global <- round(median(kpi$revenue_est_med, na.rm = TRUE), 0)
+dispo_med_global <- round(median(kpi$dispo_med, na.rm = TRUE), 0)
+cr_hosts_50pct_global <- round(weighted.mean(kpi$cr_hosts_50pct, kpi$n_listings, na.rm = TRUE), 1)
+cr_host_10plus_global <- round(weighted.mean(kpi$cr_host_10plus, kpi$n_listings, na.rm = TRUE), 1)
+cr_offre_10plus_global <- round(weighted.mean(kpi$cr_offre_10plus, kpi$n_listings, na.rm = TRUE), 1)
+cr_offre_5plus_global <- round(weighted.mean(kpi$cr_offre_5plus, kpi$n_listings, na.rm = TRUE), 1)
+
+# Top 10 hosts globaux (depuis parquet sumlistings)
 top_hosts <- tryCatch({
   df_sum <- arrow::read_parquet(
     "C:/Users/vince/hh/pq/PDS/pbnb-airbnb-log-jrr-jpy/data/interim/dbsumlistings_2506_cons_global.parquet",
@@ -128,7 +177,7 @@ top_hosts <- tryCatch({
       n_cities = n_distinct(city),
       .by = host_id) |>
     arrange(desc(n_listings)) |>
-    head(20) |>
+    head(10) |>
     mutate(pct_offre = round(n_listings / total_global * 100, 2))
   h
 }, error = function(e) { data.frame() })
@@ -145,6 +194,13 @@ ojs_define(pct_entire_global = pct_entire_global)
 ojs_define(density_med_global = density_med_global)
 ojs_define(rating_med_global = rating_med_global)
 ojs_define(cr10_global = cr10_global)
+ojs_define(n_hosts_total = n_hosts_total)
+ojs_define(revenue_med_global = revenue_med_global)
+ojs_define(dispo_med_global = dispo_med_global)
+ojs_define(cr_hosts_50pct_global = cr_hosts_50pct_global)
+ojs_define(cr_host_10plus_global = cr_host_10plus_global)
+ojs_define(cr_offre_10plus_global = cr_offre_10plus_global)
+ojs_define(cr_offre_5plus_global = cr_offre_5plus_global)
 ojs_define(rk_prix_top = rk_prix$top)
 ojs_define(rk_prix_bot = rk_prix$bot)
 ojs_define(rk_density_top = rk_density$top)
@@ -156,168 +212,313 @@ ojs_define(rk_note_bot = rk_note$bot)
 ojs_define(top_hosts_data = top_hosts)
 ```
 
-## Row {height="220px"}
+## Row {height="280px"}
 
-### Column {width="60%"}
-
-```{ojs}
-//| label: header-kpi
-{
-  // Rankings helpers
-  const fmtRk = (rows, unit, dec) => transpose(rows).map((r,i) => {
-    const v = dec ? (+r.val).toFixed(dec) : Math.round(+r.val).toLocaleString("fr-FR");
-    return `<span style="font-weight:600;">${r.city_fr}</span> <span style="color:#94a3b8;font-size:9px;">${v}${unit}</span>`;
-  }).join(" · ");
-
-  const d = document.createElement("div");
-  d.innerHTML = `
-    <div class="top-block-header" style="display:flex;justify-content:space-between;align-items:center;">
-      <span>Airbnb dans le monde \u00b7 ${total_cities} villes \u00b7 ${total_countries} pays \u00b7 ${total_continents} continents</span>
-      <span style="font-size:10px;opacity:0.7;">Source : Inside Airbnb, juin 2025</span>
-    </div>
-    <div style="padding:10px 14px;background:#f8f9fa;">
-    <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:baseline;">
-      <span><span style="font-size:28px;font-weight:800;color:#0d6a5e;">${Math.round(total_listings).toLocaleString("fr-FR")}</span> <span style="font-size:12px;color:#475569;">annonces</span></span>
-      <span><span style="font-size:28px;font-weight:800;color:#ca5800;">${prix_med_global}\u00a0\u20ac</span> <span style="font-size:12px;color:#475569;">prix m\u00e9d./nuit (entier)</span></span>
-      <span><span style="font-size:28px;font-weight:800;color:#0d6a5e;">${pct_entire_global}%</span> <span style="font-size:12px;color:#475569;">logements entiers</span></span>
-      <span><span style="font-size:28px;font-weight:800;color:#ca5800;">${pct_multi_global}%</span> <span style="font-size:12px;color:#475569;">multi-h\u00f4tes</span></span>
-      <span><span style="font-size:28px;font-weight:800;color:#0d6a5e;">${density_med_global}</span> <span style="font-size:12px;color:#475569;">ann./1\u202f000 hab</span></span>
-      <span><span style="font-size:28px;font-weight:800;color:#55b748;">${rating_med_global}/5</span> <span style="font-size:12px;color:#475569;">note m\u00e9diane</span></span>
-      <span><span style="font-size:28px;font-weight:800;color:#6d1a36;">${cr10_global}%</span> <span style="font-size:12px;color:#475569;">CR10 (concentr.)</span></span>
-    </div>
-    <div style="margin-top:8px;font-size:11px;line-height:1.7;color:#334155;">
-      <div>\u25b2 <span style="color:#0d6a5e;font-weight:600;">Prix</span> : ${fmtRk(rk_prix_top, "\u00a0\u20ac")} &nbsp;\u25bc ${fmtRk(rk_prix_bot, "\u00a0\u20ac")}</div>
-      <div>\u25b2 <span style="color:#0d6a5e;font-weight:600;">Densit\u00e9</span> : ${fmtRk(rk_density_top, "")} &nbsp;\u25bc ${fmtRk(rk_density_bot, "")}</div>
-      <div>\u25b2 <span style="color:#ca5800;font-weight:600;">Multi-h\u00f4tes</span> : ${fmtRk(rk_multi_top, "\u00a0%")} &nbsp;\u25bc ${fmtRk(rk_multi_bot, "\u00a0%")}</div>
-    </div>
-    </div>`;
-  return d;
-}
-```
-
-### Column {width="40%"}
+### Column {width="100%"}
 
 ```{ojs}
-//| label: header-top-hosts
+//| label: row1-kpi-hosts
 {
-  const rows = transpose(top_hosts_data);
-  const d = document.createElement("div");
-  if (!rows || rows.length === 0) {
-    d.innerHTML = `<div class="top-block-header" style="font-size:12px;">Top h\u00f4tes (non disponible)</div>`;
-    return d;
-  }
-  d.innerHTML = `
-    <div class="top-block-header" style="font-size:12px;">Top 20 h\u00f4tes mondiaux</div>
-    <div style="padding:2px 6px;background:#f8f9fa;font-size:10px;overflow-y:auto;max-height:175px;">
-    <table style="width:100%;border-collapse:collapse;">
-    <thead><tr style="border-bottom:2px solid #94a3b8;">
-      <th style="padding:2px 4px;text-align:left;font-size:9px;color:#6b7280;font-weight:600;">#</th>
-      <th style="padding:2px 4px;text-align:left;font-size:9px;color:#6b7280;font-weight:600;">H\u00f4te</th>
-      <th style="padding:2px 4px;text-align:right;font-size:9px;color:#6b7280;font-weight:600;">Ann.</th>
-      <th style="padding:2px 4px;text-align:right;font-size:9px;color:#6b7280;font-weight:600;">Villes</th>
-      <th style="padding:2px 4px;text-align:right;font-size:9px;color:#6b7280;font-weight:600;">% offre</th>
-    </tr></thead>
-    <tbody>
-    ${rows.map((r, i) => {
-      const name = (r.host_name || "ID:" + r.host_id).substring(0, 20);
-      return `<tr style="border-bottom:1px solid #e5e7eb;">
-        <td style="padding:1px 4px;color:#94a3b8;font-size:9px;">${i+1}</td>
-        <td style="padding:1px 4px;font-weight:500;font-size:10px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name}</td>
-        <td style="padding:1px 4px;text-align:right;font-weight:600;color:#0d6a5e;font-size:10px;">${Math.round(r.n_listings).toLocaleString("fr-FR")}</td>
-        <td style="padding:1px 4px;text-align:right;color:#1696d2;font-size:10px;">${Math.round(r.n_cities)}</td>
-        <td style="padding:1px 4px;text-align:right;color:#ca5800;font-size:9px;">${(+r.pct_offre).toFixed(2)}%</td>
-      </tr>`;
-    }).join("")}
-    </tbody>
-    </table>
+  const data = transpose(kpi_data);
+  const hosts = transpose(top_hosts_data);
+  const DD = window.DDICT || {};
+
+  // Helpers
+  const fv = (v, key) => {
+    if (v == null || isNaN(+v)) return "\u2014";
+    const n = +v;
+    const dd = DD[key] || {};
+    if (key === "rev_rating_med") return n.toFixed(2) + "/5";
+    if (dd.type === "pct") return n.toFixed(1) + "%";
+    if (dd.type === "prix") return Math.round(n).toLocaleString("fr-FR") + "\u00a0\u20ac";
+    if (n >= 1000) return Math.round(n).toLocaleString("fr-FR");
+    if (n % 1 !== 0) return n.toFixed(1);
+    return String(Math.round(n));
+  };
+  const cn = (d) => {
+    const name = d.city_fr || d.city || "";
+    return name.length > 13 ? name.substring(0, 11) + "\u2026" : name;
+  };
+  const tb3 = (key) => {
+    const valid = data.filter(d => d[key] != null && !isNaN(+d[key]));
+    const sorted = [...valid].sort((a, b) => +b[key] - +a[key]);
+    return { top: sorted.slice(0, 3), bot: sorted.slice(-3).reverse() };
+  };
+  const tbLine = (arr, key, cls) => arr.map(d =>
+    `<span class="${cls}">${cls === "u" ? "\u25b2" : "\u25bc"}</span>${cn(d)} ${fv(d[key], key)}`
+  ).join(" \u00b7 ");
+
+  // Tooltip DDICT
+  const tip = (key) => {
+    const dd = DD[key] || {};
+    return (dd.desc || dd.label || "").replace(/"/g, "&quot;");
+  };
+  const info = (key) => {
+    const t = tip(key);
+    return t ? ` <span title="${t}" style="cursor:help;opacity:0.35;font-size:8px;">\u24d8</span>` : "";
+  };
+
+  // KPI item inline (value + label on same line)
+  const kItem = (key, val, label, color) => {
+    const r = tb3(key);
+    return `<div class="kpi-item">
+      <span class="kv" style="color:${color};">${val}</span>
+      <span class="kl">${label}${info(key)}</span>
+      <div class="kt">${tbLine(r.top, key, "u")} \u00b7 ${tbLine(r.bot, key, "d")}</div>
     </div>`;
+  };
+
+  // Narrative item (for concentration section)
+  const kNarr = (html) => `<div class="kpi-narr">${html}</div>`;
+
+  // Format globals
+  const fN = (n) => Math.round(n).toLocaleString("fr-FR");
+
+  const d = document.createElement("div");
+  d.className = "kpi-grid";
+  d.innerHTML = `
+  <div class="kpi-panel">
+    <div class="kpi-header">
+      <span>Synth\u00e8se des m\u00e9triques clefs</span>
+      <span style="font-size:10px;opacity:0.7;">Source : Inside Airbnb, juin 2025 \u00b7 ${total_cities} villes \u00b7 ${total_countries} pays</span>
+    </div>
+    <div class="kpi-blocs">
+      <div class="kpi-bloc">
+        <div class="kpi-bloc-title" style="border-color:#0d6a5e;color:#0d6a5e;">March\u00e9</div>
+        ${kItem("n_listings", fN(total_listings), "annonces actives", "#0d6a5e")}
+        ${kItem("n_hosts", fN(n_hosts_total), "h\u00f4tes distincts", "#0d6a5e")}
+        ${kItem("pct_entire", pct_entire_global + "%", "logements entiers", "#0d6a5e")}
+        ${kItem("listings_1000hab", density_med_global, "ann. / 1\u202f000 hab (m\u00e9d.)", "#0d6a5e")}
+      </div>
+      <div class="kpi-bloc">
+        <div class="kpi-bloc-title" style="border-color:#ca5800;color:#ca5800;">Prix & Activit\u00e9</div>
+        ${kItem("prix_med_entire", fN(prix_med_global) + "\u00a0\u20ac", "par nuit \u2014 logement entier (m\u00e9d.)", "#ca5800")}
+        ${kItem("rev_rating_med", (+rating_med_global).toFixed(2) + "/5", "note m\u00e9diane", "#55b748")}
+        ${kItem("revenue_est_med", fN(revenue_med_global) + "\u00a0\u20ac", "revenu annuel estim\u00e9 (m\u00e9d.)", "#ca5800")}
+        ${kItem("dispo_med", dispo_med_global + " j", "disponibilit\u00e9 m\u00e9diane /an", "#0d6a5e")}
+      </div>
+      <div class="kpi-bloc">
+        <div class="kpi-bloc-title" style="border-color:#6d1a36;color:#6d1a36;">Professionnalisation</div>
+        ${kItem("pct_multi", pct_multi_global + "%", "multi-h\u00f4tes (>1 annonce)", "#6d1a36")}
+        ${kNarr(`<strong style="color:#6d1a36;">${cr_host_10plus_global}\u202f%</strong> des h\u00f4tes g\u00e8rent \u226510 annonces \u2014 soit <strong style="color:#6d1a36;">${cr_offre_10plus_global}\u202f%</strong> du total des offres${info("cr_offre_10plus")}`)}
+        ${kNarr(`<strong style="color:#6d1a36;">${cr10_global}\u202f%</strong> de l\u2019offre d\u00e9tenue par les 10 plus gros h\u00f4tes${info("cr_top10_pct")}`)}
+        ${kNarr(`<strong style="color:#6d1a36;">${cr_hosts_50pct_global}\u202f%</strong> des h\u00f4tes suffisent pour d\u00e9tenir 50\u202f% de l\u2019offre${info("cr_hosts_50pct")}`)}
+      </div>
+    </div>
+  </div>
+  <div class="hosts-panel">
+    <div class="hosts-hd">Top 10 h\u00f4tes mondiaux</div>
+    <div class="hosts-scroll">
+      ${hosts && hosts.length ? `<table>
+        <thead><tr>
+          <th>#</th><th>H\u00f4te</th><th style="text-align:right;">Ann.</th>
+          <th style="text-align:right;">Villes</th><th style="text-align:right;">%</th>
+        </tr></thead>
+        <tbody>${hosts.slice(0, 10).map((r, i) => {
+          const name = (r.host_name || "ID:" + r.host_id).substring(0, 22);
+          const bg = i % 2 === 0 ? "" : "background:#f8f9fa;";
+          return `<tr style="${bg}">
+            <td style="color:#94a3b8;">${i+1}</td>
+            <td style="font-weight:500;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name}</td>
+            <td style="text-align:right;font-weight:700;color:#0d6a5e;">${Math.round(r.n_listings).toLocaleString("fr-FR")}</td>
+            <td style="text-align:right;color:#1696d2;">${Math.round(r.n_cities)}</td>
+            <td style="text-align:right;color:#ca5800;">${(+r.pct_offre).toFixed(2)}%</td>
+          </tr>`;
+        }).join("")}</tbody>
+      </table>` : `<div style="padding:12px;color:#94a3b8;font-size:11px;">Donn\u00e9es non disponibles</div>`}
+    </div>
+  </div>`;
   return d;
 }
 ```
 
 ## Row {height="520px"}
 
-### Column {width="50%"}
-
-#### Carte mondiale
+### Column {width="100%"}
 
 ```{ojs}
-//| label: world-map
+//| label: row2-maps-scatter
 {
-  const d = document.createElement("div");
-  d.className = "world-map-wrap";
-  d.style.cssText = "width:100%;min-height:460px;position:relative;";
-  const mapDiv = document.createElement("div");
-  mapDiv.style.cssText = "position:absolute;top:0;left:0;right:0;bottom:0;";
-  d.appendChild(mapDiv);
-  yield d;
-
-  await new Promise(r => setTimeout(r, 80));
-  const data = transpose(kpi_data);
-  const map = buildWorldMap(mapDiv, data, "listings_1000hab");
-  setTimeout(() => { if (map) map.resize(); }, 300);
-}
-```
-
-### Column {width="50%"}
-
-#### Scatter — 75 villes
-
-```{ojs}
-//| label: scatter-full
-{
-  const data = transpose(kpi_data);
-  const scatterMod = await import(new URL("helpers/jcn-scatterojs.js", document.baseURI).href);
+  const allData = transpose(kpi_data);
+  const DD = window.DDICT || {};
+  const europe = allData.filter(d => d.continent === "Europe");
   const metrics = typeof WORLD_METRICS !== "undefined" ? WORLD_METRICS : [];
+  let currentMetric = "listings_1000hab";
 
-  const container = document.createElement("div");
-  container.style.cssText = "display:flex;flex-direction:column;width:100%;height:100%;";
+  // Grid container: ctrl-maps (col 1-2) + ctrl-scatter (col 3) / maps + scatter
+  const wrap = document.createElement("div");
+  wrap.className = "r1-grid";
 
-  // Controls bar
-  const ctrl = document.createElement("div");
-  ctrl.className = "scatter-ctrl";
-  const optHtml = (sel) => metrics.map(m => {
-    const dd = (window.DDICT || {})[m.key] || {};
+  // Shared indicator selector for maps (col 1-2)
+  const mapCtrl = document.createElement("div");
+  mapCtrl.className = "r1-ctrl";
+  mapCtrl.style.gridColumn = "1/3";
+  const selHtml = metrics.map(m => {
+    const dd = DD[m.key] || {};
     const label = dd.short || m.label || m.key;
-    return `<option value="${m.key}" ${m.key === sel ? "selected" : ""}>${label}</option>`;
+    return `<option value="${m.key}" ${m.key === currentMetric ? "selected" : ""}>${label}</option>`;
   }).join("");
-  ctrl.innerHTML = `
-    <label>Axe X</label>
-    <select id="sx">${optHtml("pct_entire")}</select>
-    <label>Axe Y</label>
-    <select id="sy">${optHtml("prix_med")}</select>
-    <span style="margin-left:8px;">
-      <label><input type="radio" name="smode" value="Villes" checked> Villes</label>
-      <label style="margin-left:6px;"><input type="radio" name="smode" value="Pays"> Pays</label>
-    </span>
-  `;
-  container.appendChild(ctrl);
+  mapCtrl.innerHTML = `<label>Indicateur</label>
+    <select class="qm-sel">${selHtml}</select>
+    <div class="qm-legend" style="flex:1;"></div>`;
+  wrap.appendChild(mapCtrl);
 
-  // Chart area
-  const chartArea = document.createElement("div");
-  chartArea.style.cssText = "flex:1;min-height:400px;overflow:hidden;";
-  container.appendChild(chartArea);
+  // Scatter controls (col 3) — labels medium from DDICT
+  const scCtrl = document.createElement("div");
+  scCtrl.className = "r1-ctrl";
+  const optH = (sel) => metrics.map(m => {
+    const dd = DD[m.key] || {};
+    return `<option value="${m.key}" ${m.key === sel ? "selected" : ""}>${dd.label || dd.short || m.label || m.key}</option>`;
+  }).join("");
+  scCtrl.innerHTML = `<label>X</label><select id="sx">${optH("cr_offre_10plus")}</select>
+    <label>Y</label><select id="sy">${optH("cr_host_10plus")}</select>
+    <span style="margin-left:4px;">
+      <label style="font-size:10px;"><input type="radio" name="smode" value="Villes" checked> Villes</label>
+      <label style="font-size:10px;margin-left:4px;"><input type="radio" name="smode" value="Pays"> Pays</label>
+    </span>`;
+  wrap.appendChild(scCtrl);
 
-  function renderChart() {
-    const xKey = ctrl.querySelector("#sx").value;
-    const yKey = ctrl.querySelector("#sy").value;
-    const mode = ctrl.querySelector("input[name='smode']:checked").value;
-    chartArea.innerHTML = "";
-    const svg = scatterMod.renderScatter({
-      Plot, d3, data,
-      xCol: xKey, yCol: yKey, mode: mode,
-      width: Math.max(460, container.clientWidth - 16),
-      height: Math.max(360, container.clientHeight - 60)
-    });
-    chartArea.appendChild(svg);
+  // Map cells (Monde + Europe)
+  const regions = [
+    { label: "Monde", data: allData, center: [10, 25], zoom: 1.0, pad: 8 },
+    { label: "Europe", data: europe, center: [12, 50], zoom: 3, pad: 3 }
+  ];
+  const mapDivs = [];
+  for (let i = 0; i < 2; i++) {
+    const cell = document.createElement("div");
+    cell.className = "r1-cell";
+    const lbl = document.createElement("div");
+    lbl.className = "cell-lbl";
+    lbl.textContent = regions[i].label + " (" + regions[i].data.length + ")";
+    cell.appendChild(lbl);
+    const md = document.createElement("div");
+    md.style.cssText = "width:100%;height:100%;";
+    cell.appendChild(md);
+    mapDivs.push(md);
+    wrap.appendChild(cell);
   }
 
-  ctrl.addEventListener("change", renderChart);
-  yield container;
+  // Scatter area (col 3)
+  const scatterArea = document.createElement("div");
+  scatterArea.style.cssText = "background:white;overflow:hidden;position:relative;";
+  wrap.appendChild(scatterArea);
 
-  // Initial render after DOM attachment
-  await new Promise(r => setTimeout(r, 50));
-  renderChart();
+  yield wrap;
+  await new Promise(r => setTimeout(r, 120));
+
+  // Fake features for irisBins
+  const fakeFeats = allData.map(d => ({ properties: Object.assign({ n: 999 }, d) }));
+
+  const fitBbox = (data, pad) => {
+    const lats = data.map(d => +d.latitude).filter(Boolean);
+    const lngs = data.map(d => +d.longitude).filter(Boolean);
+    if (!lats.length) return null;
+    return [[Math.min(...lngs) - pad, Math.min(...lats) - pad],
+            [Math.max(...lngs) + pad, Math.max(...lats) + pad]];
+  };
+
+  // Create 2 maps
+  const maps = [];
+  const loadPromises = regions.map((reg, i) => new Promise(resolve => {
+    const bbox = i === 0 ? null : fitBbox(reg.data, reg.pad);
+    const mapOpts = {
+      container: mapDivs[i],
+      style: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
+      center: reg.center, zoom: reg.zoom,
+      minZoom: 1, maxZoom: 14,
+      attributionControl: false,
+      cooperativeGestures: true,
+      dragRotate: false, pitchWithRotate: false, touchPitch: false,
+      fadeDuration: 0
+    };
+    // Monde: disable renderWorldCopies + maxBounds to keep view world-wide
+    if (i === 0) {
+      mapOpts.renderWorldCopies = false;
+      mapOpts.maxBounds = [[-180, -60], [180, 75]];
+    }
+    const map = new maplibregl.Map(mapOpts);
+    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+    map.on("load", () => {
+      if (bbox) map.fitBounds(bbox, { padding: 15, duration: 0 });
+      const geo = {
+        type: "FeatureCollection",
+        features: reg.data.map(d => ({
+          type: "Feature",
+          geometry: { type: "Point", coordinates: [+d.longitude || 0, +d.latitude || 0] },
+          properties: Object.assign({}, d)
+        }))
+      };
+      map.addSource("cities", { type: "geojson", data: geo });
+      const maxL = Math.max(...reg.data.map(d => +d.n_listings || 0));
+      map.addLayer({
+        id: "circles", type: "circle", source: "cities",
+        paint: {
+          "circle-radius": ["interpolate", ["linear"],
+            ["sqrt", ["/", ["to-number", ["get", "n_listings"], 0], maxL || 1]],
+            0, 3, 0.2, 6, 0.5, 12, 1, 20],
+          "circle-color": "#1696d2",
+          "circle-opacity": 0.82,
+          "circle-stroke-color": "white",
+          "circle-stroke-width": 1
+        }
+      });
+      let pop = null;
+      map.on("mousemove", "circles", (e) => {
+        const p = e.features[0].properties;
+        map.getCanvas().style.cursor = "pointer";
+        if (pop) pop.remove();
+        const html = typeof buildCityTooltip === "function"
+          ? buildCityTooltip(p, allData, "monde") : "<b>" + (p.city_fr || p.city) + "</b>";
+        pop = new maplibregl.Popup({ offset: 10, closeButton: false, closeOnClick: false, className: "city-popup-dark" })
+          .setLngLat(e.lngLat).setHTML(html).addTo(map);
+      });
+      map.on("mouseleave", "circles", () => {
+        map.getCanvas().style.cursor = "";
+        if (pop) { pop.remove(); pop = null; }
+      });
+      maps.push(map);
+      resolve();
+    });
+  }));
+
+  await Promise.all(loadPromises);
+
+  // Update maps with indicator colors
+  function updateAll(k) {
+    currentMetric = k;
+    const dd = DD[k] || {};
+    const mInfo = metrics.find(m => m.key === k) || { label: dd.short || k, unit: dd.unit || "" };
+    const bins = irisBins(fakeFeats, k, "niveau", null);
+    if (!bins) return;
+    const step = stepEx(k, bins.brk, bins.col);
+    step[1] = ["to-number", step[1], 0];
+    maps.forEach(map => {
+      map.setPaintProperty("circles", "circle-color", [
+        "case", ["==", ["get", k], null], "#b0b0b0", step
+      ]);
+    });
+    const legDiv = mapCtrl.querySelector(".qm-legend");
+    legDiv.innerHTML = "";
+    legDiv.appendChild(buildLegend(bins, mInfo.label, fakeFeats, k, null));
+  }
+  updateAll(currentMetric);
+  mapCtrl.querySelector(".qm-sel").addEventListener("change", (e) => updateAll(e.target.value));
+
+  // Scatter with zoom
+  const scatterMod = await import(new URL("helpers/jcn-scatterojs.js", document.baseURI).href);
+  const scatterCtrl = scatterMod.createScatterWithZoom({
+    Plot, d3, data: allData, container: scatterArea,
+    xCol: "cr_offre_10plus", yCol: "cr_host_10plus", mode: "Villes",
+    axisLabelMode: "medium"
+  });
+  scCtrl.addEventListener("change", () => {
+    const xKey = scCtrl.querySelector("#sx").value;
+    const yKey = scCtrl.querySelector("#sy").value;
+    const mode = scCtrl.querySelector("input[name='smode']:checked").value;
+    scatterCtrl.update(xKey, yKey, mode);
+  });
+
+  setTimeout(() => maps.forEach(m => m.resize()), 300);
 }
 ```
 

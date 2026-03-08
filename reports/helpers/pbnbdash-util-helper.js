@@ -47,8 +47,8 @@ function initDdict(raw) {
 // &e
 
 // &s &IRIS_MAPPINGS - Clés IRIS et mappings
-var IRIS_KEYS=["n","n_hosts","prix_med","pct_multi","pct_entire","pct_longterm","dispo_med","reviews_med","listings_1000hab","listings_1000hsg"];
-var IRIS2D={n:"n_listings",n_hosts:"n_hosts",prix_med:"prix_med",pct_multi:"pct_multi",pct_entire:"pct_entire",pct_longterm:"pct_longterm",dispo_med:"dispo_med",reviews_med:"reviews_med",listings_1000hab:"listings_1000hab",listings_1000hsg:"listings_1000hsg"};
+var IRIS_KEYS=["n","n_hosts","prix_med","pct_multi","pct_entire","pct_longterm","dispo_med","reviews_med","entire_1000rp","listings_1000rps"];
+var IRIS2D={n:"n_listings",n_hosts:"n_hosts",prix_med:"prix_med",pct_multi:"pct_multi",pct_entire:"pct_entire",pct_longterm:"pct_longterm",dispo_med:"dispo_med",reviews_med:"reviews_med",entire_1000rp:"entire_1000rp",listings_1000rps:"listings_1000rps"};
 var PAL_MODES={niveau:"Niveau",ecart:"\u00c9cart \u00e0 la ville"};
 // &e
 
@@ -555,67 +555,35 @@ function colStats(data,keys){
 }
 // &e
 
-// &s &TERRITORY_TABLE - Tableau territoires triable avec search
+// &s &TERRITORY_TABLE - Wrapper → délègue à buildDataTable (jcn-tableojs.js)
 function territoryTable(data,containerId){
-  var keys=["n_listings","prix_med","ratio_lh","listings_1000hab","listings_1000hsg","pct_multi","pct_entire","pct_longterm","n_hosts"];
-  // Headers : short + unit L2 (filtré si redondant avec short)
-  var UNIT_SKIP={"n":1,"%":1,"ratio":1};
-  var headers=keys.map(function(k){
-    var d=DDICT[k]||{};
-    var lbl=d.short||d.label||k;
-    var u=(d.unit&&!UNIT_SKIP[d.unit])?d.unit:"";
-    return lbl+(u?"<span class='th-unit'>"+u+"</span>":"");
-  });
-  var tips=keys.map(function(k){var d=DDICT[k]||{};return(d.desc||d.label||"").replace(/"/g,"&quot;")});
-  var stats=colStats(data,keys);
-  var sortCol="n_listings",sortAsc=false,search="";
-  function render(){
-    var rows=data.slice();
-    var fr=rows.find(function(d){return d.level==="country"});
-    var city=rows.find(function(d){return d.level==="city"});
-    var rest=rows.filter(function(d){return d.level!=="country"&&d.level!=="city"});
-    if(search){var q=search.toLowerCase();rest=rest.filter(function(d){return(d.label||"").toLowerCase().indexOf(q)>=0})}
-    rest.sort(function(a,b){var va=a[sortCol]||0,vb=b[sortCol]||0;return typeof va==="string"?(sortAsc?va.localeCompare(vb):vb.localeCompare(va)):(sortAsc?va-vb:vb-va)});
-    if(rest.length>1500)rest=rest.slice(0,1500);
-    var maille=rest.length>0&&rest[0].level==="iris"?"Quartier IRIS":"Arrondissement";
-    var ths='<th data-col="label" class="'+(sortCol==="label"?"active":"")+'">'+maille+(sortCol==="label"?(sortAsc?" \u2191":" \u2193"):"")+'</th>'+
-      keys.map(function(k,i){return'<th data-col="'+k+'" title="'+tips[i]+'" class="'+(sortCol===k?"active":"")+'">'+headers[i]+(sortCol===k?(sortAsc?" \u2191":" \u2193"):"")+'</th>'}).join("");
-    function rowHtml(d,cls){
-      var agg=d.level==="country"||d.level==="city";
-      return'<tr class="'+cls+'"><td style="font-weight:500;max-width:150px;overflow:hidden;text-overflow:ellipsis;">'+d.label+'</td>'+
-        keys.map(function(k){return'<td>'+barCell(d[k],stats[k].max,stats[k].mean,stats[k].std,k,agg)+'</td>'}).join("")+"</tr>";
-    }
-    var c=document.getElementById(containerId);
-    if(!c)return;
-    var tb=c.querySelector(".t");
-    var info=c.querySelector(".info");
-    if(info)info.textContent=rest.length+" territoires";
-    if(tb){
-      tb.innerHTML='<table><thead><tr>'+ths+'</tr></thead><tbody>'+
-        (fr?rowHtml(fr,"sticky-fr"):"")+
-        (city?rowHtml(city,"sticky-city"):"")+
-        rest.map(function(d){return rowHtml(d,"")}).join("")+
-        "</tbody></table>";
-      // Dynamic sticky positions based on actual rendered heights
-      var thRow=tb.querySelector("thead tr");
-      var thH=thRow?thRow.offsetHeight:22;
-      var frRow=tb.querySelector(".sticky-fr");
-      if(frRow){frRow.style.top=thH+"px";}
-      var frH=frRow?frRow.offsetHeight:0;
-      var cityRow=tb.querySelector(".sticky-city");
-      if(cityRow){cityRow.style.top=(thH+frH)+"px";}
-      tb.querySelectorAll("th").forEach(function(th){
-        th.addEventListener("click",function(){
-          var col=th.dataset.col;
-          if(sortCol===col)sortAsc=!sortAsc;else{sortCol=col;sortAsc=col==="label"}
-          render();
-        });
-      });
-    }
+  var container=document.getElementById(containerId);
+  if(!container)return;
+  if(typeof window.buildDataTable!=="function"){
+    console.warn("territoryTable: buildDataTable not loaded (jcn-tableojs.js manquant)");
+    return;
   }
-  var c=document.getElementById(containerId);
-  if(c){var inp=c.querySelector("input");if(inp)inp.addEventListener("input",function(e){search=e.target.value;render()})}
-  render();
+  // Extraire lignes de référence (country/city) du data
+  var fr=data.find(function(d){return d.level==="country"});
+  var city=data.find(function(d){return d.level==="city"});
+  var rest=data.filter(function(d){return d.level!=="country"&&d.level!=="city"});
+  var refRows=[];
+  if(fr)refRows.push({label:fr.label,data:fr,bgColor:"#f0f9ff"});
+  if(city)refRows.push({label:city.label,data:city,bgColor:"#fefce8"});
+  var maille=rest.length>0&&rest[0].level==="iris"?"Quartier IRIS":"Arrondissement";
+
+  window.buildDataTable(container,rest,{
+    keys:["n_listings","prix_med","ratio_lh","entire_1000rp","listings_1000rps","pct_multi","pct_entire","pct_longterm","n_hosts"],
+    labelCol:"label",
+    labelFallback:"label",
+    labelHeader:maille,
+    colorCol:null,
+    colorMap:{},
+    defaultSort:"n_listings",
+    refRows:refRows,
+    maxHeight:420,
+    maxRows:1500
+  });
 }
 // &e
 
@@ -628,8 +596,8 @@ function hostTable(data,containerId){
     if(!c)return;
     var tb=c.querySelector(".th");
     if(!tb)return;
-    tb.innerHTML='<table><thead><tr><th data-col="host_name">H\u00f4te</th><th data-col="n_listings">Annonces</th></tr></thead><tbody>'+
-      rows.map(function(d){return'<tr><td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;">'+(d.host_name||"\u2014")+'</td><td style="font-weight:600;">'+d.n_listings+' <span style="color:#999;font-size:9px;">('+d.pct_offre+'%)</span></td></tr>'}).join("")+"</tbody></table>";
+    tb.innerHTML='<table><thead><tr><th data-col="host_name">H\u00f4te</th><th data-col="n_listings" style="text-align:right;">Ann.</th></tr></thead><tbody>'+
+      rows.map(function(d){return'<tr><td style="max-width:90px;overflow:hidden;text-overflow:ellipsis;font-size:9px;">'+(d.host_name||"\u2014")+'</td><td style="font-weight:600;text-align:right;font-size:9px;">'+d.n_listings+'</td></tr>'}).join("")+"</tbody></table>";
     tb.querySelectorAll("th").forEach(function(th){
       th.addEventListener("click",function(){
         var col=th.dataset.col;

@@ -1,5 +1,5 @@
 ---
-title: "Airbnb en Europe : 36 marchés, 452 000 annonces"
+title: "Airbnb en Europe : 37 marchés, 463 000 annonces"
 subtitle: "Quand la location courte durée redessine le logement urbain"
 author: "Vincent R."
 date: "Février 2026"
@@ -7,10 +7,10 @@ number-sections: false
 toc: false
 format:
   html:
-    theme: [cosmo, config/theme-html.scss, config/theme-insee.scss]
-    title-block-banner: true
-    title-block-banner-color: "#0a4c6a"
+    theme: [cosmo, config/theme-pbnb-v2.scss]
 ---
+
+<!-- Fichier : rpt-pbnb-synth-europe-260214.qmd | Type : SYNTHESE | Scope : Europe 37 marchés -->
 
 ```{r}
 #| label: setup
@@ -651,7 +651,7 @@ reactable(recap,
 - [**Rapport complet**](rpt-pbnb-rapport-ALL-260207.qmd) — Analyse détaillée monde + Europe, 20 figures, panel-tabsets (64 villes)
 - [**Notebook EDA**](rpt-pbnb-edanbk-ALL-260215.qmd) — Exploration données, distributions, corrélations, code reproductible
 - [**Présentation interactive**](rpt-pres-bnb-v2-260210.html) — 14 slides RevealJS avec graphiques Plotly
-- [**Dashboard interactif**](rpt-pbnb-dash-ALL-260211.qmd) — Exploration libre avec sélecteur d'indicateurs (64 villes)
+- [**Dashboard interactif**](rpt-pbnb-dash-ALL-260222.qmd) — Exploration libre avec sélecteur d'indicateurs (64 villes)
 - **Inside Airbnb** — [insideairbnb.com](http://insideairbnb.com/get-the-data/) — Données ouvertes
 
 :::

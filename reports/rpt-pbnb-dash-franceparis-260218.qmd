@@ -1,0 +1,902 @@
+---
+title: "Dashboard Airbnb France"
+subtitle: "Paris · Lyon · Bordeaux · BAB — Inside Airbnb juin 2025"
+format:
+  dashboard:
+    orientation: rows
+    scrolling: true
+    theme: cosmo
+resources:
+  - helpers/pbnbdash-util-helper.js
+  - helpers/pbnbdash-util-helper.css
+  - helpers/ddict-airbnb.json
+  - helpers/jcn-tableojs.js
+include-in-header:
+  text: |
+    <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet">
+    <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+    <link rel="stylesheet" href="helpers/pbnbdash-util-helper.css">
+    <script src="helpers/pbnbdash-util-helper.js"></script>
+    <script type="module" src="helpers/jcn-tableojs.js"></script>
+execute:
+  warning: false
+  echo: false
+freeze: auto
+---
+
+```{r}
+#| label: setup
+#| include: false
+
+library(sf)
+library(dplyr)
+library(jsonlite)
+
+# === 1. Load all French listings ===
+df_fr <- arrow::read_parquet(
+  "C:/Users/vince/hh/pq/PDS/pbnb-airbnb-log-jrr-jpy/data/interim/dbsumlistings_2506_cons_global.parquet",
+  as_data_frame = FALSE) |>
+  filter(city %in% c("paris", "lyon", "bordeaux", "pays-basque"),
+         !is.na(price), price > 0, availability_365 > 0,
+         room_type != "Hotel room", price >= 10, price <= 1000) |>
+  collect() |> as.data.frame()
+
+# BAB : filtrer sur 3 communes uniquement
+df_fr <- df_fr |>
+  filter(!(city == "pays-basque" & !neighbourhood_group %in% c("Biarritz", "Anglet", "Bayonne")))
+
+df_fr$is_multi <- df_fr$calculated_host_listings_count > 1
+df_fr$is_longterm <- df_fr$minimum_nights >= 30
+
+# === 2. KPIs par ville + France ===
+compute_kpi <- function(df, label, level) {
+  entire <- df |> filter(room_type == "Entire home/apt")
+  nl <- nrow(df); nh <- length(unique(df$host_id))
+  # Concentration : top 10% des h\u00f4tes g\u00e8rent X% des annonces
+  hc <- sort(table(df$host_id), decreasing = TRUE)
+  n10 <- ceiling(length(hc) * 0.1)
+  top10_share <- round(sum(hc[1:n10]) / sum(hc) * 100, 1)
+  data.frame(
+    label = label, level = level,
+    n_listings = nl,
+    n_entire = sum(df$room_type == "Entire home/apt"),
+    n_hosts = nh,
+    prix_med = round(median(df$price), 0),
+    prix_med_entire = round(median(entire$price), 0),
+    prix_moy = round(mean(df$price), 0),
+    pct_entire = round(mean(df$room_type == "Entire home/apt") * 100, 1),
+    pct_multi = round(mean(df$is_multi) * 100, 1),
+    pct_longterm = round(mean(df$is_longterm) * 100, 1),
+    dispo_med = round(median(df$availability_365), 0),
+    reviews_med = round(median(df$number_of_reviews), 0),
+    rpm_med = round(median(df$reviews_per_month, na.rm = TRUE), 1),
+    ratio_lh = round(nl / max(nh, 1), 1),
+    top10_share = top10_share,
+    stringsAsFactors = FALSE
+  )
+}
+
+france_kpi <- compute_kpi(df_fr, "France (4 villes)", "country")
+paris_kpi <- compute_kpi(df_fr |> filter(city == "paris"), "Paris", "city")
+lyon_kpi <- compute_kpi(df_fr |> filter(city == "lyon"), "Lyon", "city")
+bordeaux_kpi <- compute_kpi(df_fr |> filter(city == "bordeaux"), "Bordeaux", "city")
+bab_kpi <- compute_kpi(df_fr |> filter(city == "pays-basque"), "BAB", "city")
+
+# === 2a2. INSEE IRIS population / logement ===
+# Dénominateurs : rp_2022 (rés. principales) et rsecocc_2022 (rés. secondaires)
+insee_iris <- read.csv(
+  "C:/Users/vince/hh/pq/PDS/pbnb-airbnb-log-jrr-jpy/data/external/insee_iris_pop_log_3villes.csv",
+  stringsAsFactors = FALSE,
+  colClasses = c(code_iris = "character", code_insee = "character"))
+
+# Totaux ville depuis INSEE
+insee_city <- insee_iris |>
+  group_by(city) |>
+  summarise(rp = sum(rp_2022, na.rm = TRUE),
+            res_sec = sum(rsecocc_2022, na.rm = TRUE), .groups = "drop")
+
+# Tourisme INSEE (ville uniquement)
+insee_tour <- read.csv(
+  "C:/Users/vince/hh/pq/PDS/pbnb-airbnb-log-jrr-jpy/data/external/insee_tourisme_3villes.csv",
+  stringsAsFactors = FALSE)
+
+add_density <- function(kpi, rp_total, res_sec, tour_row = NULL) {
+  kpi$entire_1000rp <- round(kpi$n_entire / (rp_total / 1000), 1)
+  kpi$listings_1000rps <- round(kpi$n_listings / ((rp_total + res_sec) / 1000), 1)
+  if (!is.null(tour_row)) {
+    kpi$htch <- tour_row$htch25
+    kpi$rtuh <- tour_row$rtuh25
+    kpi$ratio_airbnb_hotel <- round(kpi$n_listings / tour_row$htch25, 1)
+  }
+  kpi
+}
+
+paris_r <- insee_city |> filter(city == "paris")
+lyon_r <- insee_city |> filter(city == "lyon")
+bdx_r <- insee_city |> filter(city == "bordeaux")
+paris_kpi <- add_density(paris_kpi, paris_r$rp, paris_r$res_sec,
+                          insee_tour |> filter(city == "paris"))
+lyon_kpi <- add_density(lyon_kpi, lyon_r$rp, lyon_r$res_sec,
+                          insee_tour |> filter(city == "lyon"))
+bordeaux_kpi <- add_density(bordeaux_kpi, bdx_r$rp, bdx_r$res_sec,
+                              insee_tour |> filter(city == "bordeaux"))
+bab_r <- insee_city |> filter(city == "pays-basque")
+if (nrow(bab_r) > 0) {
+  bab_kpi <- add_density(bab_kpi, bab_r$rp, bab_r$res_sec)
+}
+france_kpi <- add_density(france_kpi, sum(insee_city$rp), sum(insee_city$res_sec),
+                            data.frame(htch25 = sum(insee_tour$htch25),
+                                       rtuh25 = sum(insee_tour$rtuh25)))
+
+# === 2b. KPI évolution mars → juin 2025 (SKIP: snaps parquet indisponible) ===
+delta_fr <- data.frame(d_n_listings = NA_real_, d_prix_med = NA_real_,
+                       d_pct_multi = NA_real_, d_pct_entire = NA_real_,
+                       d_pct_longterm = NA_real_)
+delta_paris <- delta_fr
+
+# === 2c. Mapping arrondissements Paris ===
+ARR_MAP <- c(
+  "Louvre" = "1er", "Bourse" = "2e", "Temple" = "3e",
+  "H\u00f4tel-de-Ville" = "4e", "Panth\u00e9on" = "5e", "Luxembourg" = "6e",
+  "Palais-Bourbon" = "7e", "\u00c9lys\u00e9e" = "8e", "Op\u00e9ra" = "9e",
+  "Entrep\u00f4t" = "10e", "Popincourt" = "11e", "Reuilly" = "12e",
+  "Gobelins" = "13e", "Observatoire" = "14e", "Vaugirard" = "15e",
+  "Passy" = "16e", "Batignolles-Monceau" = "17e", "Buttes-Montmartre" = "18e",
+  "Buttes-Chaumont" = "19e", "M\u00e9nilmontant" = "20e"
+)
+
+# === 2c2. INSEE aggregates par arrondissement ===
+# Dénominateurs : rp_2022 (résidences principales) et rsecocc_2022 (rés. secondaires)
+ARR_TO_NBH <- setNames(names(ARR_MAP), as.character(1:20))
+paris_pop_arr <- insee_iris |>
+  filter(city == "paris") |>
+  group_by(arr_code) |>
+  summarise(rp = sum(rp_2022, na.rm = TRUE),
+            res_sec = sum(rsecocc_2022, na.rm = TRUE), .groups = "drop") |>
+  mutate(neighbourhood = ARR_TO_NBH[as.character(arr_code)])
+
+lyon_arr_nbh <- c("1er Arrondissement", paste0(2:9, "e Arrondissement"))
+lyon_pop_arr <- insee_iris |>
+  filter(city == "lyon") |>
+  group_by(arr_code) |>
+  summarise(rp = sum(rp_2022, na.rm = TRUE),
+            res_sec = sum(rsecocc_2022, na.rm = TRUE), .groups = "drop") |>
+  mutate(neighbourhood = lyon_arr_nbh[arr_code])
+
+# === 3. Arrondissement tables (Paris + Lyon) ===
+make_arr_table <- function(df, city_name, city_kpi_row, pop_arr = NULL) {
+  arr <- df |>
+    group_by(neighbourhood) |>
+    summarise(
+      n_listings = n(),
+      n_entire = sum(room_type == "Entire home/apt"),
+      n_hosts = length(unique(host_id)),
+      prix_med = round(median(price), 0),
+      prix_med_entire = round(median(price[room_type == "Entire home/apt"]), 0),
+      pct_entire = round(mean(room_type == "Entire home/apt") * 100, 1),
+      pct_multi = round(mean(is_multi) * 100, 1),
+      pct_longterm = round(mean(is_longterm) * 100, 1),
+      dispo_med = round(median(availability_365), 0),
+      .groups = "drop")
+
+  if (!is.null(pop_arr)) {
+    arr <- arr |>
+      left_join(pop_arr |> select(neighbourhood, rp, res_sec), by = "neighbourhood")
+  } else {
+    arr$rp <- NA_real_; arr$res_sec <- NA_real_
+  }
+
+  arr <- arr |>
+    mutate(
+      arr_num = ifelse(neighbourhood %in% names(ARR_MAP),
+                       ARR_MAP[neighbourhood], NA_character_),
+      label = ifelse(!is.na(arr_num),
+                     paste0(arr_num, " (", neighbourhood, ")"),
+                     neighbourhood),
+      level = "arr",
+      ratio_lh = round(n_listings / pmax(n_hosts, 1), 1),
+      entire_1000rp = ifelse(!is.na(rp) & rp >= 200,
+                              round(n_entire / (rp / 1000), 1), NA_real_),
+      listings_1000rps = ifelse(!is.na(rp) & !is.na(res_sec) & (rp + res_sec) > 0,
+                                 round(n_listings / ((rp + res_sec) / 1000), 1), NA_real_)) |>
+    arrange(desc(n_listings)) |>
+    select(-neighbourhood, -arr_num, -rp, -res_sec)
+
+  tbl_cols <- c("label", "level", "n_listings", "n_hosts", "prix_med",
+                "prix_med_entire", "pct_entire", "pct_multi", "pct_longterm",
+                "dispo_med", "ratio_lh", "entire_1000rp", "listings_1000rps")
+  bind_rows(
+    france_kpi |> select(any_of(tbl_cols)),
+    city_kpi_row |> select(any_of(tbl_cols)),
+    arr
+  )
+}
+
+paris_territory <- make_arr_table(df_fr |> filter(city == "paris"), "Paris", paris_kpi, paris_pop_arr)
+lyon_territory <- make_arr_table(df_fr |> filter(city == "lyon"), "Lyon", lyon_kpi, lyon_pop_arr)
+bordeaux_territory <- make_arr_table(df_fr |> filter(city == "bordeaux"), "Bordeaux", bordeaux_kpi)
+
+# === 3b. BAB territory (3 communes comme arrondissements) ===
+bab_arr_map <- c("Biarritz" = "Biarritz", "Anglet" = "Anglet", "Bayonne" = "Bayonne")
+bab_pop_arr <- insee_iris |>
+  filter(city == "pays-basque") |>
+  mutate(neighbourhood = arr_code) |>
+  group_by(neighbourhood) |>
+  summarise(rp = sum(rp_2022, na.rm = TRUE),
+            res_sec = sum(rsecocc_2022, na.rm = TRUE), .groups = "drop")
+
+df_bab <- df_fr |> filter(city == "pays-basque") |>
+  mutate(neighbourhood = neighbourhood_group)
+bab_arr <- df_bab |>
+  group_by(neighbourhood) |>
+  summarise(
+    n_listings = n(),
+    n_entire = sum(room_type == "Entire home/apt"),
+    n_hosts = length(unique(host_id)),
+    prix_med = round(median(price), 0),
+    prix_med_entire = round(median(price[room_type == "Entire home/apt"]), 0),
+    pct_entire = round(mean(room_type == "Entire home/apt") * 100, 1),
+    pct_multi = round(mean(is_multi) * 100, 1),
+    pct_longterm = round(mean(is_longterm) * 100, 1),
+    dispo_med = round(median(availability_365), 0),
+    .groups = "drop") |>
+  left_join(bab_pop_arr, by = "neighbourhood") |>
+  mutate(
+    label = neighbourhood, level = "arr",
+    ratio_lh = round(n_listings / pmax(n_hosts, 1), 1),
+    entire_1000rp = ifelse(!is.na(rp) & rp >= 200,
+                            round(n_entire / (rp / 1000), 1), NA_real_),
+    listings_1000rps = ifelse(!is.na(rp) & !is.na(res_sec) & (rp + res_sec) > 0,
+                               round(n_listings / ((rp + res_sec) / 1000), 1), NA_real_)) |>
+  arrange(desc(n_listings)) |>
+  select(-neighbourhood, -rp, -res_sec)
+
+tbl_cols_bab <- c("label", "level", "n_listings", "n_hosts", "prix_med",
+                  "prix_med_entire", "pct_entire", "pct_multi", "pct_longterm",
+                  "dispo_med", "ratio_lh", "entire_1000rp", "listings_1000rps")
+bab_territory <- bind_rows(
+  france_kpi |> select(any_of(tbl_cols_bab)),
+  bab_kpi |> select(any_of(tbl_cols_bab)),
+  bab_arr
+)
+
+# === 4. Top hosts par ville ===
+make_top_hosts <- function(df, n_top = 50) {
+  total <- nrow(df)
+  df |>
+    group_by(host_id, host_name) |>
+    summarise(
+      n_listings = n(),
+      prix_moy = round(mean(price), 0),
+      pct_entire = round(mean(room_type == "Entire home/apt") * 100, 0),
+      .groups = "drop") |>
+    arrange(desc(n_listings)) |>
+    head(n_top) |>
+    mutate(pct_offre = round(n_listings / total * 100, 2)) |>
+    as.data.frame()
+}
+
+hosts_paris <- make_top_hosts(df_fr |> filter(city == "paris"), 50)
+hosts_lyon <- make_top_hosts(df_fr |> filter(city == "lyon"), 50)
+hosts_bordeaux <- make_top_hosts(df_fr |> filter(city == "bordeaux"), 50)
+hosts_bab <- make_top_hosts(df_fr |> filter(city == "pays-basque"), 50)
+hosts_france <- make_top_hosts(df_fr, 100)
+
+# === 5. Benchmark Europe élargi + communes BAB ===
+kpi_csv <- read.csv(
+  "C:/Users/vince/hh/pq/PDS/pbnb-airbnb-log-jrr-jpy/data/interim/kpi_global_by_city_2506.csv",
+  stringsAsFactors = FALSE)
+
+europe_bench <- kpi_csv |>
+  filter(continent == "Europe", city != "pays-basque") |>
+  select(city, city_fr, country_code, n_listings, n_hosts, pop,
+         listings_1000hab, listings_1000hsg, entire_1000hsg,
+         prix_med, prix_med_entire, pct_entire, pct_multi, pct_longterm,
+         ratio_lh, cr_offre_10plus, dispo_med, revenue_est_med)
+
+# BAB communes individuelles (Biarritz, Anglet, Bayonne)
+bab_commune_agg <- insee_iris |>
+  filter(city == "pays-basque") |>
+  group_by(arr_code) |>
+  summarise(pop = sum(pop_2022, na.rm = TRUE),
+            hsg = sum(log_2022, na.rm = TRUE), .groups = "drop")
+
+bab_commune_rows <- lapply(c("Biarritz", "Anglet", "Bayonne"), function(commune) {
+  df_c <- df_fr |> filter(city == "pays-basque", neighbourhood_group == commune)
+  pop_c <- bab_commune_agg |> filter(arr_code == commune)
+  n_l <- nrow(df_c)
+  nh <- length(unique(df_c$host_id))
+  pop_v <- if (nrow(pop_c) > 0) pop_c$pop[1] else NA_real_
+  hsg_v <- if (nrow(pop_c) > 0) pop_c$hsg[1] else NA_real_
+  entire <- df_c |> filter(room_type == "Entire home/apt")
+  n_ent <- nrow(entire)
+  # Concentration
+  hcounts <- df_c |> group_by(host_id) |> summarise(n = n(), .groups = "drop")
+  l10 <- sum(hcounts$n[hcounts$n >= 10])
+  cr10 <- if (n_l > 0) round(l10 / n_l * 100, 1) else NA_real_
+
+  data.frame(
+    city = tolower(commune), city_fr = commune, country_code = "FRA",
+    n_listings = n_l, n_hosts = nh, pop = pop_v,
+    listings_1000hab = ifelse(!is.na(pop_v) & pop_v > 0, round(n_l / (pop_v / 1000), 1), NA_real_),
+    listings_1000hsg = ifelse(!is.na(hsg_v) & hsg_v > 0, round(n_l / (hsg_v / 1000), 1), NA_real_),
+    entire_1000hsg = ifelse(!is.na(hsg_v) & hsg_v > 0, round(n_ent / (hsg_v / 1000), 1), NA_real_),
+    prix_med = round(median(df_c$price), 0),
+    prix_med_entire = ifelse(n_ent > 0, round(median(entire$price), 0), NA_real_),
+    pct_entire = round(mean(df_c$room_type == "Entire home/apt") * 100, 1),
+    pct_multi = round(mean(df_c$is_multi) * 100, 1),
+    pct_longterm = round(mean(df_c$is_longterm) * 100, 1),
+    ratio_lh = round(n_l / max(nh, 1), 1),
+    cr_offre_10plus = cr10,
+    dispo_med = round(median(df_c$availability_365), 0),
+    revenue_est_med = NA_real_,
+    stringsAsFactors = FALSE
+  )
+}) |> bind_rows()
+
+europe_bench <- bind_rows(europe_bench, bab_commune_rows) |>
+  arrange(desc(listings_1000hab))
+
+# Top host per French city
+top_host_lbl <- function(hosts_df) {
+  if (nrow(hosts_df) > 0) {
+    top <- hosts_df |> arrange(desc(n_listings)) |> head(1)
+    paste0(top$host_name, " (", top$n_listings, ")")
+  } else NA_character_
+}
+europe_bench$top_host <- NA_character_
+europe_bench$top_host[europe_bench$city == "paris"] <- top_host_lbl(hosts_paris)
+europe_bench$top_host[europe_bench$city == "lyon"] <- top_host_lbl(hosts_lyon)
+europe_bench$top_host[europe_bench$city == "bordeaux"] <- top_host_lbl(hosts_bordeaux)
+for (commune in c("Biarritz", "Anglet", "Bayonne")) {
+  df_c <- df_fr |> filter(city == "pays-basque", neighbourhood_group == commune)
+  if (nrow(df_c) > 0) {
+    top_c <- df_c |> group_by(host_id, host_name) |>
+      summarise(n = n(), .groups = "drop") |> arrange(desc(n)) |> head(1)
+    europe_bench$top_host[europe_bench$city == tolower(commune)] <-
+      paste0(top_c$host_name, " (", top_c$n, ")")
+  }
+}
+
+# === 6. IRIS Paris (GPKG + recap) ===
+gpkg_path <- "C:/Users/vince/DBD-datab/TDC-ref/geo-shape-raw/CONTOURS-IRIS_3-0__GPKG_LAMB93_FXX_2025-01-01/iris.gpkg"
+lyr <- st_layers(gpkg_path)$name[1]
+
+paris_sf <- st_read(gpkg_path,
+  query = sprintf("SELECT * FROM \"%s\" WHERE code_iris LIKE '75%%'", lyr),
+  quiet = TRUE) |>
+  st_transform(4326) |>
+  st_simplify(dTolerance = 0.00005, preserveTopology = TRUE) |>
+  select(code_iris, nom_iris)
+
+recap <- read.csv(
+  "C:/Users/vince/hh/pq/PDS/pbnb-airbnb-log-jrr-jpy/data/interim/recap_iris_paris_2506.csv",
+  stringsAsFactors = FALSE, colClasses = c(code_iris = "character"))
+
+paris_insee <- insee_iris |> filter(city == "paris") |>
+  select(code_iris, rp_2022, rsecocc_2022)
+
+paris_sf <- paris_sf |>
+  left_join(recap |> select(code_iris, n, n_hosts, prix_med, pct_multi,
+                             pct_entire, pct_longterm, dispo_med, reviews_med, arr),
+            by = "code_iris") |>
+  left_join(paris_insee, by = "code_iris") |>
+  mutate(across(c(n, n_hosts, prix_med, pct_multi, pct_entire,
+                   pct_longterm, dispo_med, reviews_med), ~replace(., is.na(.), 0)),
+         n_entire = round(n * pct_entire / 100),
+         entire_1000rp = ifelse(!is.na(rp_2022) & rp_2022 >= 200 & n_entire > 0,
+                                 round(n_entire / (rp_2022 / 1000), 1), NA_real_),
+         listings_1000rps = ifelse(!is.na(rp_2022) & !is.na(rsecocc_2022) & n > 0,
+                                    round(n / ((rp_2022 + rsecocc_2022) / 1000), 1), NA_real_)) |>
+  select(-rp_2022, -rsecocc_2022)
+
+paris_sf$commune <- "Paris"
+
+tmp <- tempfile(fileext = ".geojson")
+st_write(paris_sf, tmp, driver = "GeoJSON", quiet = TRUE)
+iris_json <- paste(readLines(tmp, warn = FALSE), collapse = "\n")
+
+# === 6a2. IRIS territory table (Paris) ===
+iris_terr <- recap |>
+  filter(n >= 10) |>
+  left_join(paris_insee, by = "code_iris") |>
+  mutate(
+    label = paste0(nom_iris, " (", arr, ")"),
+    level = "iris",
+    prix_med_entire = NA_real_,
+    ratio_lh = round(n / pmax(n_hosts, 1), 1),
+    n_entire = round(n * pct_entire / 100),
+    entire_1000rp = ifelse(!is.na(rp_2022) & rp_2022 >= 200,
+                            round(n_entire / (rp_2022 / 1000), 1), NA_real_),
+    listings_1000rps = ifelse(!is.na(rp_2022) & !is.na(rsecocc_2022) & (rp_2022 + rsecocc_2022) > 0,
+                               round(n / ((rp_2022 + rsecocc_2022) / 1000), 1), NA_real_)
+  ) |>
+  rename(n_listings = n) |>
+  select(label, level, n_listings, n_hosts, prix_med, prix_med_entire,
+         pct_entire, pct_multi, pct_longterm, dispo_med, ratio_lh,
+         entire_1000rp, listings_1000rps)
+
+tbl_cols_iris <- names(iris_terr)
+paris_iris_territory <- bind_rows(
+  france_kpi |> select(any_of(tbl_cols_iris)),
+  paris_kpi |> select(any_of(tbl_cols_iris)),
+  iris_terr
+)
+
+# === 6b. IRIS Lyon (GPKG + spatial join) ===
+lyon_sf <- st_read(gpkg_path,
+  query = sprintf("SELECT * FROM \"%s\" WHERE code_iris LIKE '6938%%'", lyr),
+  quiet = TRUE) |>
+  st_transform(4326) |>
+  st_simplify(dTolerance = 0.00005, preserveTopology = TRUE) |>
+  select(code_iris, nom_iris)
+
+pts_lyon_sf <- st_as_sf(
+  df_fr |> filter(city == "lyon"),
+  coords = c("longitude", "latitude"), crs = 4326)
+lyon_join <- st_join(pts_lyon_sf, lyon_sf, join = st_within) |> st_drop_geometry()
+
+lyon_recap <- lyon_join |>
+  filter(!is.na(code_iris)) |>
+  group_by(code_iris) |>
+  summarise(
+    n = n(), n_hosts = length(unique(host_id)),
+    prix_med = round(median(price), 0),
+    pct_multi = round(mean(is_multi) * 100, 1),
+    pct_entire = round(mean(room_type == "Entire home/apt") * 100, 1),
+    pct_longterm = round(mean(is_longterm) * 100, 1),
+    dispo_med = round(median(availability_365), 0),
+    reviews_med = round(median(number_of_reviews), 0),
+    arr = first(neighbourhood),
+    .groups = "drop")
+
+lyon_insee <- insee_iris |> filter(city == "lyon") |>
+  select(code_iris, rp_2022, rsecocc_2022)
+
+lyon_sf <- lyon_sf |>
+  left_join(lyon_recap, by = "code_iris") |>
+  left_join(lyon_insee, by = "code_iris") |>
+  mutate(across(c(n, n_hosts, prix_med, pct_multi, pct_entire,
+                   pct_longterm, dispo_med, reviews_med), ~replace(., is.na(.), 0)),
+         n_entire = round(n * pct_entire / 100),
+         entire_1000rp = ifelse(!is.na(rp_2022) & rp_2022 >= 200 & n_entire > 0,
+                                 round(n_entire / (rp_2022 / 1000), 1), NA_real_),
+         listings_1000rps = ifelse(!is.na(rp_2022) & !is.na(rsecocc_2022) & n > 0,
+                                    round(n / ((rp_2022 + rsecocc_2022) / 1000), 1), NA_real_)) |>
+  select(-rp_2022, -rsecocc_2022)
+
+lyon_sf$commune <- "Lyon"
+
+tmp2 <- tempfile(fileext = ".geojson")
+st_write(lyon_sf, tmp2, driver = "GeoJSON", quiet = TRUE)
+iris_lyon_json <- paste(readLines(tmp2, warn = FALSE), collapse = "\n")
+
+# === 6b2. IRIS territory table (Lyon) ===
+lyon_iris_terr <- lyon_recap |>
+  filter(n >= 5) |>
+  left_join(lyon_insee, by = "code_iris") |>
+  left_join(lyon_sf |> st_drop_geometry() |> select(code_iris, nom_iris), by = "code_iris") |>
+  mutate(
+    label = paste0(nom_iris, " (", arr, ")"),
+    level = "iris",
+    prix_med_entire = NA_real_,
+    ratio_lh = round(n / pmax(n_hosts, 1), 1),
+    n_entire = round(n * pct_entire / 100),
+    entire_1000rp = ifelse(!is.na(rp_2022) & rp_2022 >= 200,
+                            round(n_entire / (rp_2022 / 1000), 1), NA_real_),
+    listings_1000rps = ifelse(!is.na(rp_2022) & !is.na(rsecocc_2022) & (rp_2022 + rsecocc_2022) > 0,
+                               round(n / ((rp_2022 + rsecocc_2022) / 1000), 1), NA_real_)
+  ) |>
+  rename(n_listings = n) |>
+  select(label, level, n_listings, n_hosts, prix_med, prix_med_entire,
+         pct_entire, pct_multi, pct_longterm, dispo_med, ratio_lh,
+         entire_1000rp, listings_1000rps)
+
+lyon_iris_territory <- bind_rows(
+  france_kpi |> select(any_of(names(lyon_iris_terr))),
+  lyon_kpi |> select(any_of(names(lyon_iris_terr))),
+  lyon_iris_terr
+)
+
+# === 6c. IRIS Bordeaux (GPKG + spatial join) ===
+bordeaux_sf <- st_read(gpkg_path,
+  query = sprintf("SELECT * FROM \"%s\" WHERE code_iris LIKE '33063%%'", lyr),
+  quiet = TRUE) |>
+  st_transform(4326) |>
+  st_simplify(dTolerance = 0.00005, preserveTopology = TRUE) |>
+  select(code_iris, nom_iris)
+
+pts_bdx_sf <- st_as_sf(
+  df_fr |> filter(city == "bordeaux"),
+  coords = c("longitude", "latitude"), crs = 4326)
+bdx_join <- st_join(pts_bdx_sf, bordeaux_sf, join = st_within) |> st_drop_geometry()
+
+bdx_recap <- bdx_join |>
+  filter(!is.na(code_iris)) |>
+  group_by(code_iris) |>
+  summarise(
+    n = n(), n_hosts = length(unique(host_id)),
+    prix_med = round(median(price), 0),
+    pct_multi = round(mean(is_multi) * 100, 1),
+    pct_entire = round(mean(room_type == "Entire home/apt") * 100, 1),
+    pct_longterm = round(mean(is_longterm) * 100, 1),
+    dispo_med = round(median(availability_365), 0),
+    reviews_med = round(median(number_of_reviews), 0),
+    arr = first(neighbourhood),
+    .groups = "drop")
+
+bdx_insee <- insee_iris |> filter(city == "bordeaux") |>
+  select(code_iris, rp_2022, rsecocc_2022)
+
+bordeaux_sf <- bordeaux_sf |>
+  left_join(bdx_recap, by = "code_iris") |>
+  left_join(bdx_insee, by = "code_iris") |>
+  mutate(across(c(n, n_hosts, prix_med, pct_multi, pct_entire,
+                   pct_longterm, dispo_med, reviews_med), ~replace(., is.na(.), 0)),
+         n_entire = round(n * pct_entire / 100),
+         entire_1000rp = ifelse(!is.na(rp_2022) & rp_2022 >= 200 & n_entire > 0,
+                                 round(n_entire / (rp_2022 / 1000), 1), NA_real_),
+         listings_1000rps = ifelse(!is.na(rp_2022) & !is.na(rsecocc_2022) & n > 0,
+                                    round(n / ((rp_2022 + rsecocc_2022) / 1000), 1), NA_real_)) |>
+  select(-rp_2022, -rsecocc_2022)
+
+bordeaux_sf$commune <- "Bordeaux"
+
+tmp3 <- tempfile(fileext = ".geojson")
+st_write(bordeaux_sf, tmp3, driver = "GeoJSON", quiet = TRUE)
+iris_bdx_json <- paste(readLines(tmp3, warn = FALSE), collapse = "\n")
+
+# === 6c2. IRIS territory table (Bordeaux) ===
+bdx_iris_terr <- bdx_recap |>
+  filter(n >= 5) |>
+  left_join(bdx_insee, by = "code_iris") |>
+  left_join(bordeaux_sf |> st_drop_geometry() |> select(code_iris, nom_iris), by = "code_iris") |>
+  mutate(
+    label = paste0(nom_iris, " (", arr, ")"),
+    level = "iris",
+    prix_med_entire = NA_real_,
+    ratio_lh = round(n / pmax(n_hosts, 1), 1),
+    n_entire = round(n * pct_entire / 100),
+    entire_1000rp = ifelse(!is.na(rp_2022) & rp_2022 >= 200,
+                            round(n_entire / (rp_2022 / 1000), 1), NA_real_),
+    listings_1000rps = ifelse(!is.na(rp_2022) & !is.na(rsecocc_2022) & (rp_2022 + rsecocc_2022) > 0,
+                               round(n / ((rp_2022 + rsecocc_2022) / 1000), 1), NA_real_)
+  ) |>
+  rename(n_listings = n) |>
+  select(label, level, n_listings, n_hosts, prix_med, prix_med_entire,
+         pct_entire, pct_multi, pct_longterm, dispo_med, ratio_lh,
+         entire_1000rp, listings_1000rps)
+
+bordeaux_iris_territory <- bind_rows(
+  france_kpi |> select(any_of(names(bdx_iris_terr))),
+  bordeaux_kpi |> select(any_of(names(bdx_iris_terr))),
+  bdx_iris_terr
+)
+
+# === 6d. IRIS BAB (GPKG + spatial join — 3 communes) ===
+bab_iris_codes <- c("64102%", "64122%", "64024%")
+bab_where <- paste0("code_iris LIKE '", bab_iris_codes, "'", collapse = " OR ")
+bab_sf <- st_read(gpkg_path,
+  query = sprintf("SELECT * FROM \"%s\" WHERE %s", lyr, bab_where),
+  quiet = TRUE) |>
+  st_transform(4326) |>
+  st_simplify(dTolerance = 0.00005, preserveTopology = TRUE) |>
+  select(code_iris, nom_iris)
+
+pts_bab_sf <- st_as_sf(
+  df_fr |> filter(city == "pays-basque"),
+  coords = c("longitude", "latitude"), crs = 4326)
+bab_join <- st_join(pts_bab_sf, bab_sf, join = st_within) |> st_drop_geometry()
+
+bab_recap <- bab_join |>
+  filter(!is.na(code_iris)) |>
+  group_by(code_iris) |>
+  summarise(
+    n = n(), n_hosts = length(unique(host_id)),
+    prix_med = round(median(price), 0),
+    pct_multi = round(mean(is_multi) * 100, 1),
+    pct_entire = round(mean(room_type == "Entire home/apt") * 100, 1),
+    pct_longterm = round(mean(is_longterm) * 100, 1),
+    dispo_med = round(median(availability_365), 0),
+    reviews_med = round(median(number_of_reviews), 0),
+    arr = first(neighbourhood_group),
+    .groups = "drop")
+
+bab_insee <- insee_iris |> filter(city == "pays-basque") |>
+  select(code_iris, rp_2022, rsecocc_2022)
+
+bab_sf <- bab_sf |>
+  left_join(bab_recap, by = "code_iris") |>
+  left_join(bab_insee, by = "code_iris") |>
+  mutate(across(c(n, n_hosts, prix_med, pct_multi, pct_entire,
+                   pct_longterm, dispo_med, reviews_med), ~replace(., is.na(.), 0)),
+         n_entire = round(n * pct_entire / 100),
+         entire_1000rp = ifelse(!is.na(rp_2022) & rp_2022 >= 200 & n_entire > 0,
+                                 round(n_entire / (rp_2022 / 1000), 1), NA_real_),
+         listings_1000rps = ifelse(!is.na(rp_2022) & !is.na(rsecocc_2022) & n > 0,
+                                    round(n / ((rp_2022 + rsecocc_2022) / 1000), 1), NA_real_)) |>
+  select(-rp_2022, -rsecocc_2022)
+
+bab_sf$commune <- bab_sf$arr
+
+tmp4 <- tempfile(fileext = ".geojson")
+st_write(bab_sf, tmp4, driver = "GeoJSON", quiet = TRUE)
+iris_bab_json <- paste(readLines(tmp4, warn = FALSE), collapse = "\n")
+
+# === 6d2. IRIS territory table (BAB) ===
+bab_iris_terr <- bab_recap |>
+  filter(n >= 5) |>
+  left_join(bab_insee, by = "code_iris") |>
+  left_join(bab_sf |> st_drop_geometry() |> select(code_iris, nom_iris), by = "code_iris") |>
+  mutate(
+    label = paste0(nom_iris, " (", arr, ")"),
+    level = "iris",
+    prix_med_entire = NA_real_,
+    ratio_lh = round(n / pmax(n_hosts, 1), 1),
+    n_entire = round(n * pct_entire / 100),
+    entire_1000rp = ifelse(!is.na(rp_2022) & rp_2022 >= 200,
+                            round(n_entire / (rp_2022 / 1000), 1), NA_real_),
+    listings_1000rps = ifelse(!is.na(rp_2022) & !is.na(rsecocc_2022) & (rp_2022 + rsecocc_2022) > 0,
+                               round(n / ((rp_2022 + rsecocc_2022) / 1000), 1), NA_real_)
+  ) |>
+  rename(n_listings = n) |>
+  select(label, level, n_listings, n_hosts, prix_med, prix_med_entire,
+         pct_entire, pct_multi, pct_longterm, dispo_med, ratio_lh,
+         entire_1000rp, listings_1000rps)
+
+bab_iris_territory <- bind_rows(
+  france_kpi |> select(any_of(names(bab_iris_terr))),
+  bab_kpi |> select(any_of(names(bab_iris_terr))),
+  bab_iris_terr
+)
+
+# === 7. Points per city ===
+pts_sel <- function(df) {
+  df |> select(latitude, longitude, room_type, price, is_multi)
+}
+pts_paris <- pts_sel(df_fr |> filter(city == "paris"))
+pts_lyon <- pts_sel(df_fr |> filter(city == "lyon"))
+pts_bordeaux <- pts_sel(df_fr |> filter(city == "bordeaux"))
+pts_bab <- pts_sel(df_fr |> filter(city == "pays-basque"))
+
+n_paris <- nrow(pts_paris)
+n_lyon <- nrow(pts_lyon)
+n_bordeaux <- nrow(pts_bordeaux)
+n_bab <- nrow(pts_bab)
+
+# === 8. Palettes centralisées (source: jcn-setup.R) ===
+source("C:/Users/vince/hh/pq/PDS/mutils/jrr/jcn-setup.R")
+
+pal_list <- list(
+  prix = pal_seq7_byrv,
+  stock = c("#f7fbff","#c6dbef","#6baed6","#2171b5","#08306b"),
+  pct_pos = c("#f7fcf5","#a1d99b","#41ab5d","#006d2c","#00441b"),
+  pct_neg = c("#f7fbff","#c6dbef","#6baed6","#2171b5","#08306b")
+)
+
+# === 9. ojs_define ===
+ojs_define(pal_r = pal_list)
+ojs_define(iris_json = iris_json)
+ojs_define(iris_lyon_json = iris_lyon_json)
+ojs_define(iris_bdx_json = iris_bdx_json)
+ojs_define(iris_bab_json = iris_bab_json)
+ojs_define(bordeaux_iris_territory = bordeaux_iris_territory)
+ojs_define(lyon_iris_territory = lyon_iris_territory)
+ojs_define(bab_iris_territory = bab_iris_territory)
+ojs_define(pts_paris = pts_paris)
+ojs_define(pts_lyon = pts_lyon)
+ojs_define(pts_bordeaux = pts_bordeaux)
+ojs_define(pts_bab = pts_bab)
+ojs_define(paris_territory = paris_territory)
+ojs_define(lyon_territory = lyon_territory)
+ojs_define(bordeaux_territory = bordeaux_territory)
+ojs_define(europe_bench_data = europe_bench)
+ojs_define(hosts_paris = hosts_paris)
+ojs_define(hosts_lyon = hosts_lyon)
+ojs_define(hosts_bordeaux = hosts_bordeaux)
+ojs_define(hosts_bab = hosts_bab)
+ojs_define(hosts_france = hosts_france)
+ojs_define(france_kpi_js = france_kpi)
+ojs_define(paris_kpi_js = paris_kpi)
+ojs_define(lyon_kpi_js = lyon_kpi)
+ojs_define(bordeaux_kpi_js = bordeaux_kpi)
+ojs_define(bab_kpi_js = bab_kpi)
+ojs_define(bab_territory = bab_territory)
+ojs_define(delta_fr_js = delta_fr)
+ojs_define(delta_paris_js = delta_paris)
+ojs_define(paris_iris_territory = paris_iris_territory)
+```
+
+## Row {height="300px"}
+
+### Column {width="100%"}
+
+```{ojs}
+//| label: sync-palettes
+//| include: false
+{
+  const p = pal_r;
+  if (p && typeof SEQ_COL !== "undefined") {
+    SEQ_COL.prix = p.prix;
+    SEQ_COL.stock = p.stock;
+    SEQ_COL.pct_pos = p.pct_pos;
+    SEQ_COL.pct_neg = p.pct_neg;
+  }
+}
+```
+
+```{ojs}
+//| label: header-kpi-grid
+{
+  const fk = transpose(france_kpi_js)[0];
+  const pk = transpose(paris_kpi_js)[0];
+  const lk = transpose(lyon_kpi_js)[0];
+  const bxk = transpose(bordeaux_kpi_js)[0];
+  const babk = transpose(bab_kpi_js)[0];
+
+  const cities = [
+    {name:"Paris", kpi:pk}, {name:"Lyon", kpi:lk},
+    {name:"Bordeaux", kpi:bxk}, {name:"BAB", kpi:babk}
+  ];
+  const fN = (n) => Math.round(n).toLocaleString("fr-FR");
+
+  // Per-city ranking line
+  const rkLine = (key) => cities
+    .map(c => ({name:c.name, val:c.kpi[key]}))
+    .filter(c => c.val != null)
+    .sort((a,b) => b.val - a.val)
+    .map((c,i) => `<span style="color:${i===0?'#0a4c6a':'#6b7280'};font-weight:${i===0?700:400};">${c.name} ${typeof c.val==='number'&&c.val%1!==0?c.val.toFixed(1):c.val}</span>`)
+    .join(" \u00b7 ");
+
+  const kItem = (key, val, label, color) => `<div class="kpi-item">
+    <span class="kv" style="color:${color};">${val}</span>
+    <span class="kl">${label}</span>
+    <div class="kt">${rkLine(key)}</div>
+  </div>`;
+  const kNarr = (html) => `<div class="kpi-narr">${html}</div>`;
+
+  const d = document.createElement("div");
+  d.innerHTML = `
+  <div class="kpi-panel" style="width:100%;">
+    <div class="kpi-header">
+      <span>Synth\u00e8se France \u00b7 4 villes</span>
+      <span style="font-size:10px;opacity:0.7;">Source : Inside Airbnb, juin 2025</span>
+    </div>
+    <div class="kpi-blocs">
+      <div class="kpi-bloc">
+        <div class="kpi-bloc-title" style="border-color:#0a4c6a;color:#0a4c6a;">March\u00e9</div>
+        ${kItem("n_listings", fN(fk.n_listings), "annonces actives", "#0a4c6a")}
+        ${kItem("n_hosts", fN(fk.n_hosts || 0), "h\u00f4tes distincts", "#0a4c6a")}
+        ${kItem("pct_entire", fk.pct_entire+"%", "logements entiers", "#0a4c6a")}
+      </div>
+      <div class="kpi-bloc">
+        <div class="kpi-bloc-title" style="border-color:#ca5800;color:#ca5800;">Prix & Activit\u00e9</div>
+        ${kItem("prix_med", fk.prix_med+"\u00a0\u20ac", "prix m\u00e9dian / nuit", "#ca5800")}
+        ${kItem("prix_med_entire", fk.prix_med_entire+"\u00a0\u20ac", "logement entier (m\u00e9d.)", "#ca5800")}
+        ${kItem("dispo_med", fk.dispo_med+" j", "disponibilit\u00e9 m\u00e9d. / an", "#0a4c6a")}
+      </div>
+      <div class="kpi-bloc">
+        <div class="kpi-bloc-title" style="border-color:#6d1a36;color:#6d1a36;">Professionnalisation</div>
+        ${kItem("pct_multi", fk.pct_multi+"%", "multi-h\u00f4tes (>1 ann.)", "#6d1a36")}
+        ${kNarr(`<strong style="color:#6d1a36;">${fk.top10_share}\u202f%</strong> des annonces g\u00e9r\u00e9es par les 10\u202f% d\u2019h\u00f4tes les plus actifs`)}
+        ${kItem("pct_longterm", fk.pct_longterm+"%", "longue dur\u00e9e (\u226530 nuits)", "#6d1a36")}
+      </div>
+    </div>
+  </div>`;
+  return d;
+}
+```
+
+## Row {height="420px"}
+
+### Column {width="100%"}
+
+#### Benchmark europ\u00e9en — 42 villes
+
+```{ojs}
+//| label: header-bench-europe
+{
+  const data = transpose(europe_bench_data);
+  const COUNTRY_COL = {
+    FRA:"#002395", GBR:"#C8102E", ITA:"#008C45", ESP:"#F1BF00",
+    DEU:"#333333", PRT:"#006600", GRC:"#0D5EAF", NLD:"#FF6F00",
+    AUT:"#EF3340", BEL:"#FDDA24", CZE:"#11457E", DNK:"#C60C30",
+    HUN:"#477050", IRL:"#169B62", NOR:"#BA0C2F", SWE:"#006AA7",
+    TUR:"#E30A17", CHE:"#D52B1E", LVA:"#9E3039"
+  };
+  const tableMod = await import(new URL("helpers/jcn-tableojs.js", document.baseURI).href);
+  const container = document.createElement("div");
+  container.id = "bench-europe-c";
+  yield container;
+
+  tableMod.buildDataTable(container, data, {
+    keys: ["n_listings","prix_med_entire",
+      "pct_entire","pct_multi","pct_longterm",
+      "listings_1000hab","listings_1000hsg","entire_1000hsg",
+      "ratio_lh","cr_offre_10plus","dispo_med"],
+    groups: [
+      {label:"Stock", cols:["n_listings"]},
+      {label:"Prix", cols:["prix_med_entire"]},
+      {label:"Structure", cols:["pct_entire","pct_multi","pct_longterm"]},
+      {label:"Pression", cols:["listings_1000hab","listings_1000hsg","entire_1000hsg"]},
+      {label:"Concentration", cols:["ratio_lh","cr_offre_10plus"]},
+      {label:"Activit\u00e9", cols:["dispo_med"]}
+    ],
+    labelCol: "city_fr",
+    labelFallback: "city",
+    colorCol: "country_code",
+    colorMap: COUNTRY_COL,
+    subCol: "top_host",
+    defaultSort: "listings_1000hab",
+    maxHeight: 360
+  });
+}
+```
+
+## Row {height="540px"}
+
+```{ojs}
+//| label: paris-section
+{
+  const fk = transpose(france_kpi_js)[0];
+  const pk = transpose(paris_kpi_js)[0];
+  const r = buildCityRow("paris", "Paris",
+    transpose(pts_paris), "iris",
+    { center:[2.347,48.859], zoom:11, irisJson:iris_json, cityId:"paris", cityKpi:pk, color:"#6b7280" },
+    transpose(paris_territory), transpose(hosts_paris), fk,
+    transpose(paris_iris_territory));
+  yield r.element;
+  r.init();
+}
+```
+
+## Row {height="540px"}
+
+```{ojs}
+//| label: lyon-section
+{
+  const fk = transpose(france_kpi_js)[0];
+  const lk = transpose(lyon_kpi_js)[0];
+  const r = buildCityRow("lyon", "Lyon",
+    transpose(pts_lyon), "iris",
+    { center:[4.835,45.764], zoom:11, irisJson:iris_lyon_json, cityId:"lyon", cityKpi:lk, color:"#1e3a5f" },
+    transpose(lyon_territory), transpose(hosts_lyon), fk,
+    transpose(lyon_iris_territory));
+  yield r.element;
+  r.init();
+}
+```
+
+## Row {height="540px"}
+
+```{ojs}
+//| label: bordeaux-section
+{
+  const fk = transpose(france_kpi_js)[0];
+  const bk = transpose(bordeaux_kpi_js)[0];
+  const r = buildCityRow("bordeaux", "Bordeaux",
+    transpose(pts_bordeaux), "iris",
+    { center:[-0.573,44.838], zoom:11.5, irisJson:iris_bdx_json, cityId:"bordeaux", cityKpi:bk, color:"#7c2d12" },
+    transpose(bordeaux_territory), transpose(hosts_bordeaux), fk,
+    transpose(bordeaux_iris_territory));
+  yield r.element;
+  r.init();
+}
+```
+
+## Row {height="540px"}
+
+```{ojs}
+//| label: bab-section
+{
+  const fk = transpose(france_kpi_js)[0];
+  const babk = transpose(bab_kpi_js)[0];
+  const r = buildCityRow("bab", "Bayonne · Anglet · Biarritz",
+    transpose(pts_bab), "iris",
+    { center:[-1.515,43.480], zoom:11, irisJson:iris_bab_json, cityId:"bab", cityKpi:babk, color:"#065f46" },
+    transpose(bab_territory), transpose(hosts_bab), fk,
+    transpose(bab_iris_territory));
+  yield r.element;
+  r.init();
+}
+```
