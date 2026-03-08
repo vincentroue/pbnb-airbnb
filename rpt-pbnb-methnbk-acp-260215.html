@@ -1,0 +1,1940 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="fr" xml:lang="fr"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.25">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Vincent R.">
+
+<title>Méthodologie — Pipeline ETL et indicateurs – Airbnb — Analyse des marchés</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-08d2a62c12343b644132a6bca3ba3a1d.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-eb058b2ecad785636b37c9c64e5c410a.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "language": {
+    "search-no-results-text": "Pas de résultats",
+    "search-matching-documents-text": "documents trouvés",
+    "search-copy-link-title": "Copier le lien vers la recherche",
+    "search-hide-matches-text": "Cacher les correspondances additionnelles",
+    "search-more-match-text": "correspondance de plus dans ce document",
+    "search-more-matches-text": "correspondances de plus dans ce document",
+    "search-clear-button-title": "Effacer",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Annuler",
+    "search-submit-button-title": "Envoyer",
+    "search-label": "Recherche"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+<script src="site_libs/quarto-diagram/mermaid.min.js"></script>
+<script src="site_libs/quarto-diagram/mermaid-init.js"></script>
+<link href="site_libs/quarto-diagram/mermaid.css" rel="stylesheet">
+
+
+</head>
+
+<body class="floating nav-fixed quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="./index.html" class="navbar-brand navbar-brand-logo">
+    </a>
+    <a class="navbar-brand" href="./index.html">
+    <span class="navbar-title">Airbnb — Analyse des marchés</span>
+    </a>
+  </div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Basculer la navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-analyse-monde" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Analyse Monde</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-analyse-monde">    
+        <li>
+    <a class="dropdown-item" href="./rpt-pbnb-rapport-ALL-260207.html">
+ <span class="dropdown-text">Rapport d’analyse mondiale</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li>
+    <a class="dropdown-item" href="./rpt-pbnb-synth-monde-260214.html">
+ <span class="dropdown-text">Synthèse — 75 villes monde</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./rpt-pbnb-synth-europe-260214.html">
+ <span class="dropdown-text">Synthèse — 37 marchés Europe</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-analyse-france" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Analyse France</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-analyse-france">    
+        <li>
+    <a class="dropdown-item" href="./rpt-pbnb-rapport-franceparis-260218.html">
+ <span class="dropdown-text">Rapport France — Paris, Lyon, Bordeaux</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li>
+    <a class="dropdown-item" href="./rpt-pbnb-synth-franceparis-260217.html">
+ <span class="dropdown-text">Synthèse France</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-notebook--méthodes" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Notebook &amp; Méthodes</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-notebook--méthodes">    
+        <li>
+    <a class="dropdown-item" href="./rpt-pbnb-edanbk-ALL-260215.html">
+ <span class="dropdown-text">Notebook EDA — 75 villes</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./rpt-pbnb-edanbk-acpfocus-260222.html">
+ <span class="dropdown-text">ACP &amp; Clustering — Focus</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li>
+    <a class="dropdown-item" href="./rpt-pbnb-methnbk-acp-260215.html">
+ <span class="dropdown-text">Annexe méthodologique</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="./rpt-pbnb-dash-ALL-260222.html"> <i class="bi bi-globe" role="img">
+</i> 
+<span class="menu-text">Dashboard Monde</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./rpt-pbnb-dash-franceparis-260218.html"> <i class="bi bi-map" role="img">
+</i> 
+<span class="menu-text">Dashboard France</span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Sur cette page</h2>
+   
+  <ul>
+  <li><a href="#pipeline-etl-vue-densemble" id="toc-pipeline-etl-vue-densemble" class="nav-link active" data-scroll-target="#pipeline-etl-vue-densemble">Pipeline ETL — Vue d’ensemble</a>
+  <ul class="collapse">
+  <li><a href="#étapes-détaillées" id="toc-étapes-détaillées" class="nav-link" data-scroll-target="#étapes-détaillées">Étapes détaillées</a>
+  <ul class="collapse">
+  <li><a href="#étape-1-download-sp04" id="toc-étape-1-download-sp04" class="nav-link" data-scroll-target="#étape-1-download-sp04">Étape 1 — Download (<code>sp04</code>)</a></li>
+  <li><a href="#étape-2-flatten-sp06" id="toc-étape-2-flatten-sp06" class="nav-link" data-scroll-target="#étape-2-flatten-sp06">Étape 2 — Flatten (<code>sp06</code>)</a></li>
+  <li><a href="#étape-3-consolidation-sp07" id="toc-étape-3-consolidation-sp07" class="nav-link" data-scroll-target="#étape-3-consolidation-sp07">Étape 3 — Consolidation (<code>sp07</code>)</a></li>
+  <li><a href="#étape-4-calcul-kpis-sp08" id="toc-étape-4-calcul-kpis-sp08" class="nav-link" data-scroll-target="#étape-4-calcul-kpis-sp08">Étape 4 — Calcul KPIs (<code>sp08</code>)</a></li>
+  </ul></li>
+  </ul></li>
+  <li><a href="#pipeline-de-nettoyage" id="toc-pipeline-de-nettoyage" class="nav-link" data-scroll-target="#pipeline-de-nettoyage">Pipeline de nettoyage</a>
+  <ul class="collapse">
+  <li><a href="#justification-des-choix" id="toc-justification-des-choix" class="nav-link" data-scroll-target="#justification-des-choix">Justification des choix</a></li>
+  </ul></li>
+  <li><a href="#indicateurs-définitions" id="toc-indicateurs-définitions" class="nav-link" data-scroll-target="#indicateurs-définitions">Indicateurs — Définitions</a></li>
+  <li><a href="#taux-de-change-eur" id="toc-taux-de-change-eur" class="nav-link" data-scroll-target="#taux-de-change-eur">Taux de change EUR</a></li>
+  <li><a href="#difficultés-rencontrées-et-solutions" id="toc-difficultés-rencontrées-et-solutions" class="nav-link" data-scroll-target="#difficultés-rencontrées-et-solutions">Difficultés rencontrées et solutions</a></li>
+  <li><a href="#méthodologie-acp" id="toc-méthodologie-acp" class="nav-link" data-scroll-target="#méthodologie-acp">Méthodologie ACP</a>
+  <ul class="collapse">
+  <li><a href="#variables-actives" id="toc-variables-actives" class="nav-link" data-scroll-target="#variables-actives">Variables actives</a></li>
+  <li><a href="#protocole" id="toc-protocole" class="nav-link" data-scroll-target="#protocole">Protocole</a></li>
+  </ul></li>
+  <li><a href="#sources-et-limites" id="toc-sources-et-limites" class="nav-link" data-scroll-target="#sources-et-limites">Sources et limites</a></li>
+  </ul>
+</nav>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar zindex-bottom">
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<div class="quarto-title-block"><div><h1 class="title">Méthodologie — Pipeline ETL et indicateurs</h1><button type="button" class="btn code-tools-button dropdown-toggle" id="quarto-code-tools-menu" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi"></i> Code</button><ul class="dropdown-menu dropdown-menu-end" aria-labelelledby="quarto-code-tools-menu"><li><a id="quarto-show-all-code" class="dropdown-item" href="javascript:void(0)" role="button">Montrer tout le code</a></li><li><a id="quarto-hide-all-code" class="dropdown-item" href="javascript:void(0)" role="button">Cacher tout le code</a></li><li><hr class="dropdown-divider"></li><li><a id="quarto-view-source" class="dropdown-item" href="javascript:void(0)" role="button">Voir les sources</a></li></ul></div></div>
+<p class="subtitle lead">Annexe technique · Inside Airbnb juin 2025 · 75 villes</p>
+  <div class="quarto-categories">
+    <div class="quarto-category">Annexe méthodologique</div>
+  </div>
+  </div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Auteur·rice</div>
+    <div class="quarto-title-meta-contents">
+             <p>Vincent R. </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Date de publication</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">08 mars 2026</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<!-- Fichier : rpt-pbnb-methnbk-acp-260215.qmd | Type : METHNBK | Scope : Annexe méthodologique -->
+<!-- Notebook méthodologique (rpt-pbnb-methnbk-acp-260215)
+     Type : METHNBK (code visible, annexe technique)
+     Companion : rpt-pbnb-rapport-ALL-260207.qmd (rapport)
+     Objectif : documenter pipeline ETL, cleaning, indicateurs, ACP, difficultés
+-->
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pathlib <span class="im">import</span> Path</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> sys</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>MUTILS_JPY <span class="op">=</span> Path(<span class="vs">r"C:</span><span class="er">\</span><span class="vs">Users</span><span class="ch">\v</span><span class="vs">ince</span><span class="er">\</span><span class="vs">hh</span><span class="er">\</span><span class="vs">pq</span><span class="er">\</span><span class="vs">PDS</span><span class="dv">\m</span><span class="vs">utils</span><span class="er">\</span><span class="vs">jpy"</span>)</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="bu">str</span>(MUTILS_JPY) <span class="kw">not</span> <span class="kw">in</span> sys.path:</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    sys.path.insert(<span class="dv">0</span>, <span class="bu">str</span>(MUTILS_JPY))</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> importlib.util</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>_spec_graph <span class="op">=</span> importlib.util.spec_from_file_location(<span class="st">"jcn_graph"</span>, MUTILS_JPY <span class="op">/</span> <span class="st">"jcn-graph.py"</span>)</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>_mod <span class="op">=</span> importlib.util.module_from_spec(_spec_graph)</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>_spec_graph.loader.exec_module(_mod)</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>_mod.init_style()</span></code></pre></div><button title="Copier vers le presse-papier" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>&gt;&gt;&gt; jcn-graph.py chargé (Plotly + Matplotlib Urban)
+    Palettes: PAL_URBN_CAT, PAL_CAT_4, PAL_URBN_DIV, CONTINENT_COLORS
+    Tailles: TITLE=18, LABEL=12, AXIS=14
+    Helpers: plot_bar_ranked(), fig_title(), patch_plotly_reticulate()</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>_mod.patch_plotly_reticulate()</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>BASE <span class="op">=</span> Path(<span class="vs">r"C:</span><span class="er">\</span><span class="vs">Users</span><span class="ch">\v</span><span class="vs">ince</span><span class="er">\</span><span class="vs">hh</span><span class="er">\</span><span class="vs">pq</span><span class="er">\</span><span class="vs">PDS</span><span class="er">\</span><span class="vs">pbnb-airbnb-log-jrr-jpy"</span>)</span></code></pre></div><button title="Copier vers le presse-papier" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Objectif
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Cette annexe documente les <strong>choix méthodologiques</strong> du projet :</p>
+<ol type="1">
+<li>Pipeline ETL complet (scraping → parquet nettoyé)</li>
+<li>Nettoyage et décisions de filtrage</li>
+<li>Construction des indicateurs (KPIs)</li>
+<li>Méthodologie ACP et clustering</li>
+<li>Difficultés rencontrées et solutions</li>
+</ol>
+<p>Elle accompagne le <a href="./rpt-pbnb-rapport-ALL-260207.html">rapport complet</a> et le <a href="./rpt-pbnb-edanbk-ALL-260215.html">notebook EDA</a>.</p>
+</div>
+</div>
+<hr>
+<section id="pipeline-etl-vue-densemble" class="level1">
+<h1>Pipeline ETL — Vue d’ensemble</h1>
+<div class="cell" data-fig-width="10" data-layout-align="center">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode default code-with-copy"><code class="sourceCode default"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>flowchart TD</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    A["🌐 Inside Airbnb&lt;br/&gt;&lt;i&gt;insideairbnb.com/get-the-data&lt;/i&gt;&lt;br/&gt;~80 villes disponibles"] --&gt; B</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    B["📥 &lt;b&gt;sp04&lt;/b&gt; — Download&lt;br/&gt;&lt;code&gt;sp04-download-insideairbnb-251231.py&lt;/code&gt;&lt;br/&gt;Téléchargement ciblé par ville/pays/continent&lt;br/&gt;4 types : listings.gz, sumlistings, geojson, neighbourhoods"]</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    B --&gt; C["📁 &lt;b&gt;sp06&lt;/b&gt; — Flatten&lt;br/&gt;&lt;code&gt;sp06-flatten-insideairbnb-251231.py&lt;/code&gt;&lt;br/&gt;Aplatir arborescence datée → nommage flat&lt;br/&gt;&lt;code&gt;YYYY-MM-DD/&lt;/code&gt; → &lt;code&gt;YY-MM-XXX-CITY_*&lt;/code&gt;"]</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    C --&gt; D["🔧 &lt;b&gt;sp07&lt;/b&gt; — Consolidation&lt;br/&gt;&lt;code&gt;sp07-consolidate-global-260212.py&lt;/code&gt;&lt;br/&gt;Agrégation 64 villes × 4 continents en 1 parquet&lt;br/&gt;+ métadonnées : pop, logements, FX, continent"]</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>    D --&gt; E["📊 &lt;b&gt;sp08&lt;/b&gt; — KPIs&lt;br/&gt;&lt;code&gt;sp08-recap-kpi-global-260212.py&lt;/code&gt;&lt;br/&gt;Nettoyage + calcul 25 indicateurs par ville&lt;br/&gt;→ CSV monde (64 villes) + Europe (36)"]</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>    F["🏘️ &lt;b&gt;city_reference_data.py&lt;/b&gt;&lt;br/&gt;Pop commune propre + logements&lt;br/&gt;35 villes Europe (sources officielles)"] --&gt; D</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>    F --&gt; E</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>    G["💱 &lt;b&gt;Taux de change&lt;/b&gt;&lt;br/&gt;21 devises non-EUR → EUR&lt;br/&gt;FX manuels (BCE, fév. 2026)"] --&gt; D</span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>    E --&gt; H["📈 &lt;b&gt;Rapports Quarto&lt;/b&gt;&lt;br/&gt;Synthèses · Rapport · EDA · Dashboard"]</span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>    D --&gt; H</span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>    style A fill:#e3f2fd,stroke:#1696d2,stroke-width:2px</span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>    style B fill:#fff3e0,stroke:#ca5800,stroke-width:2px</span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>    style C fill:#fff3e0,stroke:#ca5800,stroke-width:2px</span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>    style D fill:#e8f5e9,stroke:#55b748,stroke-width:2px</span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>    style E fill:#e8f5e9,stroke:#55b748,stroke-width:2px</span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>    style F fill:#f3e5f5,stroke:#ec008b,stroke-width:2px</span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a>    style G fill:#f3e5f5,stroke:#ec008b,stroke-width:2px</span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a>    style H fill:#e3f2fd,stroke:#1696d2,stroke-width:2px</span></code></pre></div><button title="Copier vers le presse-papier" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<pre class="mermaid mermaid-js">flowchart TD
+    A["🌐 Inside Airbnb&lt;br/&gt;&lt;i&gt;insideairbnb.com/get-the-data&lt;/i&gt;&lt;br/&gt;~80 villes disponibles"] --&gt; B
+
+    B["📥 &lt;b&gt;sp04&lt;/b&gt; — Download&lt;br/&gt;&lt;code&gt;sp04-download-insideairbnb-251231.py&lt;/code&gt;&lt;br/&gt;Téléchargement ciblé par ville/pays/continent&lt;br/&gt;4 types : listings.gz, sumlistings, geojson, neighbourhoods"]
+
+    B --&gt; C["📁 &lt;b&gt;sp06&lt;/b&gt; — Flatten&lt;br/&gt;&lt;code&gt;sp06-flatten-insideairbnb-251231.py&lt;/code&gt;&lt;br/&gt;Aplatir arborescence datée → nommage flat&lt;br/&gt;&lt;code&gt;YYYY-MM-DD/&lt;/code&gt; → &lt;code&gt;YY-MM-XXX-CITY_*&lt;/code&gt;"]
+
+    C --&gt; D["🔧 &lt;b&gt;sp07&lt;/b&gt; — Consolidation&lt;br/&gt;&lt;code&gt;sp07-consolidate-global-260212.py&lt;/code&gt;&lt;br/&gt;Agrégation 64 villes × 4 continents en 1 parquet&lt;br/&gt;+ métadonnées : pop, logements, FX, continent"]
+
+    D --&gt; E["📊 &lt;b&gt;sp08&lt;/b&gt; — KPIs&lt;br/&gt;&lt;code&gt;sp08-recap-kpi-global-260212.py&lt;/code&gt;&lt;br/&gt;Nettoyage + calcul 25 indicateurs par ville&lt;br/&gt;→ CSV monde (64 villes) + Europe (36)"]
+
+    F["🏘️ &lt;b&gt;city_reference_data.py&lt;/b&gt;&lt;br/&gt;Pop commune propre + logements&lt;br/&gt;35 villes Europe (sources officielles)"] --&gt; D
+    F --&gt; E
+
+    G["💱 &lt;b&gt;Taux de change&lt;/b&gt;&lt;br/&gt;21 devises non-EUR → EUR&lt;br/&gt;FX manuels (BCE, fév. 2026)"] --&gt; D
+
+    E --&gt; H["📈 &lt;b&gt;Rapports Quarto&lt;/b&gt;&lt;br/&gt;Synthèses · Rapport · EDA · Dashboard"]
+    D --&gt; H
+
+    style A fill:#e3f2fd,stroke:#1696d2,stroke-width:2px
+    style B fill:#fff3e0,stroke:#ca5800,stroke-width:2px
+    style C fill:#fff3e0,stroke:#ca5800,stroke-width:2px
+    style D fill:#e8f5e9,stroke:#55b748,stroke-width:2px
+    style E fill:#e8f5e9,stroke:#55b748,stroke-width:2px
+    style F fill:#f3e5f5,stroke:#ec008b,stroke-width:2px
+    style G fill:#f3e5f5,stroke:#ec008b,stroke-width:2px
+    style H fill:#e3f2fd,stroke:#1696d2,stroke-width:2px
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+<section id="étapes-détaillées" class="level2">
+<h2 class="anchored" data-anchor-id="étapes-détaillées">Étapes détaillées</h2>
+<section id="étape-1-download-sp04" class="level3">
+<h3 class="anchored" data-anchor-id="étape-1-download-sp04">Étape 1 — Download (<code>sp04</code>)</h3>
+<p><strong>Source</strong> : <a href="https://insideairbnb.com/get-the-data/">Inside Airbnb</a> — données publiques compilées par Murray Cox.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 31%">
+<col style="width: 22%">
+<col style="width: 15%">
+<col style="width: 31%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Type fichier</th>
+<th style="text-align: left;">Colonnes</th>
+<th style="text-align: left;">Usage</th>
+<th style="text-align: left;">Taille/ville</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><code>listings.csv.gz</code></td>
+<td style="text-align: left;">74</td>
+<td style="text-align: left;">Détail complet (amenities, descriptions, scores)</td>
+<td style="text-align: left;">5-50 MB</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>listings.csv</code> (sumlistings)</td>
+<td style="text-align: left;">18</td>
+<td style="text-align: left;">Résumé léger (prix, dispo, reviews)</td>
+<td style="text-align: left;">0.5-3 MB</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><code>neighbourhoods.geojson</code></td>
+<td style="text-align: left;">géométrie</td>
+<td style="text-align: left;">Contours quartiers</td>
+<td style="text-align: left;">0.1-2 MB</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>neighbourhoods.csv</code></td>
+<td style="text-align: left;">2</td>
+<td style="text-align: left;">Liste quartiers</td>
+<td style="text-align: left;">&lt; 10 KB</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Paramétrage</strong> : Filtrage par continent (<code>-e</code> Europe), pays (<code>-c france</code>), types de fichiers (<code>-l -s -g -n</code>). Retry 3× avec rate-limiting (1s entre requêtes).</p>
+<p><strong>Organisation</strong> :</p>
+<pre><code>data/raw/zudb-inside-airbnbbnb/
+├── europe/{pays}/{ville}/{YYYY-MM-DD}/listings.csv.gz
+├── usa/united-states/{ville}/...
+└── world/{pays}/{ville}/...</code></pre>
+</section>
+<section id="étape-2-flatten-sp06" class="level3">
+<h3 class="anchored" data-anchor-id="étape-2-flatten-sp06">Étape 2 — Flatten (<code>sp06</code>)</h3>
+<p>Transformation de l’arborescence datée vers un nommage plat pour simplifier la consolidation :</p>
+<pre><code>Avant : europe/france/paris/2025-06-18/listings.csv.gz
+Après : europe/france/paris/25-06/
+        + 25-06-FRA-paris_sumlistings.csv
+        + geo-FRA-paris_neighbourhoods.geojson</code></pre>
+</section>
+<section id="étape-3-consolidation-sp07" class="level3">
+<h3 class="anchored" data-anchor-id="étape-3-consolidation-sp07">Étape 3 — Consolidation (<code>sp07</code>)</h3>
+<ul>
+<li><strong>Scan</strong> des 3 dossiers racines (<code>europe/</code>, <code>usa/</code>, <code>world/</code>)</li>
+<li><strong>Exclusion des régions</strong> : Sicile, Crète, Baléares, Pays Basque, Basilicate… (biais rural)</li>
+<li><strong>Seuil</strong> : minimum 3 000 listings par ville (exclut villes trop petites)</li>
+<li><strong>Enrichissement</strong> : ajout <code>country_code</code>, <code>continent</code>, <code>city_pop</code>, <code>city_housing</code>, <code>city_lat</code>, <code>city_lon</code></li>
+<li><strong>Conversion FX</strong> : 21 devises non-EUR converties via taux BCE (février 2026)</li>
+</ul>
+<p><strong>Référentiel population</strong> (<code>city_reference_data.py</code>) : - 35 villes Europe avec données <strong>commune propre</strong> (pas métropole) - Sources : INSEE (FR), ISTAT (IT), ONS (UK), INE (ES), Eurostat… - Logements : recensement officiel ou estimation par ratio national (OCDE)</p>
+</section>
+<section id="étape-4-calcul-kpis-sp08" class="level3">
+<h3 class="anchored" data-anchor-id="étape-4-calcul-kpis-sp08">Étape 4 — Calcul KPIs (<code>sp08</code>)</h3>
+<p>Le script applique le <strong>pipeline de nettoyage</strong> (voir section suivante), puis calcule 25 indicateurs par ville regroupés en 7 catégories.</p>
+<hr>
+</section>
+</section>
+</section>
+<section id="pipeline-de-nettoyage" class="level1">
+<h1>Pipeline de nettoyage</h1>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>df_raw <span class="op">=</span> pd.read_parquet(BASE <span class="op">/</span> <span class="st">"data"</span> <span class="op">/</span> <span class="st">"interim"</span> <span class="op">/</span> <span class="st">"dbsumlistings_2506_cons_global.parquet"</span>)</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>n_raw <span class="op">=</span> <span class="bu">len</span>(df_raw)</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>steps <span class="op">=</span> []</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>df_c <span class="op">=</span> df_raw.copy()</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Étape 1 : Prix non null</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>mask <span class="op">=</span> df_c[<span class="st">"price"</span>].notna() <span class="op">&amp;</span> (df_c[<span class="st">"price"</span>] <span class="op">&gt;</span> <span class="dv">0</span>)</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>steps.append((<span class="st">"1. Prix non null (exclure inactifs)"</span>, mask.<span class="bu">sum</span>(), <span class="bu">len</span>(df_c) <span class="op">-</span> mask.<span class="bu">sum</span>()))</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>df_c <span class="op">=</span> df_c[mask]</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Étape 2 : Disponibilité &gt; 0</span></span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>mask <span class="op">=</span> df_c[<span class="st">"availability_365"</span>] <span class="op">&gt;</span> <span class="dv">0</span></span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>steps.append((<span class="st">"2. Disponibilité &gt; 0 jours/an"</span>, mask.<span class="bu">sum</span>(), <span class="bu">len</span>(df_c) <span class="op">-</span> mask.<span class="bu">sum</span>()))</span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>df_c <span class="op">=</span> df_c[mask]</span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a><span class="co"># Étape 3 : Exclure Hotel room</span></span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>mask <span class="op">=</span> df_c[<span class="st">"room_type"</span>] <span class="op">!=</span> <span class="st">"Hotel room"</span></span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>steps.append((<span class="st">"3. Exclure Hotel room"</span>, mask.<span class="bu">sum</span>(), <span class="bu">len</span>(df_c) <span class="op">-</span> mask.<span class="bu">sum</span>()))</span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>df_c <span class="op">=</span> df_c[mask]</span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a><span class="co"># Étape 4 : Prix EUR 10-1000 (aberrants)</span></span>
+<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="st">"price_eur"</span> <span class="kw">in</span> df_c.columns:</span>
+<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a>    mask <span class="op">=</span> (df_c[<span class="st">"price_eur"</span>] <span class="op">&gt;=</span> <span class="dv">10</span>) <span class="op">&amp;</span> (df_c[<span class="st">"price_eur"</span>] <span class="op">&lt;=</span> <span class="dv">1000</span>)</span>
+<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a>    steps.append((<span class="st">"4. Prix EUR [10, 1000] (aberrants)"</span>, mask.<span class="bu">sum</span>(), <span class="bu">len</span>(df_c) <span class="op">-</span> mask.<span class="bu">sum</span>()))</span>
+<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a>    df_c <span class="op">=</span> df_c[mask]</span>
+<span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a><span class="co"># Étape 5 : Flag longterm (PAS d'exclusion)</span></span>
+<span id="cb7-29"><a href="#cb7-29" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="st">"minimum_nights"</span> <span class="kw">in</span> df_c.columns:</span>
+<span id="cb7-30"><a href="#cb7-30" aria-hidden="true" tabindex="-1"></a>    n_lt <span class="op">=</span> (df_c[<span class="st">"minimum_nights"</span>] <span class="op">&gt;=</span> <span class="dv">30</span>).<span class="bu">sum</span>()</span>
+<span id="cb7-31"><a href="#cb7-31" aria-hidden="true" tabindex="-1"></a>    steps.append((<span class="ss">f"5. Flag is_longterm (≥30 nuits) — NON exclu"</span>, <span class="bu">len</span>(df_c), <span class="dv">0</span>))</span>
+<span id="cb7-32"><a href="#cb7-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-33"><a href="#cb7-33" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Pipeline de nettoyage — Impact sur </span><span class="sc">{</span>n_raw<span class="sc">:,}</span><span class="ss"> listings bruts</span><span class="ch">\n</span><span class="ss">"</span>)</span></code></pre></div><button title="Copier vers le presse-papier" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Pipeline de nettoyage — Impact sur 1,065,218 listings bruts</code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'Étape'</span><span class="sc">:&lt;45s}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Restant'</span><span class="sc">:&gt;10s}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Exclu'</span><span class="sc">:&gt;10s}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'% brut'</span><span class="sc">:&gt;8s}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copier vers le presse-papier" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Étape                                            Restant      Exclu   % brut</code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"─"</span> <span class="op">*</span> <span class="dv">75</span>)</span></code></pre></div><button title="Copier vers le presse-papier" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>───────────────────────────────────────────────────────────────────────────</code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>cumul_exclu <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> name, kept, removed <span class="kw">in</span> steps:</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>    cumul_exclu <span class="op">+=</span> removed</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>name<span class="sc">:&lt;45s}</span><span class="ss"> </span><span class="sc">{</span>kept<span class="sc">:&gt;10,}</span><span class="ss"> </span><span class="sc">{</span>removed<span class="sc">:&gt;10,}</span><span class="ss"> </span><span class="sc">{</span>removed<span class="op">/</span>n_raw<span class="op">*</span><span class="dv">100</span><span class="sc">:&gt;7.1f}</span><span class="ss">%"</span>)</span></code></pre></div><button title="Copier vers le presse-papier" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>1. Prix non null (exclure inactifs)              840,237    224,981    21.1%
+2. Disponibilité &gt; 0 jours/an                    829,974     10,263     1.0%
+3. Exclure Hotel room                            826,626      3,348     0.3%
+5. Flag is_longterm (≥30 nuits) — NON exclu      826,626          0     0.0%</code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"─"</span> <span class="op">*</span> <span class="dv">75</span>)</span></code></pre></div><button title="Copier vers le presse-papier" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>───────────────────────────────────────────────────────────────────────────</code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'TOTAL APRÈS NETTOYAGE'</span><span class="sc">:&lt;45s}</span><span class="ss"> </span><span class="sc">{</span><span class="bu">len</span>(df_c)<span class="sc">:&gt;10,}</span><span class="ss"> </span><span class="sc">{</span>n_raw <span class="op">-</span> <span class="bu">len</span>(df_c)<span class="sc">:&gt;10,}</span><span class="ss"> </span><span class="sc">{</span>(n_raw<span class="op">-</span><span class="bu">len</span>(df_c))<span class="op">/</span>n_raw<span class="op">*</span><span class="dv">100</span><span class="sc">:&gt;7.1f}</span><span class="ss">%"</span>)</span></code></pre></div><button title="Copier vers le presse-papier" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>TOTAL APRÈS NETTOYAGE                            826,626    238,592    22.4%</code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Taux de rétention : </span><span class="sc">{</span><span class="bu">len</span>(df_c)<span class="op">/</span>n_raw<span class="op">*</span><span class="dv">100</span><span class="sc">:.1f}</span><span class="ss">%"</span>)</span></code></pre></div><button title="Copier vers le presse-papier" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Taux de rétention : 77.6%</code></pre>
+</div>
+</div>
+<section id="justification-des-choix" class="level3">
+<h3 class="anchored" data-anchor-id="justification-des-choix">Justification des choix</h3>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Astuce</span>Décisions clés
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Prix null = inactif</strong> : 80,8 % des listings à prix null ont <code>availability_365 = 0</code>. Ce sont des annonces retirées ou dormantes, pas des erreurs de saisie. Seulement 1,2 % d’anomalies (prix null mais listing actif).</p>
+<p><strong>Hotel room exclu</strong> : Représente ~1 % de la base. Comportement tarifaire et d’usage très différent (réservation plateforme hôtelière, pas location de logement).</p>
+<p><strong>Prix [10, 1000] EUR</strong> : Borne basse (10€/nuit) exclut les erreurs de saisie. Borne haute (1000€) : au-delà, marché de niche ultra-luxe non représentatif.</p>
+<p><strong>Longterm flaggé, pas exclu</strong> : <code>minimum_nights ≥ 30</code> est un <strong>indicateur de régulation</strong> (effet Barcelona, Berlin, Istanbul). Exclure ces listings masquerait un signal structurel majeur.</p>
+</div>
+</div>
+<hr>
+</section>
+</section>
+<section id="indicateurs-définitions" class="level1">
+<h1>Indicateurs — Définitions</h1>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>kpi_defs <span class="op">=</span> pd.DataFrame([</span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"Volume"</span>, <span class="st">"n_listings"</span>, <span class="st">"Nombre total de listings actifs"</span>, <span class="st">"Count"</span>),</span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"Volume"</span>, <span class="st">"n_entire"</span>, <span class="st">"Nombre d'appartements entiers"</span>, <span class="st">"Count"</span>),</span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"Volume"</span>, <span class="st">"n_hosts"</span>, <span class="st">"Nombre d'hôtes uniques"</span>, <span class="st">"Count"</span>),</span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"Volume"</span>, <span class="st">"ratio_lh"</span>, <span class="st">"Ratio listings / hôtes"</span>, <span class="st">"n_listings / n_hosts"</span>),</span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"Pression"</span>, <span class="st">"listings_1000hab"</span>, <span class="st">"Listings pour 1 000 habitants"</span>, <span class="st">"n_listings / pop × 1000"</span>),</span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"Pression"</span>, <span class="st">"listings_1000hsg"</span>, <span class="st">"Listings pour 1 000 logements"</span>, <span class="st">"n_listings / housing × 1000"</span>),</span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"Pression"</span>, <span class="st">"entire_1000hsg"</span>, <span class="st">"Logements entiers pour 1 000 logements"</span>, <span class="st">"n_entire / housing × 1000"</span>),</span>
+<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"Prix"</span>, <span class="st">"prix_med"</span>, <span class="st">"Prix médian EUR/nuit"</span>, <span class="st">"Median(price_eur)"</span>),</span>
+<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"Prix"</span>, <span class="st">"prix_moy"</span>, <span class="st">"Prix moyen EUR/nuit"</span>, <span class="st">"Mean(price_eur)"</span>),</span>
+<span id="cb21-11"><a href="#cb21-11" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"Prix"</span>, <span class="st">"prix_q25"</span>, <span class="st">"1er quartile prix"</span>, <span class="st">"Q25(price_eur)"</span>),</span>
+<span id="cb21-12"><a href="#cb21-12" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"Prix"</span>, <span class="st">"prix_q75"</span>, <span class="st">"3e quartile prix"</span>, <span class="st">"Q75(price_eur)"</span>),</span>
+<span id="cb21-13"><a href="#cb21-13" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"Prix"</span>, <span class="st">"prix_iqr"</span>, <span class="st">"Écart interquartile prix"</span>, <span class="st">"Q75 − Q25"</span>),</span>
+<span id="cb21-14"><a href="#cb21-14" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"Composition"</span>, <span class="st">"pct_entire"</span>, <span class="st">"</span><span class="sc">% lo</span><span class="st">gements entiers"</span>, <span class="st">"n_entire / n_listings × 100"</span>),</span>
+<span id="cb21-15"><a href="#cb21-15" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"Composition"</span>, <span class="st">"pct_multi"</span>, <span class="st">"% multi-hôtes (≥2 annonces)"</span>, <span class="st">"n_multi / n_listings × 100"</span>),</span>
+<span id="cb21-16"><a href="#cb21-16" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"Composition"</span>, <span class="st">"pct_longterm"</span>, <span class="st">"</span><span class="sc">% lo</span><span class="st">ngue durée (min_nights ≥ 30)"</span>, <span class="st">"n_longterm / n_listings × 100"</span>),</span>
+<span id="cb21-17"><a href="#cb21-17" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"Disponibilité"</span>, <span class="st">"dispo_med"</span>, <span class="st">"Disponibilité médiane (jours/an)"</span>, <span class="st">"Median(availability_365)"</span>),</span>
+<span id="cb21-18"><a href="#cb21-18" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"Disponibilité"</span>, <span class="st">"dispo_moy"</span>, <span class="st">"Disponibilité moyenne"</span>, <span class="st">"Mean(availability_365)"</span>),</span>
+<span id="cb21-19"><a href="#cb21-19" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"Activité"</span>, <span class="st">"reviews_med"</span>, <span class="st">"Reviews médian par listing"</span>, <span class="st">"Median(number_of_reviews)"</span>),</span>
+<span id="cb21-20"><a href="#cb21-20" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"Activité"</span>, <span class="st">"rpm_med"</span>, <span class="st">"Reviews/mois médian"</span>, <span class="st">"Median(reviews_per_month)"</span>),</span>
+<span id="cb21-21"><a href="#cb21-21" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"Concentration"</span>, <span class="st">"cr_hosts_50pct"</span>, <span class="st">"% hôtes détenant 50</span><span class="sc">% d</span><span class="st">e l'offre"</span>, <span class="st">"Lorenz-based"</span>),</span>
+<span id="cb21-22"><a href="#cb21-22" aria-hidden="true" tabindex="-1"></a>], columns<span class="op">=</span>[<span class="st">"Catégorie"</span>, <span class="st">"Variable"</span>, <span class="st">"Description"</span>, <span class="st">"Formule"</span>])</span>
+<span id="cb21-23"><a href="#cb21-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-24"><a href="#cb21-24" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"25 indicateurs en 7 catégories :</span><span class="ch">\n</span><span class="ss">"</span>)</span></code></pre></div><button title="Copier vers le presse-papier" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>25 indicateurs en 7 catégories :</code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> cat <span class="kw">in</span> kpi_defs[<span class="st">"Catégorie"</span>].unique():</span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>    sub <span class="op">=</span> kpi_defs[kpi_defs[<span class="st">"Catégorie"</span>] <span class="op">==</span> cat]</span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="sc">{</span>cat<span class="sc">}</span><span class="ss"> (</span><span class="sc">{</span><span class="bu">len</span>(sub)<span class="sc">}</span><span class="ss"> indicateurs)"</span>)</span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"─"</span> <span class="op">*</span> <span class="dv">70</span>)</span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> _, row <span class="kw">in</span> sub.iterrows():</span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"  </span><span class="sc">{</span>row[<span class="st">'Variable'</span>]<span class="sc">:22s}</span><span class="ss">  </span><span class="sc">{</span>row[<span class="st">'Description'</span>]<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"  </span><span class="sc">{</span><span class="st">''</span><span class="sc">:22s}</span><span class="ss">  → </span><span class="sc">{</span>row[<span class="st">'Formule'</span>]<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copier vers le presse-papier" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Volume (4 indicateurs)
+──────────────────────────────────────────────────────────────────────
+  n_listings              Nombre total de listings actifs
+                          → Count
+  n_entire                Nombre d'appartements entiers
+                          → Count
+  n_hosts                 Nombre d'hôtes uniques
+                          → Count
+  ratio_lh                Ratio listings / hôtes
+                          → n_listings / n_hosts
+
+Pression (3 indicateurs)
+──────────────────────────────────────────────────────────────────────
+  listings_1000hab        Listings pour 1 000 habitants
+                          → n_listings / pop × 1000
+  listings_1000hsg        Listings pour 1 000 logements
+                          → n_listings / housing × 1000
+  entire_1000hsg          Logements entiers pour 1 000 logements
+                          → n_entire / housing × 1000
+
+Prix (5 indicateurs)
+──────────────────────────────────────────────────────────────────────
+  prix_med                Prix médian EUR/nuit
+                          → Median(price_eur)
+  prix_moy                Prix moyen EUR/nuit
+                          → Mean(price_eur)
+  prix_q25                1er quartile prix
+                          → Q25(price_eur)
+  prix_q75                3e quartile prix
+                          → Q75(price_eur)
+  prix_iqr                Écart interquartile prix
+                          → Q75 − Q25
+
+Composition (3 indicateurs)
+──────────────────────────────────────────────────────────────────────
+  pct_entire              % logements entiers
+                          → n_entire / n_listings × 100
+  pct_multi               % multi-hôtes (≥2 annonces)
+                          → n_multi / n_listings × 100
+  pct_longterm            % longue durée (min_nights ≥ 30)
+                          → n_longterm / n_listings × 100
+
+Disponibilité (2 indicateurs)
+──────────────────────────────────────────────────────────────────────
+  dispo_med               Disponibilité médiane (jours/an)
+                          → Median(availability_365)
+  dispo_moy               Disponibilité moyenne
+                          → Mean(availability_365)
+
+Activité (2 indicateurs)
+──────────────────────────────────────────────────────────────────────
+  reviews_med             Reviews médian par listing
+                          → Median(number_of_reviews)
+  rpm_med                 Reviews/mois médian
+                          → Median(reviews_per_month)
+
+Concentration (1 indicateurs)
+──────────────────────────────────────────────────────────────────────
+  cr_hosts_50pct          % hôtes détenant 50% de l'offre
+                          → Lorenz-based</code></pre>
+</div>
+</div>
+<hr>
+</section>
+<section id="taux-de-change-eur" class="level1">
+<h1>Taux de change EUR</h1>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>fx <span class="op">=</span> {</span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">"GBP"</span>: <span class="fl">1.17</span>, <span class="st">"HUF"</span>: <span class="fl">0.0026</span>, <span class="st">"TRY"</span>: <span class="fl">0.028</span>, <span class="st">"DKK"</span>: <span class="fl">0.134</span>, <span class="st">"CZK"</span>: <span class="fl">0.040</span>,</span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">"NOK"</span>: <span class="fl">0.085</span>, <span class="st">"SEK"</span>: <span class="fl">0.087</span>, <span class="st">"CHF"</span>: <span class="fl">1.06</span>, <span class="st">"USD"</span>: <span class="fl">0.92</span>, <span class="st">"CAD"</span>: <span class="fl">0.65</span>,</span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">"AUD"</span>: <span class="fl">0.60</span>, <span class="st">"NZD"</span>: <span class="fl">0.55</span>, <span class="st">"JPY"</span>: <span class="fl">0.006</span>, <span class="st">"SGD"</span>: <span class="fl">0.69</span>, <span class="st">"HKD"</span>: <span class="fl">0.12</span>,</span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">"THB"</span>: <span class="fl">0.026</span>, <span class="st">"MXN"</span>: <span class="fl">0.047</span>, <span class="st">"BRL"</span>: <span class="fl">0.16</span>, <span class="st">"COP"</span>: <span class="fl">0.00022</span>, <span class="st">"ARS"</span>: <span class="fl">0.00086</span>,</span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">"ZAR"</span>: <span class="fl">0.050</span></span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Taux de change → EUR (source : BCE, février 2026)</span><span class="ch">\n</span><span class="ss">"</span>)</span></code></pre></div><button title="Copier vers le presse-papier" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Taux de change → EUR (source : BCE, février 2026)</code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb27"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'Devise'</span><span class="sc">:&lt;8s}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Taux'</span><span class="sc">:&gt;8s}</span><span class="ss">   </span><span class="sc">{</span><span class="st">'Exemple : 100 local →'</span><span class="sc">:&gt;25s}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copier vers le presse-papier" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Devise       Taux       Exemple : 100 local →</code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb29"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"─"</span> <span class="op">*</span> <span class="dv">50</span>)</span></code></pre></div><button title="Copier vers le presse-papier" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>──────────────────────────────────────────────────</code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> cur, rate <span class="kw">in</span> <span class="bu">sorted</span>(fx.items(), key<span class="op">=</span><span class="kw">lambda</span> x: <span class="op">-</span>x[<span class="dv">1</span>]):</span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>cur<span class="sc">:&lt;8s}</span><span class="ss"> </span><span class="sc">{</span>rate<span class="sc">:&gt;8.4f}</span><span class="ss">   </span><span class="sc">{</span><span class="dv">100</span><span class="op">*</span>rate<span class="sc">:&gt;20.1f}</span><span class="ss"> EUR"</span>)</span></code></pre></div><button title="Copier vers le presse-papier" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>GBP        1.1700                  117.0 EUR
+CHF        1.0600                  106.0 EUR
+USD        0.9200                   92.0 EUR
+SGD        0.6900                   69.0 EUR
+CAD        0.6500                   65.0 EUR
+AUD        0.6000                   60.0 EUR
+NZD        0.5500                   55.0 EUR
+BRL        0.1600                   16.0 EUR
+DKK        0.1340                   13.4 EUR
+HKD        0.1200                   12.0 EUR
+SEK        0.0870                    8.7 EUR
+NOK        0.0850                    8.5 EUR
+ZAR        0.0500                    5.0 EUR
+MXN        0.0470                    4.7 EUR
+CZK        0.0400                    4.0 EUR
+TRY        0.0280                    2.8 EUR
+THB        0.0260                    2.6 EUR
+JPY        0.0060                    0.6 EUR
+HUF        0.0026                    0.3 EUR
+ARS        0.0009                    0.1 EUR
+COP        0.0002                    0.0 EUR</code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb33"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="sc">{</span><span class="bu">len</span>(fx)<span class="sc">}</span><span class="ss"> devises converties. Pays EUR : pas de conversion."</span>)</span></code></pre></div><button title="Copier vers le presse-papier" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+21 devises converties. Pays EUR : pas de conversion.</code></pre>
+</div>
+</div>
+<hr>
+</section>
+<section id="difficultés-rencontrées-et-solutions" class="level1">
+<h1>Difficultés rencontrées et solutions</h1>
+<div class="callout callout-style-default callout-warning callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Avertissement</span>Difficultés techniques
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<section id="scraping-et-données-brutes" class="level3">
+<h3 class="anchored" data-anchor-id="scraping-et-données-brutes">Scraping et données brutes</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 35%">
+<col style="width: 28%">
+<col style="width: 35%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Problème</th>
+<th style="text-align: left;">Impact</th>
+<th style="text-align: left;">Solution</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><strong>URLs atypiques</strong> (Irlande, Malte, Nouvelle-Zélande)</td>
+<td style="text-align: left;">sp04 crashait sur format non standard</td>
+<td style="text-align: left;">Normalisation regex dans sp04, skip silencieux si erreur</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><strong>Paris sept 2025 : prix vide</strong> dans sumlistings</td>
+<td style="text-align: left;">Listings sans prix → exclusion massive</td>
+<td style="text-align: left;">Utiliser listings.gz (74 cols) pour Paris si besoin du snapshot sept</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><strong>Régions vs villes</strong> (Sicile, Crète, Baléares)</td>
+<td style="text-align: left;">Biais rural dans consolidation</td>
+<td style="text-align: left;">Liste d’exclusion explicite dans sp07</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><strong>Snapshots non alignés</strong></td>
+<td style="text-align: left;">Dates variables selon villes (juin ±2 semaines)</td>
+<td style="text-align: left;">Tolérance : snapshot <code>25-06</code> = tout fichier juin 2025</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="population-et-logements" class="level3">
+<h3 class="anchored" data-anchor-id="population-et-logements">Population et logements</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 35%">
+<col style="width: 28%">
+<col style="width: 35%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Problème</th>
+<th style="text-align: left;">Impact</th>
+<th style="text-align: left;">Solution</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><strong>Périmètre commune vs métropole</strong></td>
+<td style="text-align: left;">Manchester IA = Greater Manchester (2.8M) vs commune (550K)</td>
+<td style="text-align: left;">Documenter, utiliser périmètre IA cohérent</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><strong>Logements non disponibles</strong> pour 22 villes</td>
+<td style="text-align: left;">Pression logement biaisée</td>
+<td style="text-align: left;">Estimation par ratio national OCDE (logements/1000 hab)</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><strong>Eurostat Urban Audit</strong> inutilisable</td>
+<td style="text-align: left;">Greater city ≠ commune propre, logements absents</td>
+<td style="text-align: left;">Référentiel maison (city_reference_data.py)</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="rendu-quarto" class="level3">
+<h3 class="anchored" data-anchor-id="rendu-quarto">Rendu Quarto</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 35%">
+<col style="width: 28%">
+<col style="width: 35%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Problème</th>
+<th style="text-align: left;">Impact</th>
+<th style="text-align: left;">Solution</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><strong>Plotly 6 + reticulate</strong> = double affichage</td>
+<td style="text-align: left;">Figures dupliquées, HTML corrompu</td>
+<td style="text-align: left;">Monkey-patch <code>fig.show()</code> → <code>print(to_html())</code></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><strong>Whitespace dans HTML</strong> → pandoc code blocks</td>
+<td style="text-align: left;">Graphiques rendus comme texte brut</td>
+<td style="text-align: left;"><code>re.sub(r'&gt;\s+&lt;', '&gt;&lt;', html).strip()</code></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><strong>JS heap OOM</strong> sur gros rapports</td>
+<td style="text-align: left;">Render crash après 80+ chunks</td>
+<td style="text-align: left;"><code>NODE_OPTIONS="--max-old-space-size=8192"</code></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><strong><code>column: page</code> + <code>output: asis</code></strong></td>
+<td style="text-align: left;">Charts débordent du viewport</td>
+<td style="text-align: left;">Utiliser <code>width=</code> dans Plotly + CSS overflow</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><strong><code>display()</code> en knitr</strong></td>
+<td style="text-align: left;">Crash reticulate (pas de kernel Jupyter)</td>
+<td style="text-align: left;">Remplacer par <code>print()</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+</div>
+</div>
+<hr>
+</section>
+<section id="méthodologie-acp" class="level1">
+<h1>Méthodologie ACP</h1>
+<section id="variables-actives" class="level2">
+<h2 class="anchored" data-anchor-id="variables-actives">Variables actives</h2>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb35"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a>acp_vars <span class="op">=</span> [<span class="st">"listings_1000hab"</span>, <span class="st">"entire_1000hsg"</span>, <span class="st">"prix_med"</span>, <span class="st">"prix_iqr"</span>,</span>
+<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a>            <span class="st">"pct_entire"</span>, <span class="st">"pct_multi"</span>, <span class="st">"pct_longterm"</span>, <span class="st">"ratio_lh"</span>,</span>
+<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a>            <span class="st">"cr_hosts_50pct"</span>, <span class="st">"dispo_med"</span>, <span class="st">"reviews_med"</span>, <span class="st">"rpm_med"</span>]</span>
+<span id="cb35-4"><a href="#cb35-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-5"><a href="#cb35-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"ACP sur </span><span class="sc">{</span><span class="bu">len</span>(acp_vars)<span class="sc">}</span><span class="ss"> variables actives :</span><span class="ch">\n</span><span class="ss">"</span>)</span></code></pre></div><button title="Copier vers le presse-papier" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>ACP sur 12 variables actives :</code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb37"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Variables retenues (ratios et pourcentages normalisés) :"</span>)</span></code></pre></div><button title="Copier vers le presse-papier" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Variables retenues (ratios et pourcentages normalisés) :</code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb39"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> v <span class="kw">in</span> acp_vars:</span>
+<span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"  • </span><span class="sc">{</span>v<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copier vers le presse-papier" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>  • listings_1000hab
+  • entire_1000hsg
+  • prix_med
+  • prix_iqr
+  • pct_entire
+  • pct_multi
+  • pct_longterm
+  • ratio_lh
+  • cr_hosts_50pct
+  • dispo_med
+  • reviews_med
+  • rpm_med</code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb41"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Variables exclues (justification) :"</span>)</span></code></pre></div><button title="Copier vers le presse-papier" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Variables exclues (justification) :</code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb43"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a>exclusions <span class="op">=</span> [</span>
+<span id="cb43-2"><a href="#cb43-2" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"n_listings, n_entire, n_hosts"</span>, <span class="st">"Volumes bruts → effet taille, redondant avec pression"</span>),</span>
+<span id="cb43-3"><a href="#cb43-3" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"pop, housing"</span>, <span class="st">"Variables supplémentaires, pas de signal propre"</span>),</span>
+<span id="cb43-4"><a href="#cb43-4" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"prix_moy, prix_q25, prix_q75"</span>, <span class="st">"Redondant avec prix_med + prix_iqr"</span>),</span>
+<span id="cb43-5"><a href="#cb43-5" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"dispo_moy"</span>, <span class="st">"Très corrélé à dispo_med (r &gt; 0.95)"</span>),</span>
+<span id="cb43-6"><a href="#cb43-6" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"listings_1000hsg"</span>, <span class="st">"Très corrélé à entire_1000hsg (r &gt; 0.90)"</span>),</span>
+<span id="cb43-7"><a href="#cb43-7" aria-hidden="true" tabindex="-1"></a>]</span>
+<span id="cb43-8"><a href="#cb43-8" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> var, reason <span class="kw">in</span> exclusions:</span>
+<span id="cb43-9"><a href="#cb43-9" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"  ✗ </span><span class="sc">{</span>var<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb43-10"><a href="#cb43-10" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"    → </span><span class="sc">{</span>reason<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copier vers le presse-papier" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>  ✗ n_listings, n_entire, n_hosts
+    → Volumes bruts → effet taille, redondant avec pression
+  ✗ pop, housing
+    → Variables supplémentaires, pas de signal propre
+  ✗ prix_moy, prix_q25, prix_q75
+    → Redondant avec prix_med + prix_iqr
+  ✗ dispo_moy
+    → Très corrélé à dispo_med (r &gt; 0.95)
+  ✗ listings_1000hsg
+    → Très corrélé à entire_1000hsg (r &gt; 0.90)</code></pre>
+</div>
+</div>
+</section>
+<section id="protocole" class="level2">
+<h2 class="anchored" data-anchor-id="protocole">Protocole</h2>
+<ol type="1">
+<li><strong>Standardisation</strong> : centrage-réduction (z-scores) sur les 12 variables actives</li>
+<li><strong>ACP</strong> : décomposition en valeurs propres de la matrice de corrélation</li>
+<li><strong>Rétention</strong> : composantes retenues selon règle des 80 % de variance cumulée</li>
+<li><strong>Clustering Ward</strong> : distance euclidienne sur les 4 premières composantes</li>
+<li><strong>Choix de k</strong> : score silhouette pour k ∈ {3, 4, 5, 6}, retenir le maximum</li>
+<li><strong>Profils</strong> : médiane par cluster sur les variables clés</li>
+</ol>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Astuce</span>Pourquoi Ward sur composantes et pas sur variables brutes ?
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Les variables ont des <strong>échelles très différentes</strong> (pression 0-55, prix 37-223, pct 0-98). La standardisation résout ce problème, mais l’ACP apporte en plus : - <strong>Décorrélation</strong> : les composantes sont orthogonales → distance euclidienne cohérente - <strong>Réduction de bruit</strong> : les dernières composantes captent du bruit, pas du signal - <strong>Interprétabilité</strong> : les clusters se projettent lisiblement sur le biplot</p>
+</div>
+</div>
+<hr>
+</section>
+</section>
+<section id="sources-et-limites" class="level1">
+<h1>Sources et limites</h1>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Sources des données
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th style="text-align: left;">Source</th>
+<th style="text-align: left;">Contenu</th>
+<th style="text-align: left;">Dernière mise à jour</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><a href="https://insideairbnb.com/">Inside Airbnb</a></td>
+<td style="text-align: left;">Listings, prix, disponibilité, reviews</td>
+<td style="text-align: left;">Juin 2025</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">INSEE RP2022</td>
+<td style="text-align: left;">Population + logements commune propre (France)</td>
+<td style="text-align: left;">2022</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">ONS / GLA</td>
+<td style="text-align: left;">Population Londres + logements</td>
+<td style="text-align: left;">2023</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">ISTAT</td>
+<td style="text-align: left;">Population + logements Italie</td>
+<td style="text-align: left;">2021-2023</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">INE (Espagne)</td>
+<td style="text-align: left;">Population communes</td>
+<td style="text-align: left;">2024</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Eurostat</td>
+<td style="text-align: left;">Ratios nationaux logements/1000 hab</td>
+<td style="text-align: left;">2022</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">BCE</td>
+<td style="text-align: left;">Taux de change EUR</td>
+<td style="text-align: left;">Février 2026</td>
+</tr>
+</tbody>
+</table>
+<section id="limites-principales" class="level2">
+<h2 class="anchored" data-anchor-id="limites-principales">Limites principales</h2>
+<ol type="1">
+<li><strong>Snapshot unique</strong> (juin 2025) : pas de dimension temporelle, saisonnalité masquée</li>
+<li><strong>Population commune propre</strong> : 22/64 villes avec logements estimés (ratio national)</li>
+<li><strong>Périmètre géographique variable</strong> : Manchester = metro, Paris = commune</li>
+<li><strong>Biais Inside Airbnb</strong> : données scrapées, pas API officielle → listings retirés possibles</li>
+<li><strong>Pas de données revenus</strong> : ni taux d’occupation réel, ni revenus hôtes</li>
+<li><strong>FX manuels</strong> : taux fixes février 2026, pas d’ajustement dynamique</li>
+</ol>
+</section>
+</div>
+</div>
+
+
+<!-- -->
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copié");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copié");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+    const viewSource = window.document.getElementById('quarto-view-source') ||
+                       window.document.getElementById('quarto-code-tools-source');
+    if (viewSource) {
+      const sourceUrl = viewSource.getAttribute("data-quarto-source-url");
+      viewSource.addEventListener("click", function(e) {
+        if (sourceUrl) {
+          // rstudio viewer pane
+          if (/\bcapabilities=\b/.test(window.location)) {
+            window.open(sourceUrl);
+          } else {
+            window.location.href = sourceUrl;
+          }
+        } else {
+          const modal = new bootstrap.Modal(document.getElementById('quarto-embedded-source-code-modal'));
+          modal.show();
+        }
+        return false;
+      });
+    }
+    function toggleCodeHandler(show) {
+      return function(e) {
+        const detailsSrc = window.document.querySelectorAll(".cell > details > .sourceCode");
+        for (let i=0; i<detailsSrc.length; i++) {
+          const details = detailsSrc[i].parentElement;
+          if (show) {
+            details.open = true;
+          } else {
+            details.removeAttribute("open");
+          }
+        }
+        const cellCodeDivs = window.document.querySelectorAll(".cell > .sourceCode");
+        const fromCls = show ? "hidden" : "unhidden";
+        const toCls = show ? "unhidden" : "hidden";
+        for (let i=0; i<cellCodeDivs.length; i++) {
+          const codeDiv = cellCodeDivs[i];
+          if (codeDiv.classList.contains(fromCls)) {
+            codeDiv.classList.remove(fromCls);
+            codeDiv.classList.add(toCls);
+          } 
+        }
+        return false;
+      }
+    }
+    const hideAllCode = window.document.getElementById("quarto-hide-all-code");
+    if (hideAllCode) {
+      hideAllCode.addEventListener("click", toggleCodeHandler(false));
+    }
+    const showAllCode = window.document.getElementById("quarto-show-all-code");
+    if (showAllCode) {
+      showAllCode.addEventListener("click", toggleCodeHandler(true));
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/vincentroue\.github\.io\/pbnb-airbnb\/");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Code source</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb45" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb45-2"><a href="#cb45-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> "Méthodologie — Pipeline ETL et indicateurs"</span></span>
+<span id="cb45-3"><a href="#cb45-3" aria-hidden="true" tabindex="-1"></a><span class="an">subtitle:</span><span class="co"> "Annexe technique · Inside Airbnb juin 2025 · 75 villes"</span></span>
+<span id="cb45-4"><a href="#cb45-4" aria-hidden="true" tabindex="-1"></a><span class="an">author:</span><span class="co"> "Vincent R."</span></span>
+<span id="cb45-5"><a href="#cb45-5" aria-hidden="true" tabindex="-1"></a><span class="an">date:</span><span class="co"> today</span></span>
+<span id="cb45-6"><a href="#cb45-6" aria-hidden="true" tabindex="-1"></a><span class="an">date-format:</span><span class="co"> "DD MMMM YYYY"</span></span>
+<span id="cb45-7"><a href="#cb45-7" aria-hidden="true" tabindex="-1"></a><span class="an">categories:</span><span class="co"> ["Annexe méthodologique"]</span></span>
+<span id="cb45-8"><a href="#cb45-8" aria-hidden="true" tabindex="-1"></a><span class="an">number-sections:</span><span class="co"> false</span></span>
+<span id="cb45-9"><a href="#cb45-9" aria-hidden="true" tabindex="-1"></a><span class="an">format:</span></span>
+<span id="cb45-10"><a href="#cb45-10" aria-hidden="true" tabindex="-1"></a><span class="co">  html:</span></span>
+<span id="cb45-11"><a href="#cb45-11" aria-hidden="true" tabindex="-1"></a><span class="co">    theme: [cosmo, config/theme-pbnb-v2.scss]</span></span>
+<span id="cb45-12"><a href="#cb45-12" aria-hidden="true" tabindex="-1"></a><span class="co">    toc: true</span></span>
+<span id="cb45-13"><a href="#cb45-13" aria-hidden="true" tabindex="-1"></a><span class="co">    toc-location: left</span></span>
+<span id="cb45-14"><a href="#cb45-14" aria-hidden="true" tabindex="-1"></a><span class="co">    toc-depth: 3</span></span>
+<span id="cb45-15"><a href="#cb45-15" aria-hidden="true" tabindex="-1"></a><span class="co">    code-fold: true</span></span>
+<span id="cb45-16"><a href="#cb45-16" aria-hidden="true" tabindex="-1"></a><span class="co">    code-summary: "Code"</span></span>
+<span id="cb45-17"><a href="#cb45-17" aria-hidden="true" tabindex="-1"></a><span class="co">    code-tools: true</span></span>
+<span id="cb45-18"><a href="#cb45-18" aria-hidden="true" tabindex="-1"></a><span class="co">    fig-width: 10</span></span>
+<span id="cb45-19"><a href="#cb45-19" aria-hidden="true" tabindex="-1"></a><span class="co">    fig-height: 6</span></span>
+<span id="cb45-20"><a href="#cb45-20" aria-hidden="true" tabindex="-1"></a><span class="an">execute:</span></span>
+<span id="cb45-21"><a href="#cb45-21" aria-hidden="true" tabindex="-1"></a><span class="co">  echo: true</span></span>
+<span id="cb45-22"><a href="#cb45-22" aria-hidden="true" tabindex="-1"></a><span class="co">  warning: false</span></span>
+<span id="cb45-23"><a href="#cb45-23" aria-hidden="true" tabindex="-1"></a><span class="co">  message: false</span></span>
+<span id="cb45-24"><a href="#cb45-24" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb45-25"><a href="#cb45-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-26"><a href="#cb45-26" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- Fichier : rpt-pbnb-methnbk-acp-260215.qmd | Type : METHNBK | Scope : Annexe méthodologique --&gt;</span></span>
+<span id="cb45-27"><a href="#cb45-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-28"><a href="#cb45-28" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- Notebook méthodologique (rpt-pbnb-methnbk-acp-260215)</span></span>
+<span id="cb45-29"><a href="#cb45-29" aria-hidden="true" tabindex="-1"></a><span class="co">     Type : METHNBK (code visible, annexe technique)</span></span>
+<span id="cb45-30"><a href="#cb45-30" aria-hidden="true" tabindex="-1"></a><span class="co">     Companion : rpt-pbnb-rapport-ALL-260207.qmd (rapport)</span></span>
+<span id="cb45-31"><a href="#cb45-31" aria-hidden="true" tabindex="-1"></a><span class="co">     Objectif : documenter pipeline ETL, cleaning, indicateurs, ACP, difficultés</span></span>
+<span id="cb45-32"><a href="#cb45-32" aria-hidden="true" tabindex="-1"></a><span class="co">--&gt;</span></span>
+<span id="cb45-33"><a href="#cb45-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-36"><a href="#cb45-36" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb45-37"><a href="#cb45-37" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: setup-reticulate</span></span>
+<span id="cb45-38"><a href="#cb45-38" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: false</span></span>
+<span id="cb45-39"><a href="#cb45-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-40"><a href="#cb45-40" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(reticulate)</span>
+<span id="cb45-41"><a href="#cb45-41" aria-hidden="true" tabindex="-1"></a><span class="fu">use_python</span>(<span class="st">"C:/ScoopApps/apps/python/current/python.exe"</span>, <span class="at">required =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb45-42"><a href="#cb45-42" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb45-43"><a href="#cb45-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-46"><a href="#cb45-46" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb45-47"><a href="#cb45-47" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: setup</span></span>
+<span id="cb45-48"><a href="#cb45-48" aria-hidden="true" tabindex="-1"></a><span class="co">#| code-fold: false</span></span>
+<span id="cb45-49"><a href="#cb45-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-50"><a href="#cb45-50" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pathlib <span class="im">import</span> Path</span>
+<span id="cb45-51"><a href="#cb45-51" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> sys</span>
+<span id="cb45-52"><a href="#cb45-52" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb45-53"><a href="#cb45-53" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb45-54"><a href="#cb45-54" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-55"><a href="#cb45-55" aria-hidden="true" tabindex="-1"></a>MUTILS_JPY <span class="op">=</span> Path(<span class="vs">r"C:</span><span class="er">\</span><span class="vs">Users</span><span class="ch">\v</span><span class="vs">ince</span><span class="er">\</span><span class="vs">hh</span><span class="er">\</span><span class="vs">pq</span><span class="er">\</span><span class="vs">PDS</span><span class="dv">\m</span><span class="vs">utils</span><span class="er">\</span><span class="vs">jpy"</span>)</span>
+<span id="cb45-56"><a href="#cb45-56" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="bu">str</span>(MUTILS_JPY) <span class="kw">not</span> <span class="kw">in</span> sys.path:</span>
+<span id="cb45-57"><a href="#cb45-57" aria-hidden="true" tabindex="-1"></a>    sys.path.insert(<span class="dv">0</span>, <span class="bu">str</span>(MUTILS_JPY))</span>
+<span id="cb45-58"><a href="#cb45-58" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-59"><a href="#cb45-59" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> importlib.util</span>
+<span id="cb45-60"><a href="#cb45-60" aria-hidden="true" tabindex="-1"></a>_spec_graph <span class="op">=</span> importlib.util.spec_from_file_location(<span class="st">"jcn_graph"</span>, MUTILS_JPY <span class="op">/</span> <span class="st">"jcn-graph.py"</span>)</span>
+<span id="cb45-61"><a href="#cb45-61" aria-hidden="true" tabindex="-1"></a>_mod <span class="op">=</span> importlib.util.module_from_spec(_spec_graph)</span>
+<span id="cb45-62"><a href="#cb45-62" aria-hidden="true" tabindex="-1"></a>_spec_graph.loader.exec_module(_mod)</span>
+<span id="cb45-63"><a href="#cb45-63" aria-hidden="true" tabindex="-1"></a>_mod.init_style()</span>
+<span id="cb45-64"><a href="#cb45-64" aria-hidden="true" tabindex="-1"></a>_mod.patch_plotly_reticulate()</span>
+<span id="cb45-65"><a href="#cb45-65" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-66"><a href="#cb45-66" aria-hidden="true" tabindex="-1"></a>BASE <span class="op">=</span> Path(<span class="vs">r"C:</span><span class="er">\</span><span class="vs">Users</span><span class="ch">\v</span><span class="vs">ince</span><span class="er">\</span><span class="vs">hh</span><span class="er">\</span><span class="vs">pq</span><span class="er">\</span><span class="vs">PDS</span><span class="er">\</span><span class="vs">pbnb-airbnb-log-jrr-jpy"</span>)</span>
+<span id="cb45-67"><a href="#cb45-67" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb45-68"><a href="#cb45-68" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-69"><a href="#cb45-69" aria-hidden="true" tabindex="-1"></a>::: {.callout-note}</span>
+<span id="cb45-70"><a href="#cb45-70" aria-hidden="true" tabindex="-1"></a><span class="fu">## Objectif</span></span>
+<span id="cb45-71"><a href="#cb45-71" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-72"><a href="#cb45-72" aria-hidden="true" tabindex="-1"></a>Cette annexe documente les **choix méthodologiques** du projet :</span>
+<span id="cb45-73"><a href="#cb45-73" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-74"><a href="#cb45-74" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>Pipeline ETL complet (scraping → parquet nettoyé)</span>
+<span id="cb45-75"><a href="#cb45-75" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>Nettoyage et décisions de filtrage</span>
+<span id="cb45-76"><a href="#cb45-76" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>Construction des indicateurs (KPIs)</span>
+<span id="cb45-77"><a href="#cb45-77" aria-hidden="true" tabindex="-1"></a><span class="ss">4. </span>Méthodologie ACP et clustering</span>
+<span id="cb45-78"><a href="#cb45-78" aria-hidden="true" tabindex="-1"></a><span class="ss">5. </span>Difficultés rencontrées et solutions</span>
+<span id="cb45-79"><a href="#cb45-79" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-80"><a href="#cb45-80" aria-hidden="true" tabindex="-1"></a>Elle accompagne le <span class="co">[</span><span class="ot">rapport complet</span><span class="co">](rpt-pbnb-rapport-ALL-260207.qmd)</span> et le <span class="co">[</span><span class="ot">notebook EDA</span><span class="co">](rpt-pbnb-edanbk-ALL-260215.qmd)</span>.</span>
+<span id="cb45-81"><a href="#cb45-81" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb45-82"><a href="#cb45-82" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-83"><a href="#cb45-83" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb45-84"><a href="#cb45-84" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-85"><a href="#cb45-85" aria-hidden="true" tabindex="-1"></a><span class="fu"># Pipeline ETL — Vue d'ensemble</span></span>
+<span id="cb45-86"><a href="#cb45-86" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-89"><a href="#cb45-89" aria-hidden="true" tabindex="-1"></a><span class="in">```{mermaid}</span></span>
+<span id="cb45-90"><a href="#cb45-90" aria-hidden="true" tabindex="-1"></a>%%| fig-width: <span class="dv">10</span></span>
+<span id="cb45-91"><a href="#cb45-91" aria-hidden="true" tabindex="-1"></a>flowchart TD</span>
+<span id="cb45-92"><a href="#cb45-92" aria-hidden="true" tabindex="-1"></a>    A[<span class="ot">"</span><span class="st">🌐 Inside Airbnb&lt;br/&gt;&lt;i&gt;insideairbnb.com/get-the-data&lt;/i&gt;&lt;br/&gt;~80 villes disponibles</span><span class="ot">"</span>] --&gt; B</span>
+<span id="cb45-93"><a href="#cb45-93" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-94"><a href="#cb45-94" aria-hidden="true" tabindex="-1"></a>    B[<span class="ot">"</span><span class="st">📥 &lt;b&gt;sp04&lt;/b&gt; — Download&lt;br/&gt;&lt;code&gt;sp04-download-insideairbnb-251231.py&lt;/code&gt;&lt;br/&gt;Téléchargement ciblé par ville/pays/continent&lt;br/&gt;4 types : listings.gz, sumlistings, geojson, neighbourhoods</span><span class="ot">"</span>]</span>
+<span id="cb45-95"><a href="#cb45-95" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-96"><a href="#cb45-96" aria-hidden="true" tabindex="-1"></a>    B --&gt; C[<span class="ot">"</span><span class="st">📁 &lt;b&gt;sp06&lt;/b&gt; — Flatten&lt;br/&gt;&lt;code&gt;sp06-flatten-insideairbnb-251231.py&lt;/code&gt;&lt;br/&gt;Aplatir arborescence datée → nommage flat&lt;br/&gt;&lt;code&gt;YYYY-MM-DD/&lt;/code&gt; → &lt;code&gt;YY-MM-XXX-CITY_*&lt;/code&gt;</span><span class="ot">"</span>]</span>
+<span id="cb45-97"><a href="#cb45-97" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-98"><a href="#cb45-98" aria-hidden="true" tabindex="-1"></a>    C --&gt; D[<span class="ot">"</span><span class="st">🔧 &lt;b&gt;sp07&lt;/b&gt; — Consolidation&lt;br/&gt;&lt;code&gt;sp07-consolidate-global-260212.py&lt;/code&gt;&lt;br/&gt;Agrégation 64 villes × 4 continents en 1 parquet&lt;br/&gt;+ métadonnées : pop, logements, FX, continent</span><span class="ot">"</span>]</span>
+<span id="cb45-99"><a href="#cb45-99" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-100"><a href="#cb45-100" aria-hidden="true" tabindex="-1"></a>    D --&gt; E[<span class="ot">"</span><span class="st">📊 &lt;b&gt;sp08&lt;/b&gt; — KPIs&lt;br/&gt;&lt;code&gt;sp08-recap-kpi-global-260212.py&lt;/code&gt;&lt;br/&gt;Nettoyage + calcul 25 indicateurs par ville&lt;br/&gt;→ CSV monde (64 villes) + Europe (36)</span><span class="ot">"</span>]</span>
+<span id="cb45-101"><a href="#cb45-101" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-102"><a href="#cb45-102" aria-hidden="true" tabindex="-1"></a>    F[<span class="ot">"</span><span class="st">🏘️ &lt;b&gt;city_reference_data.py&lt;/b&gt;&lt;br/&gt;Pop commune propre + logements&lt;br/&gt;35 villes Europe (sources officielles)</span><span class="ot">"</span>] --&gt; D</span>
+<span id="cb45-103"><a href="#cb45-103" aria-hidden="true" tabindex="-1"></a>    F --&gt; E</span>
+<span id="cb45-104"><a href="#cb45-104" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-105"><a href="#cb45-105" aria-hidden="true" tabindex="-1"></a>    G[<span class="ot">"</span><span class="st">💱 &lt;b&gt;Taux de change&lt;/b&gt;&lt;br/&gt;21 devises non-EUR → EUR&lt;br/&gt;FX manuels (BCE, fév. 2026)</span><span class="ot">"</span>] --&gt; D</span>
+<span id="cb45-106"><a href="#cb45-106" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-107"><a href="#cb45-107" aria-hidden="true" tabindex="-1"></a>    E --&gt; H[<span class="ot">"</span><span class="st">📈 &lt;b&gt;Rapports Quarto&lt;/b&gt;&lt;br/&gt;Synthèses · Rapport · EDA · Dashboard</span><span class="ot">"</span>]</span>
+<span id="cb45-108"><a href="#cb45-108" aria-hidden="true" tabindex="-1"></a>    D --&gt; H</span>
+<span id="cb45-109"><a href="#cb45-109" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-110"><a href="#cb45-110" aria-hidden="true" tabindex="-1"></a>    style A fill:<span class="co">#e3f2fd,stroke:#1696d2,stroke-width:2px</span></span>
+<span id="cb45-111"><a href="#cb45-111" aria-hidden="true" tabindex="-1"></a>    style B fill:<span class="co">#fff3e0,stroke:#ca5800,stroke-width:2px</span></span>
+<span id="cb45-112"><a href="#cb45-112" aria-hidden="true" tabindex="-1"></a>    style C fill:<span class="co">#fff3e0,stroke:#ca5800,stroke-width:2px</span></span>
+<span id="cb45-113"><a href="#cb45-113" aria-hidden="true" tabindex="-1"></a>    style D fill:<span class="co">#e8f5e9,stroke:#55b748,stroke-width:2px</span></span>
+<span id="cb45-114"><a href="#cb45-114" aria-hidden="true" tabindex="-1"></a>    style E fill:<span class="co">#e8f5e9,stroke:#55b748,stroke-width:2px</span></span>
+<span id="cb45-115"><a href="#cb45-115" aria-hidden="true" tabindex="-1"></a>    style F fill:<span class="co">#f3e5f5,stroke:#ec008b,stroke-width:2px</span></span>
+<span id="cb45-116"><a href="#cb45-116" aria-hidden="true" tabindex="-1"></a>    style G fill:<span class="co">#f3e5f5,stroke:#ec008b,stroke-width:2px</span></span>
+<span id="cb45-117"><a href="#cb45-117" aria-hidden="true" tabindex="-1"></a>    style H fill:<span class="co">#e3f2fd,stroke:#1696d2,stroke-width:2px</span></span>
+<span id="cb45-118"><a href="#cb45-118" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb45-119"><a href="#cb45-119" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-120"><a href="#cb45-120" aria-hidden="true" tabindex="-1"></a><span class="fu">## Étapes détaillées</span></span>
+<span id="cb45-121"><a href="#cb45-121" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-122"><a href="#cb45-122" aria-hidden="true" tabindex="-1"></a><span class="fu">### Étape 1 — Download (`sp04`)</span></span>
+<span id="cb45-123"><a href="#cb45-123" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-124"><a href="#cb45-124" aria-hidden="true" tabindex="-1"></a>**Source** : <span class="co">[</span><span class="ot">Inside Airbnb</span><span class="co">](https://insideairbnb.com/get-the-data/)</span> — données publiques compilées par Murray Cox.</span>
+<span id="cb45-125"><a href="#cb45-125" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-126"><a href="#cb45-126" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Type fichier <span class="pp">|</span> Colonnes <span class="pp">|</span> Usage <span class="pp">|</span> Taille/ville <span class="pp">|</span></span>
+<span id="cb45-127"><a href="#cb45-127" aria-hidden="true" tabindex="-1"></a><span class="pp">|:-------------|:---------|:------|:-------------|</span></span>
+<span id="cb45-128"><a href="#cb45-128" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`listings.csv.gz`</span> <span class="pp">|</span> 74 <span class="pp">|</span> Détail complet (amenities, descriptions, scores) <span class="pp">|</span> 5-50 MB <span class="pp">|</span></span>
+<span id="cb45-129"><a href="#cb45-129" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`listings.csv`</span> (sumlistings) <span class="pp">|</span> 18 <span class="pp">|</span> Résumé léger (prix, dispo, reviews) <span class="pp">|</span> 0.5-3 MB <span class="pp">|</span></span>
+<span id="cb45-130"><a href="#cb45-130" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`neighbourhoods.geojson`</span> <span class="pp">|</span> géométrie <span class="pp">|</span> Contours quartiers <span class="pp">|</span> 0.1-2 MB <span class="pp">|</span></span>
+<span id="cb45-131"><a href="#cb45-131" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`neighbourhoods.csv`</span> <span class="pp">|</span> 2 <span class="pp">|</span> Liste quartiers <span class="pp">|</span> &lt; 10 KB <span class="pp">|</span></span>
+<span id="cb45-132"><a href="#cb45-132" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-133"><a href="#cb45-133" aria-hidden="true" tabindex="-1"></a>**Paramétrage** : Filtrage par continent (<span class="in">`-e`</span> Europe), pays (<span class="in">`-c france`</span>), types de fichiers (<span class="in">`-l -s -g -n`</span>). Retry 3× avec rate-limiting (1s entre requêtes).</span>
+<span id="cb45-134"><a href="#cb45-134" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-135"><a href="#cb45-135" aria-hidden="true" tabindex="-1"></a>**Organisation** :</span>
+<span id="cb45-136"><a href="#cb45-136" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb45-137"><a href="#cb45-137" aria-hidden="true" tabindex="-1"></a><span class="in">data/raw/zudb-inside-airbnbbnb/</span></span>
+<span id="cb45-138"><a href="#cb45-138" aria-hidden="true" tabindex="-1"></a><span class="in">├── europe/{pays}/{ville}/{YYYY-MM-DD}/listings.csv.gz</span></span>
+<span id="cb45-139"><a href="#cb45-139" aria-hidden="true" tabindex="-1"></a><span class="in">├── usa/united-states/{ville}/...</span></span>
+<span id="cb45-140"><a href="#cb45-140" aria-hidden="true" tabindex="-1"></a><span class="in">└── world/{pays}/{ville}/...</span></span>
+<span id="cb45-141"><a href="#cb45-141" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb45-142"><a href="#cb45-142" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-143"><a href="#cb45-143" aria-hidden="true" tabindex="-1"></a><span class="fu">### Étape 2 — Flatten (`sp06`)</span></span>
+<span id="cb45-144"><a href="#cb45-144" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-145"><a href="#cb45-145" aria-hidden="true" tabindex="-1"></a>Transformation de l'arborescence datée vers un nommage plat pour simplifier la consolidation :</span>
+<span id="cb45-146"><a href="#cb45-146" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-147"><a href="#cb45-147" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb45-148"><a href="#cb45-148" aria-hidden="true" tabindex="-1"></a><span class="in">Avant : europe/france/paris/2025-06-18/listings.csv.gz</span></span>
+<span id="cb45-149"><a href="#cb45-149" aria-hidden="true" tabindex="-1"></a><span class="in">Après : europe/france/paris/25-06/</span></span>
+<span id="cb45-150"><a href="#cb45-150" aria-hidden="true" tabindex="-1"></a><span class="in">        + 25-06-FRA-paris_sumlistings.csv</span></span>
+<span id="cb45-151"><a href="#cb45-151" aria-hidden="true" tabindex="-1"></a><span class="in">        + geo-FRA-paris_neighbourhoods.geojson</span></span>
+<span id="cb45-152"><a href="#cb45-152" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb45-153"><a href="#cb45-153" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-154"><a href="#cb45-154" aria-hidden="true" tabindex="-1"></a><span class="fu">### Étape 3 — Consolidation (`sp07`)</span></span>
+<span id="cb45-155"><a href="#cb45-155" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-156"><a href="#cb45-156" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Scan** des 3 dossiers racines (<span class="in">`europe/`</span>, <span class="in">`usa/`</span>, <span class="in">`world/`</span>)</span>
+<span id="cb45-157"><a href="#cb45-157" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Exclusion des régions** : Sicile, Crète, Baléares, Pays Basque, Basilicate... (biais rural)</span>
+<span id="cb45-158"><a href="#cb45-158" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Seuil** : minimum 3 000 listings par ville (exclut villes trop petites)</span>
+<span id="cb45-159"><a href="#cb45-159" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Enrichissement** : ajout <span class="in">`country_code`</span>, <span class="in">`continent`</span>, <span class="in">`city_pop`</span>, <span class="in">`city_housing`</span>, <span class="in">`city_lat`</span>, <span class="in">`city_lon`</span></span>
+<span id="cb45-160"><a href="#cb45-160" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Conversion FX** : 21 devises non-EUR converties via taux BCE (février 2026)</span>
+<span id="cb45-161"><a href="#cb45-161" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-162"><a href="#cb45-162" aria-hidden="true" tabindex="-1"></a>**Référentiel population** (<span class="in">`city_reference_data.py`</span>) :</span>
+<span id="cb45-163"><a href="#cb45-163" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>35 villes Europe avec données **commune propre** (pas métropole)</span>
+<span id="cb45-164"><a href="#cb45-164" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Sources : INSEE (FR), ISTAT (IT), ONS (UK), INE (ES), Eurostat...</span>
+<span id="cb45-165"><a href="#cb45-165" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Logements : recensement officiel ou estimation par ratio national (OCDE)</span>
+<span id="cb45-166"><a href="#cb45-166" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-167"><a href="#cb45-167" aria-hidden="true" tabindex="-1"></a><span class="fu">### Étape 4 — Calcul KPIs (`sp08`)</span></span>
+<span id="cb45-168"><a href="#cb45-168" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-169"><a href="#cb45-169" aria-hidden="true" tabindex="-1"></a>Le script applique le **pipeline de nettoyage** (voir section suivante), puis calcule 25 indicateurs par ville regroupés en 7 catégories.</span>
+<span id="cb45-170"><a href="#cb45-170" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-171"><a href="#cb45-171" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb45-172"><a href="#cb45-172" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-173"><a href="#cb45-173" aria-hidden="true" tabindex="-1"></a><span class="fu"># Pipeline de nettoyage</span></span>
+<span id="cb45-174"><a href="#cb45-174" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-177"><a href="#cb45-177" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb45-178"><a href="#cb45-178" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: cleaning-pipeline</span></span>
+<span id="cb45-179"><a href="#cb45-179" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-180"><a href="#cb45-180" aria-hidden="true" tabindex="-1"></a>df_raw <span class="op">=</span> pd.read_parquet(BASE <span class="op">/</span> <span class="st">"data"</span> <span class="op">/</span> <span class="st">"interim"</span> <span class="op">/</span> <span class="st">"dbsumlistings_2506_cons_global.parquet"</span>)</span>
+<span id="cb45-181"><a href="#cb45-181" aria-hidden="true" tabindex="-1"></a>n_raw <span class="op">=</span> <span class="bu">len</span>(df_raw)</span>
+<span id="cb45-182"><a href="#cb45-182" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-183"><a href="#cb45-183" aria-hidden="true" tabindex="-1"></a>steps <span class="op">=</span> []</span>
+<span id="cb45-184"><a href="#cb45-184" aria-hidden="true" tabindex="-1"></a>df_c <span class="op">=</span> df_raw.copy()</span>
+<span id="cb45-185"><a href="#cb45-185" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-186"><a href="#cb45-186" aria-hidden="true" tabindex="-1"></a><span class="co"># Étape 1 : Prix non null</span></span>
+<span id="cb45-187"><a href="#cb45-187" aria-hidden="true" tabindex="-1"></a>mask <span class="op">=</span> df_c[<span class="st">"price"</span>].notna() <span class="op">&amp;</span> (df_c[<span class="st">"price"</span>] <span class="op">&gt;</span> <span class="dv">0</span>)</span>
+<span id="cb45-188"><a href="#cb45-188" aria-hidden="true" tabindex="-1"></a>steps.append((<span class="st">"1. Prix non null (exclure inactifs)"</span>, mask.<span class="bu">sum</span>(), <span class="bu">len</span>(df_c) <span class="op">-</span> mask.<span class="bu">sum</span>()))</span>
+<span id="cb45-189"><a href="#cb45-189" aria-hidden="true" tabindex="-1"></a>df_c <span class="op">=</span> df_c[mask]</span>
+<span id="cb45-190"><a href="#cb45-190" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-191"><a href="#cb45-191" aria-hidden="true" tabindex="-1"></a><span class="co"># Étape 2 : Disponibilité &gt; 0</span></span>
+<span id="cb45-192"><a href="#cb45-192" aria-hidden="true" tabindex="-1"></a>mask <span class="op">=</span> df_c[<span class="st">"availability_365"</span>] <span class="op">&gt;</span> <span class="dv">0</span></span>
+<span id="cb45-193"><a href="#cb45-193" aria-hidden="true" tabindex="-1"></a>steps.append((<span class="st">"2. Disponibilité &gt; 0 jours/an"</span>, mask.<span class="bu">sum</span>(), <span class="bu">len</span>(df_c) <span class="op">-</span> mask.<span class="bu">sum</span>()))</span>
+<span id="cb45-194"><a href="#cb45-194" aria-hidden="true" tabindex="-1"></a>df_c <span class="op">=</span> df_c[mask]</span>
+<span id="cb45-195"><a href="#cb45-195" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-196"><a href="#cb45-196" aria-hidden="true" tabindex="-1"></a><span class="co"># Étape 3 : Exclure Hotel room</span></span>
+<span id="cb45-197"><a href="#cb45-197" aria-hidden="true" tabindex="-1"></a>mask <span class="op">=</span> df_c[<span class="st">"room_type"</span>] <span class="op">!=</span> <span class="st">"Hotel room"</span></span>
+<span id="cb45-198"><a href="#cb45-198" aria-hidden="true" tabindex="-1"></a>steps.append((<span class="st">"3. Exclure Hotel room"</span>, mask.<span class="bu">sum</span>(), <span class="bu">len</span>(df_c) <span class="op">-</span> mask.<span class="bu">sum</span>()))</span>
+<span id="cb45-199"><a href="#cb45-199" aria-hidden="true" tabindex="-1"></a>df_c <span class="op">=</span> df_c[mask]</span>
+<span id="cb45-200"><a href="#cb45-200" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-201"><a href="#cb45-201" aria-hidden="true" tabindex="-1"></a><span class="co"># Étape 4 : Prix EUR 10-1000 (aberrants)</span></span>
+<span id="cb45-202"><a href="#cb45-202" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="st">"price_eur"</span> <span class="kw">in</span> df_c.columns:</span>
+<span id="cb45-203"><a href="#cb45-203" aria-hidden="true" tabindex="-1"></a>    mask <span class="op">=</span> (df_c[<span class="st">"price_eur"</span>] <span class="op">&gt;=</span> <span class="dv">10</span>) <span class="op">&amp;</span> (df_c[<span class="st">"price_eur"</span>] <span class="op">&lt;=</span> <span class="dv">1000</span>)</span>
+<span id="cb45-204"><a href="#cb45-204" aria-hidden="true" tabindex="-1"></a>    steps.append((<span class="st">"4. Prix EUR [10, 1000] (aberrants)"</span>, mask.<span class="bu">sum</span>(), <span class="bu">len</span>(df_c) <span class="op">-</span> mask.<span class="bu">sum</span>()))</span>
+<span id="cb45-205"><a href="#cb45-205" aria-hidden="true" tabindex="-1"></a>    df_c <span class="op">=</span> df_c[mask]</span>
+<span id="cb45-206"><a href="#cb45-206" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-207"><a href="#cb45-207" aria-hidden="true" tabindex="-1"></a><span class="co"># Étape 5 : Flag longterm (PAS d'exclusion)</span></span>
+<span id="cb45-208"><a href="#cb45-208" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="st">"minimum_nights"</span> <span class="kw">in</span> df_c.columns:</span>
+<span id="cb45-209"><a href="#cb45-209" aria-hidden="true" tabindex="-1"></a>    n_lt <span class="op">=</span> (df_c[<span class="st">"minimum_nights"</span>] <span class="op">&gt;=</span> <span class="dv">30</span>).<span class="bu">sum</span>()</span>
+<span id="cb45-210"><a href="#cb45-210" aria-hidden="true" tabindex="-1"></a>    steps.append((<span class="ss">f"5. Flag is_longterm (≥30 nuits) — NON exclu"</span>, <span class="bu">len</span>(df_c), <span class="dv">0</span>))</span>
+<span id="cb45-211"><a href="#cb45-211" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-212"><a href="#cb45-212" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Pipeline de nettoyage — Impact sur </span><span class="sc">{</span>n_raw<span class="sc">:,}</span><span class="ss"> listings bruts</span><span class="ch">\n</span><span class="ss">"</span>)</span>
+<span id="cb45-213"><a href="#cb45-213" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'Étape'</span><span class="sc">:&lt;45s}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Restant'</span><span class="sc">:&gt;10s}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Exclu'</span><span class="sc">:&gt;10s}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'% brut'</span><span class="sc">:&gt;8s}</span><span class="ss">"</span>)</span>
+<span id="cb45-214"><a href="#cb45-214" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"─"</span> <span class="op">*</span> <span class="dv">75</span>)</span>
+<span id="cb45-215"><a href="#cb45-215" aria-hidden="true" tabindex="-1"></a>cumul_exclu <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb45-216"><a href="#cb45-216" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> name, kept, removed <span class="kw">in</span> steps:</span>
+<span id="cb45-217"><a href="#cb45-217" aria-hidden="true" tabindex="-1"></a>    cumul_exclu <span class="op">+=</span> removed</span>
+<span id="cb45-218"><a href="#cb45-218" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>name<span class="sc">:&lt;45s}</span><span class="ss"> </span><span class="sc">{</span>kept<span class="sc">:&gt;10,}</span><span class="ss"> </span><span class="sc">{</span>removed<span class="sc">:&gt;10,}</span><span class="ss"> </span><span class="sc">{</span>removed<span class="op">/</span>n_raw<span class="op">*</span><span class="dv">100</span><span class="sc">:&gt;7.1f}</span><span class="ss">%"</span>)</span>
+<span id="cb45-219"><a href="#cb45-219" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"─"</span> <span class="op">*</span> <span class="dv">75</span>)</span>
+<span id="cb45-220"><a href="#cb45-220" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'TOTAL APRÈS NETTOYAGE'</span><span class="sc">:&lt;45s}</span><span class="ss"> </span><span class="sc">{</span><span class="bu">len</span>(df_c)<span class="sc">:&gt;10,}</span><span class="ss"> </span><span class="sc">{</span>n_raw <span class="op">-</span> <span class="bu">len</span>(df_c)<span class="sc">:&gt;10,}</span><span class="ss"> </span><span class="sc">{</span>(n_raw<span class="op">-</span><span class="bu">len</span>(df_c))<span class="op">/</span>n_raw<span class="op">*</span><span class="dv">100</span><span class="sc">:&gt;7.1f}</span><span class="ss">%"</span>)</span>
+<span id="cb45-221"><a href="#cb45-221" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Taux de rétention : </span><span class="sc">{</span><span class="bu">len</span>(df_c)<span class="op">/</span>n_raw<span class="op">*</span><span class="dv">100</span><span class="sc">:.1f}</span><span class="ss">%"</span>)</span>
+<span id="cb45-222"><a href="#cb45-222" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb45-223"><a href="#cb45-223" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-224"><a href="#cb45-224" aria-hidden="true" tabindex="-1"></a><span class="fu">### Justification des choix</span></span>
+<span id="cb45-225"><a href="#cb45-225" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-226"><a href="#cb45-226" aria-hidden="true" tabindex="-1"></a>::: {.callout-tip}</span>
+<span id="cb45-227"><a href="#cb45-227" aria-hidden="true" tabindex="-1"></a><span class="fu">## Décisions clés</span></span>
+<span id="cb45-228"><a href="#cb45-228" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-229"><a href="#cb45-229" aria-hidden="true" tabindex="-1"></a>**Prix null = inactif** : 80,8 % des listings à prix null ont <span class="in">`availability_365 = 0`</span>. Ce sont des annonces retirées ou dormantes, pas des erreurs de saisie. Seulement 1,2 % d'anomalies (prix null mais listing actif).</span>
+<span id="cb45-230"><a href="#cb45-230" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-231"><a href="#cb45-231" aria-hidden="true" tabindex="-1"></a>**Hotel room exclu** : Représente ~1 % de la base. Comportement tarifaire et d'usage très différent (réservation plateforme hôtelière, pas location de logement).</span>
+<span id="cb45-232"><a href="#cb45-232" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-233"><a href="#cb45-233" aria-hidden="true" tabindex="-1"></a>**Prix [10, 1000] EUR** : Borne basse (10€/nuit) exclut les erreurs de saisie. Borne haute (1000€) : au-delà, marché de niche ultra-luxe non représentatif.</span>
+<span id="cb45-234"><a href="#cb45-234" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-235"><a href="#cb45-235" aria-hidden="true" tabindex="-1"></a>**Longterm flaggé, pas exclu** : `minimum_nights ≥ 30` est un **indicateur de régulation** (effet Barcelona, Berlin, Istanbul). Exclure ces listings masquerait un signal structurel majeur.</span>
+<span id="cb45-236"><a href="#cb45-236" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb45-237"><a href="#cb45-237" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-238"><a href="#cb45-238" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb45-239"><a href="#cb45-239" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-240"><a href="#cb45-240" aria-hidden="true" tabindex="-1"></a><span class="fu"># Indicateurs — Définitions</span></span>
+<span id="cb45-241"><a href="#cb45-241" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-244"><a href="#cb45-244" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb45-245"><a href="#cb45-245" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: kpi-definitions</span></span>
+<span id="cb45-246"><a href="#cb45-246" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-247"><a href="#cb45-247" aria-hidden="true" tabindex="-1"></a>kpi_defs <span class="op">=</span> pd.DataFrame([</span>
+<span id="cb45-248"><a href="#cb45-248" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"Volume"</span>, <span class="st">"n_listings"</span>, <span class="st">"Nombre total de listings actifs"</span>, <span class="st">"Count"</span>),</span>
+<span id="cb45-249"><a href="#cb45-249" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"Volume"</span>, <span class="st">"n_entire"</span>, <span class="st">"Nombre d'appartements entiers"</span>, <span class="st">"Count"</span>),</span>
+<span id="cb45-250"><a href="#cb45-250" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"Volume"</span>, <span class="st">"n_hosts"</span>, <span class="st">"Nombre d'hôtes uniques"</span>, <span class="st">"Count"</span>),</span>
+<span id="cb45-251"><a href="#cb45-251" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"Volume"</span>, <span class="st">"ratio_lh"</span>, <span class="st">"Ratio listings / hôtes"</span>, <span class="st">"n_listings / n_hosts"</span>),</span>
+<span id="cb45-252"><a href="#cb45-252" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"Pression"</span>, <span class="st">"listings_1000hab"</span>, <span class="st">"Listings pour 1 000 habitants"</span>, <span class="st">"n_listings / pop × 1000"</span>),</span>
+<span id="cb45-253"><a href="#cb45-253" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"Pression"</span>, <span class="st">"listings_1000hsg"</span>, <span class="st">"Listings pour 1 000 logements"</span>, <span class="st">"n_listings / housing × 1000"</span>),</span>
+<span id="cb45-254"><a href="#cb45-254" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"Pression"</span>, <span class="st">"entire_1000hsg"</span>, <span class="st">"Logements entiers pour 1 000 logements"</span>, <span class="st">"n_entire / housing × 1000"</span>),</span>
+<span id="cb45-255"><a href="#cb45-255" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"Prix"</span>, <span class="st">"prix_med"</span>, <span class="st">"Prix médian EUR/nuit"</span>, <span class="st">"Median(price_eur)"</span>),</span>
+<span id="cb45-256"><a href="#cb45-256" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"Prix"</span>, <span class="st">"prix_moy"</span>, <span class="st">"Prix moyen EUR/nuit"</span>, <span class="st">"Mean(price_eur)"</span>),</span>
+<span id="cb45-257"><a href="#cb45-257" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"Prix"</span>, <span class="st">"prix_q25"</span>, <span class="st">"1er quartile prix"</span>, <span class="st">"Q25(price_eur)"</span>),</span>
+<span id="cb45-258"><a href="#cb45-258" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"Prix"</span>, <span class="st">"prix_q75"</span>, <span class="st">"3e quartile prix"</span>, <span class="st">"Q75(price_eur)"</span>),</span>
+<span id="cb45-259"><a href="#cb45-259" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"Prix"</span>, <span class="st">"prix_iqr"</span>, <span class="st">"Écart interquartile prix"</span>, <span class="st">"Q75 − Q25"</span>),</span>
+<span id="cb45-260"><a href="#cb45-260" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"Composition"</span>, <span class="st">"pct_entire"</span>, <span class="st">"</span><span class="sc">% lo</span><span class="st">gements entiers"</span>, <span class="st">"n_entire / n_listings × 100"</span>),</span>
+<span id="cb45-261"><a href="#cb45-261" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"Composition"</span>, <span class="st">"pct_multi"</span>, <span class="st">"% multi-hôtes (≥2 annonces)"</span>, <span class="st">"n_multi / n_listings × 100"</span>),</span>
+<span id="cb45-262"><a href="#cb45-262" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"Composition"</span>, <span class="st">"pct_longterm"</span>, <span class="st">"</span><span class="sc">% lo</span><span class="st">ngue durée (min_nights ≥ 30)"</span>, <span class="st">"n_longterm / n_listings × 100"</span>),</span>
+<span id="cb45-263"><a href="#cb45-263" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"Disponibilité"</span>, <span class="st">"dispo_med"</span>, <span class="st">"Disponibilité médiane (jours/an)"</span>, <span class="st">"Median(availability_365)"</span>),</span>
+<span id="cb45-264"><a href="#cb45-264" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"Disponibilité"</span>, <span class="st">"dispo_moy"</span>, <span class="st">"Disponibilité moyenne"</span>, <span class="st">"Mean(availability_365)"</span>),</span>
+<span id="cb45-265"><a href="#cb45-265" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"Activité"</span>, <span class="st">"reviews_med"</span>, <span class="st">"Reviews médian par listing"</span>, <span class="st">"Median(number_of_reviews)"</span>),</span>
+<span id="cb45-266"><a href="#cb45-266" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"Activité"</span>, <span class="st">"rpm_med"</span>, <span class="st">"Reviews/mois médian"</span>, <span class="st">"Median(reviews_per_month)"</span>),</span>
+<span id="cb45-267"><a href="#cb45-267" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"Concentration"</span>, <span class="st">"cr_hosts_50pct"</span>, <span class="st">"% hôtes détenant 50</span><span class="sc">% d</span><span class="st">e l'offre"</span>, <span class="st">"Lorenz-based"</span>),</span>
+<span id="cb45-268"><a href="#cb45-268" aria-hidden="true" tabindex="-1"></a>], columns<span class="op">=</span>[<span class="st">"Catégorie"</span>, <span class="st">"Variable"</span>, <span class="st">"Description"</span>, <span class="st">"Formule"</span>])</span>
+<span id="cb45-269"><a href="#cb45-269" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-270"><a href="#cb45-270" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"25 indicateurs en 7 catégories :</span><span class="ch">\n</span><span class="ss">"</span>)</span>
+<span id="cb45-271"><a href="#cb45-271" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> cat <span class="kw">in</span> kpi_defs[<span class="st">"Catégorie"</span>].unique():</span>
+<span id="cb45-272"><a href="#cb45-272" aria-hidden="true" tabindex="-1"></a>    sub <span class="op">=</span> kpi_defs[kpi_defs[<span class="st">"Catégorie"</span>] <span class="op">==</span> cat]</span>
+<span id="cb45-273"><a href="#cb45-273" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="sc">{</span>cat<span class="sc">}</span><span class="ss"> (</span><span class="sc">{</span><span class="bu">len</span>(sub)<span class="sc">}</span><span class="ss"> indicateurs)"</span>)</span>
+<span id="cb45-274"><a href="#cb45-274" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"─"</span> <span class="op">*</span> <span class="dv">70</span>)</span>
+<span id="cb45-275"><a href="#cb45-275" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> _, row <span class="kw">in</span> sub.iterrows():</span>
+<span id="cb45-276"><a href="#cb45-276" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"  </span><span class="sc">{</span>row[<span class="st">'Variable'</span>]<span class="sc">:22s}</span><span class="ss">  </span><span class="sc">{</span>row[<span class="st">'Description'</span>]<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb45-277"><a href="#cb45-277" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"  </span><span class="sc">{</span><span class="st">''</span><span class="sc">:22s}</span><span class="ss">  → </span><span class="sc">{</span>row[<span class="st">'Formule'</span>]<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb45-278"><a href="#cb45-278" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb45-279"><a href="#cb45-279" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-280"><a href="#cb45-280" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb45-281"><a href="#cb45-281" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-282"><a href="#cb45-282" aria-hidden="true" tabindex="-1"></a><span class="fu"># Taux de change EUR</span></span>
+<span id="cb45-283"><a href="#cb45-283" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-286"><a href="#cb45-286" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb45-287"><a href="#cb45-287" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: fx-rates</span></span>
+<span id="cb45-288"><a href="#cb45-288" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-289"><a href="#cb45-289" aria-hidden="true" tabindex="-1"></a>fx <span class="op">=</span> {</span>
+<span id="cb45-290"><a href="#cb45-290" aria-hidden="true" tabindex="-1"></a>    <span class="st">"GBP"</span>: <span class="fl">1.17</span>, <span class="st">"HUF"</span>: <span class="fl">0.0026</span>, <span class="st">"TRY"</span>: <span class="fl">0.028</span>, <span class="st">"DKK"</span>: <span class="fl">0.134</span>, <span class="st">"CZK"</span>: <span class="fl">0.040</span>,</span>
+<span id="cb45-291"><a href="#cb45-291" aria-hidden="true" tabindex="-1"></a>    <span class="st">"NOK"</span>: <span class="fl">0.085</span>, <span class="st">"SEK"</span>: <span class="fl">0.087</span>, <span class="st">"CHF"</span>: <span class="fl">1.06</span>, <span class="st">"USD"</span>: <span class="fl">0.92</span>, <span class="st">"CAD"</span>: <span class="fl">0.65</span>,</span>
+<span id="cb45-292"><a href="#cb45-292" aria-hidden="true" tabindex="-1"></a>    <span class="st">"AUD"</span>: <span class="fl">0.60</span>, <span class="st">"NZD"</span>: <span class="fl">0.55</span>, <span class="st">"JPY"</span>: <span class="fl">0.006</span>, <span class="st">"SGD"</span>: <span class="fl">0.69</span>, <span class="st">"HKD"</span>: <span class="fl">0.12</span>,</span>
+<span id="cb45-293"><a href="#cb45-293" aria-hidden="true" tabindex="-1"></a>    <span class="st">"THB"</span>: <span class="fl">0.026</span>, <span class="st">"MXN"</span>: <span class="fl">0.047</span>, <span class="st">"BRL"</span>: <span class="fl">0.16</span>, <span class="st">"COP"</span>: <span class="fl">0.00022</span>, <span class="st">"ARS"</span>: <span class="fl">0.00086</span>,</span>
+<span id="cb45-294"><a href="#cb45-294" aria-hidden="true" tabindex="-1"></a>    <span class="st">"ZAR"</span>: <span class="fl">0.050</span></span>
+<span id="cb45-295"><a href="#cb45-295" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb45-296"><a href="#cb45-296" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-297"><a href="#cb45-297" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Taux de change → EUR (source : BCE, février 2026)</span><span class="ch">\n</span><span class="ss">"</span>)</span>
+<span id="cb45-298"><a href="#cb45-298" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'Devise'</span><span class="sc">:&lt;8s}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'Taux'</span><span class="sc">:&gt;8s}</span><span class="ss">   </span><span class="sc">{</span><span class="st">'Exemple : 100 local →'</span><span class="sc">:&gt;25s}</span><span class="ss">"</span>)</span>
+<span id="cb45-299"><a href="#cb45-299" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"─"</span> <span class="op">*</span> <span class="dv">50</span>)</span>
+<span id="cb45-300"><a href="#cb45-300" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> cur, rate <span class="kw">in</span> <span class="bu">sorted</span>(fx.items(), key<span class="op">=</span><span class="kw">lambda</span> x: <span class="op">-</span>x[<span class="dv">1</span>]):</span>
+<span id="cb45-301"><a href="#cb45-301" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>cur<span class="sc">:&lt;8s}</span><span class="ss"> </span><span class="sc">{</span>rate<span class="sc">:&gt;8.4f}</span><span class="ss">   </span><span class="sc">{</span><span class="dv">100</span><span class="op">*</span>rate<span class="sc">:&gt;20.1f}</span><span class="ss"> EUR"</span>)</span>
+<span id="cb45-302"><a href="#cb45-302" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-303"><a href="#cb45-303" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="sc">{</span><span class="bu">len</span>(fx)<span class="sc">}</span><span class="ss"> devises converties. Pays EUR : pas de conversion."</span>)</span>
+<span id="cb45-304"><a href="#cb45-304" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb45-305"><a href="#cb45-305" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-306"><a href="#cb45-306" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb45-307"><a href="#cb45-307" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-308"><a href="#cb45-308" aria-hidden="true" tabindex="-1"></a><span class="fu"># Difficultés rencontrées et solutions</span></span>
+<span id="cb45-309"><a href="#cb45-309" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-310"><a href="#cb45-310" aria-hidden="true" tabindex="-1"></a>::: {.callout-warning}</span>
+<span id="cb45-311"><a href="#cb45-311" aria-hidden="true" tabindex="-1"></a><span class="fu">## Difficultés techniques</span></span>
+<span id="cb45-312"><a href="#cb45-312" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-313"><a href="#cb45-313" aria-hidden="true" tabindex="-1"></a><span class="fu">### Scraping et données brutes</span></span>
+<span id="cb45-314"><a href="#cb45-314" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-315"><a href="#cb45-315" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Problème <span class="pp">|</span> Impact <span class="pp">|</span> Solution <span class="pp">|</span></span>
+<span id="cb45-316"><a href="#cb45-316" aria-hidden="true" tabindex="-1"></a><span class="pp">|:---------|:-------|:---------|</span></span>
+<span id="cb45-317"><a href="#cb45-317" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **URLs atypiques** (Irlande, Malte, Nouvelle-Zélande) <span class="pp">|</span> sp04 crashait sur format non standard <span class="pp">|</span> Normalisation regex dans sp04, skip silencieux si erreur <span class="pp">|</span></span>
+<span id="cb45-318"><a href="#cb45-318" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Paris sept 2025 : prix vide** dans sumlistings <span class="pp">|</span> Listings sans prix → exclusion massive <span class="pp">|</span> Utiliser listings.gz (74 cols) pour Paris si besoin du snapshot sept <span class="pp">|</span></span>
+<span id="cb45-319"><a href="#cb45-319" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Régions vs villes** (Sicile, Crète, Baléares) <span class="pp">|</span> Biais rural dans consolidation <span class="pp">|</span> Liste d'exclusion explicite dans sp07 <span class="pp">|</span></span>
+<span id="cb45-320"><a href="#cb45-320" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Snapshots non alignés** <span class="pp">|</span> Dates variables selon villes (juin ±2 semaines) <span class="pp">|</span> Tolérance : snapshot <span class="in">`25-06`</span> = tout fichier juin 2025 <span class="pp">|</span></span>
+<span id="cb45-321"><a href="#cb45-321" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-322"><a href="#cb45-322" aria-hidden="true" tabindex="-1"></a><span class="fu">### Population et logements</span></span>
+<span id="cb45-323"><a href="#cb45-323" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-324"><a href="#cb45-324" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Problème <span class="pp">|</span> Impact <span class="pp">|</span> Solution <span class="pp">|</span></span>
+<span id="cb45-325"><a href="#cb45-325" aria-hidden="true" tabindex="-1"></a><span class="pp">|:---------|:-------|:---------|</span></span>
+<span id="cb45-326"><a href="#cb45-326" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Périmètre commune vs métropole** <span class="pp">|</span> Manchester IA = Greater Manchester (2.8M) vs commune (550K) <span class="pp">|</span> Documenter, utiliser périmètre IA cohérent <span class="pp">|</span></span>
+<span id="cb45-327"><a href="#cb45-327" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Logements non disponibles** pour 22 villes <span class="pp">|</span> Pression logement biaisée <span class="pp">|</span> Estimation par ratio national OCDE (logements/1000 hab) <span class="pp">|</span></span>
+<span id="cb45-328"><a href="#cb45-328" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Eurostat Urban Audit** inutilisable <span class="pp">|</span> Greater city ≠ commune propre, logements absents <span class="pp">|</span> Référentiel maison (city_reference_data.py) <span class="pp">|</span></span>
+<span id="cb45-329"><a href="#cb45-329" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-330"><a href="#cb45-330" aria-hidden="true" tabindex="-1"></a><span class="fu">### Rendu Quarto</span></span>
+<span id="cb45-331"><a href="#cb45-331" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-332"><a href="#cb45-332" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Problème <span class="pp">|</span> Impact <span class="pp">|</span> Solution <span class="pp">|</span></span>
+<span id="cb45-333"><a href="#cb45-333" aria-hidden="true" tabindex="-1"></a><span class="pp">|:---------|:-------|:---------|</span></span>
+<span id="cb45-334"><a href="#cb45-334" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Plotly 6 + reticulate** = double affichage <span class="pp">|</span> Figures dupliquées, HTML corrompu <span class="pp">|</span> Monkey-patch <span class="in">`fig.show()`</span> → <span class="in">`print(to_html())`</span> <span class="pp">|</span></span>
+<span id="cb45-335"><a href="#cb45-335" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Whitespace dans HTML** → pandoc code blocks <span class="pp">|</span> Graphiques rendus comme texte brut <span class="pp">|</span> <span class="in">`re.sub(r'&gt;\s+&lt;', '&gt;&lt;', html).strip()`</span> <span class="pp">|</span></span>
+<span id="cb45-336"><a href="#cb45-336" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **JS heap OOM** sur gros rapports <span class="pp">|</span> Render crash après 80+ chunks <span class="pp">|</span> <span class="in">`NODE_OPTIONS="--max-old-space-size=8192"`</span> <span class="pp">|</span></span>
+<span id="cb45-337"><a href="#cb45-337" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **`column: page` + `output: asis`** <span class="pp">|</span> Charts débordent du viewport <span class="pp">|</span> Utiliser <span class="in">`width=`</span> dans Plotly + CSS overflow <span class="pp">|</span></span>
+<span id="cb45-338"><a href="#cb45-338" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **`display()` en knitr** <span class="pp">|</span> Crash reticulate (pas de kernel Jupyter) <span class="pp">|</span> Remplacer par <span class="in">`print()`</span> <span class="pp">|</span></span>
+<span id="cb45-339"><a href="#cb45-339" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb45-340"><a href="#cb45-340" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-341"><a href="#cb45-341" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb45-342"><a href="#cb45-342" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-343"><a href="#cb45-343" aria-hidden="true" tabindex="-1"></a><span class="fu"># Méthodologie ACP</span></span>
+<span id="cb45-344"><a href="#cb45-344" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-345"><a href="#cb45-345" aria-hidden="true" tabindex="-1"></a><span class="fu">## Variables actives</span></span>
+<span id="cb45-346"><a href="#cb45-346" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-349"><a href="#cb45-349" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb45-350"><a href="#cb45-350" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: acp-method-vars</span></span>
+<span id="cb45-351"><a href="#cb45-351" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-352"><a href="#cb45-352" aria-hidden="true" tabindex="-1"></a>acp_vars <span class="op">=</span> [<span class="st">"listings_1000hab"</span>, <span class="st">"entire_1000hsg"</span>, <span class="st">"prix_med"</span>, <span class="st">"prix_iqr"</span>,</span>
+<span id="cb45-353"><a href="#cb45-353" aria-hidden="true" tabindex="-1"></a>            <span class="st">"pct_entire"</span>, <span class="st">"pct_multi"</span>, <span class="st">"pct_longterm"</span>, <span class="st">"ratio_lh"</span>,</span>
+<span id="cb45-354"><a href="#cb45-354" aria-hidden="true" tabindex="-1"></a>            <span class="st">"cr_hosts_50pct"</span>, <span class="st">"dispo_med"</span>, <span class="st">"reviews_med"</span>, <span class="st">"rpm_med"</span>]</span>
+<span id="cb45-355"><a href="#cb45-355" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-356"><a href="#cb45-356" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"ACP sur </span><span class="sc">{</span><span class="bu">len</span>(acp_vars)<span class="sc">}</span><span class="ss"> variables actives :</span><span class="ch">\n</span><span class="ss">"</span>)</span>
+<span id="cb45-357"><a href="#cb45-357" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Variables retenues (ratios et pourcentages normalisés) :"</span>)</span>
+<span id="cb45-358"><a href="#cb45-358" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> v <span class="kw">in</span> acp_vars:</span>
+<span id="cb45-359"><a href="#cb45-359" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"  • </span><span class="sc">{</span>v<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb45-360"><a href="#cb45-360" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-361"><a href="#cb45-361" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Variables exclues (justification) :"</span>)</span>
+<span id="cb45-362"><a href="#cb45-362" aria-hidden="true" tabindex="-1"></a>exclusions <span class="op">=</span> [</span>
+<span id="cb45-363"><a href="#cb45-363" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"n_listings, n_entire, n_hosts"</span>, <span class="st">"Volumes bruts → effet taille, redondant avec pression"</span>),</span>
+<span id="cb45-364"><a href="#cb45-364" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"pop, housing"</span>, <span class="st">"Variables supplémentaires, pas de signal propre"</span>),</span>
+<span id="cb45-365"><a href="#cb45-365" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"prix_moy, prix_q25, prix_q75"</span>, <span class="st">"Redondant avec prix_med + prix_iqr"</span>),</span>
+<span id="cb45-366"><a href="#cb45-366" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"dispo_moy"</span>, <span class="st">"Très corrélé à dispo_med (r &gt; 0.95)"</span>),</span>
+<span id="cb45-367"><a href="#cb45-367" aria-hidden="true" tabindex="-1"></a>    (<span class="st">"listings_1000hsg"</span>, <span class="st">"Très corrélé à entire_1000hsg (r &gt; 0.90)"</span>),</span>
+<span id="cb45-368"><a href="#cb45-368" aria-hidden="true" tabindex="-1"></a>]</span>
+<span id="cb45-369"><a href="#cb45-369" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> var, reason <span class="kw">in</span> exclusions:</span>
+<span id="cb45-370"><a href="#cb45-370" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"  ✗ </span><span class="sc">{</span>var<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb45-371"><a href="#cb45-371" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"    → </span><span class="sc">{</span>reason<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb45-372"><a href="#cb45-372" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb45-373"><a href="#cb45-373" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-374"><a href="#cb45-374" aria-hidden="true" tabindex="-1"></a><span class="fu">## Protocole</span></span>
+<span id="cb45-375"><a href="#cb45-375" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-376"><a href="#cb45-376" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>**Standardisation** : centrage-réduction (z-scores) sur les 12 variables actives</span>
+<span id="cb45-377"><a href="#cb45-377" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**ACP** : décomposition en valeurs propres de la matrice de corrélation</span>
+<span id="cb45-378"><a href="#cb45-378" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>**Rétention** : composantes retenues selon règle des 80 % de variance cumulée</span>
+<span id="cb45-379"><a href="#cb45-379" aria-hidden="true" tabindex="-1"></a><span class="ss">4. </span>**Clustering Ward** : distance euclidienne sur les 4 premières composantes</span>
+<span id="cb45-380"><a href="#cb45-380" aria-hidden="true" tabindex="-1"></a><span class="ss">5. </span>**Choix de k** : score silhouette pour k ∈ {3, 4, 5, 6}, retenir le maximum</span>
+<span id="cb45-381"><a href="#cb45-381" aria-hidden="true" tabindex="-1"></a><span class="ss">6. </span>**Profils** : médiane par cluster sur les variables clés</span>
+<span id="cb45-382"><a href="#cb45-382" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-383"><a href="#cb45-383" aria-hidden="true" tabindex="-1"></a>::: {.callout-tip}</span>
+<span id="cb45-384"><a href="#cb45-384" aria-hidden="true" tabindex="-1"></a><span class="fu">## Pourquoi Ward sur composantes et pas sur variables brutes ?</span></span>
+<span id="cb45-385"><a href="#cb45-385" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-386"><a href="#cb45-386" aria-hidden="true" tabindex="-1"></a>Les variables ont des **échelles très différentes** (pression 0-55, prix 37-223, pct 0-98). La standardisation résout ce problème, mais l'ACP apporte en plus :</span>
+<span id="cb45-387"><a href="#cb45-387" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Décorrélation** : les composantes sont orthogonales → distance euclidienne cohérente</span>
+<span id="cb45-388"><a href="#cb45-388" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Réduction de bruit** : les dernières composantes captent du bruit, pas du signal</span>
+<span id="cb45-389"><a href="#cb45-389" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Interprétabilité** : les clusters se projettent lisiblement sur le biplot</span>
+<span id="cb45-390"><a href="#cb45-390" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb45-391"><a href="#cb45-391" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-392"><a href="#cb45-392" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb45-393"><a href="#cb45-393" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-394"><a href="#cb45-394" aria-hidden="true" tabindex="-1"></a><span class="fu"># Sources et limites</span></span>
+<span id="cb45-395"><a href="#cb45-395" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-396"><a href="#cb45-396" aria-hidden="true" tabindex="-1"></a>::: {.callout-note}</span>
+<span id="cb45-397"><a href="#cb45-397" aria-hidden="true" tabindex="-1"></a><span class="fu">## Sources des données</span></span>
+<span id="cb45-398"><a href="#cb45-398" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-399"><a href="#cb45-399" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Source <span class="pp">|</span> Contenu <span class="pp">|</span> Dernière mise à jour <span class="pp">|</span></span>
+<span id="cb45-400"><a href="#cb45-400" aria-hidden="true" tabindex="-1"></a><span class="pp">|:-------|:--------|:---------------------|</span></span>
+<span id="cb45-401"><a href="#cb45-401" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="co">[</span><span class="ot">Inside Airbnb</span><span class="co">](https://insideairbnb.com/)</span> <span class="pp">|</span> Listings, prix, disponibilité, reviews <span class="pp">|</span> Juin 2025 <span class="pp">|</span></span>
+<span id="cb45-402"><a href="#cb45-402" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> INSEE RP2022 <span class="pp">|</span> Population + logements commune propre (France) <span class="pp">|</span> 2022 <span class="pp">|</span></span>
+<span id="cb45-403"><a href="#cb45-403" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> ONS / GLA <span class="pp">|</span> Population Londres + logements <span class="pp">|</span> 2023 <span class="pp">|</span></span>
+<span id="cb45-404"><a href="#cb45-404" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> ISTAT <span class="pp">|</span> Population + logements Italie <span class="pp">|</span> 2021-2023 <span class="pp">|</span></span>
+<span id="cb45-405"><a href="#cb45-405" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> INE (Espagne) <span class="pp">|</span> Population communes <span class="pp">|</span> 2024 <span class="pp">|</span></span>
+<span id="cb45-406"><a href="#cb45-406" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Eurostat <span class="pp">|</span> Ratios nationaux logements/1000 hab <span class="pp">|</span> 2022 <span class="pp">|</span></span>
+<span id="cb45-407"><a href="#cb45-407" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> BCE <span class="pp">|</span> Taux de change EUR <span class="pp">|</span> Février 2026 <span class="pp">|</span></span>
+<span id="cb45-408"><a href="#cb45-408" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-409"><a href="#cb45-409" aria-hidden="true" tabindex="-1"></a><span class="fu">## Limites principales</span></span>
+<span id="cb45-410"><a href="#cb45-410" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-411"><a href="#cb45-411" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>**Snapshot unique** (juin 2025) : pas de dimension temporelle, saisonnalité masquée</span>
+<span id="cb45-412"><a href="#cb45-412" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**Population commune propre** : 22/64 villes avec logements estimés (ratio national)</span>
+<span id="cb45-413"><a href="#cb45-413" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>**Périmètre géographique variable** : Manchester = metro, Paris = commune</span>
+<span id="cb45-414"><a href="#cb45-414" aria-hidden="true" tabindex="-1"></a><span class="ss">4. </span>**Biais Inside Airbnb** : données scrapées, pas API officielle → listings retirés possibles</span>
+<span id="cb45-415"><a href="#cb45-415" aria-hidden="true" tabindex="-1"></a><span class="ss">5. </span>**Pas de données revenus** : ni taux d'occupation réel, ni revenus hôtes</span>
+<span id="cb45-416"><a href="#cb45-416" aria-hidden="true" tabindex="-1"></a><span class="ss">6. </span>**FX manuels** : taux fixes février 2026, pas d'ajustement dynamique</span>
+<span id="cb45-417"><a href="#cb45-417" aria-hidden="true" tabindex="-1"></a>:::</span>
+</code></pre></div><button title="Copier vers le presse-papier" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
+</div></div></div></div></div>
+</div> <!-- /content -->
+
+
+
+
+<script src="site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

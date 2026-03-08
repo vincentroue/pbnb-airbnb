@@ -1,0 +1,709 @@
+{
+  "_meta": {
+    "version": "4.0",
+    "project": "pbnb-airbnb",
+    "date": "2026-02-18",
+    "scope": "74 villes, 30 pays, 4 continents",
+    "description": "Dictionnaire indicateurs Airbnb — KPI par ville (sumlistings + gz)",
+    "convention": "reports/rgd-guide/gdconv-indicateurs-ddict-260218.md",
+    "source_sum": "data/raw/zudb-inside-airbnbbnb/**/sumlistings.csv (18 cols)",
+    "source_gz": "data/raw/zudb-inside-airbnbbnb/**/listings.csv.gz (79 cols)",
+    "pipeline_sum": "scripts/sp08-recap-kpi-global-260212.py",
+    "pipeline_gz": "scripts/sp08b-kpi-gz-global-260217.py",
+    "output_sum": "data/interim/kpi_{scope}_by_city_2506.csv",
+    "output_gz": "data/interim/kpi_gz_{scope}_by_city_2506.csv"
+  },
+
+  "themes": {
+    "vol":  { "label": "Volumes — Stocks bruts", "order": 1 },
+    "ctx":  { "label": "Contexte territorial", "order": 2 },
+    "prs":  { "label": "Pression touristique", "order": 3 },
+    "px":   { "label": "Prix nuitée", "order": 4 },
+    "str":  { "label": "Structure du marché", "order": 5 },
+    "cr":   { "label": "Concentration hôtes", "order": 6 },
+    "act":  { "label": "Activité et disponibilité", "order": 7 },
+    "rev":  { "label": "Notes qualité (gz)", "order": 8 },
+    "cap":  { "label": "Capacité logements (gz)", "order": 9 },
+    "host": { "label": "Profil hôte (gz)", "order": 10 }
+  },
+
+  "registres_analytiques": {
+    "_comment": "Regroupement conceptuel des indicateurs en 6 dimensions analytiques (ACP, EDA ville). Complémentaire des themes techniques, ne les remplace pas.",
+    "dim_ctx": { "label": "Contexte & volume", "description": "Taille du marché, pas dans l'ACP", "themes_source": ["vol", "ctx"] },
+    "dim_prs": { "label": "Pression territoriale", "description": "Intensité Airbnb rapportée au territoire", "themes_source": ["prs"] },
+    "dim_eco": { "label": "Prix & revenus", "description": "Économie de la nuitée et revenus générés", "themes_source": ["px", "act"] },
+    "dim_str": { "label": "Structure & régulation", "description": "Composition offre + effets réglementaires", "themes_source": ["str", "host"] },
+    "dim_pro": { "label": "Concentration & professionnalisation", "description": "Qui contrôle le marché", "themes_source": ["cr", "str"] },
+    "dim_act": { "label": "Activité & qualité", "description": "Dynamisme marché + satisfaction", "themes_source": ["act", "rev", "cap", "host"] }
+  },
+
+  "indicators": {
+
+    "_comment_vol": "══════════ vol — Volumes ══════════",
+    "n_listings": {
+      "short": "Annonces",
+      "medium": "Annonces actives",
+      "long": "Nombre d'annonces actives, périmètre commune-centre (filtré pour les 7 agglos)",
+      "label": "Annonces actives",
+      "theme": "vol", "type": "stock", "unit": "n", "polarity": 0, "order": 1,
+      "status": "ok", "source": "calc",
+      "description": "Nombre de listings actifs après cleaning, périmètre commune-centre. Pour les 7 villes agglo (Bordeaux, Lisbonne, Porto, Bergamo, LA, Genève, Thessalonique), seuls les listings du centre-ville sont comptés. Cohérent avec listings_1000hab et la population INSEE."
+    },
+    "n_entire": {
+      "short": "Entiers",
+      "medium": "Logements entiers",
+      "long": "Nombre d'annonces de type logement entier (Entire home/apt)",
+      "label": "Logements entiers",
+      "theme": "vol", "type": "stock", "unit": "n", "polarity": 0, "order": 2,
+      "status": "ok", "source": "sum",
+      "description": "Nombre de listings de type Entire home/apt. Sous-ensemble de n_listings."
+    },
+    "n_hosts": {
+      "short": "Hôtes",
+      "medium": "Hôtes uniques",
+      "long": "Nombre d'hôtes distincts (host_id uniques)",
+      "label": "Hôtes uniques",
+      "theme": "vol", "type": "stock", "unit": "n", "polarity": 0, "order": 3,
+      "status": "ok", "source": "sum",
+      "description": "Nombre de host_id distincts parmi les annonces actives."
+    },
+
+    "_comment_ctx": "══════════ ctx — Contexte territorial ══════════",
+    "pop": {
+      "short": "Pop.",
+      "medium": "Population",
+      "long": "Population municipale (census) ou métropolitaine (fallback)",
+      "label": "Population",
+      "theme": "ctx", "type": "stock", "unit": "hab", "polarity": 0, "order": 1,
+      "status": "ok", "source": "ext",
+      "description": "Population municipale (census officiel) ou estimation métropolitaine (fallback). Source : city-reference-airbnb-260217.csv. Biais commune/aire urbaine documenté."
+    },
+    "housing": {
+      "short": "Logements",
+      "medium": "Parc de logements",
+      "long": "Nombre total de logements (census ou estimation)",
+      "label": "Parc de logements",
+      "theme": "ctx", "type": "stock", "unit": "n", "polarity": 0, "order": 2,
+      "status": "ok", "source": "ext",
+      "description": "Nombre de logements (census officiel ou estimation par ratio national). Source : city-reference-airbnb-260217.csv."
+    },
+
+    "_comment_prs": "══════════ prs — Pression touristique ══════════",
+    "n_listings_agglo": {
+      "short": "Ann. agglo",
+      "medium": "Annonces scope Inside Airbnb",
+      "long": "Annonces actives sur tout le périmètre Inside Airbnb (agglo/province pour les 7 villes)",
+      "label": "Annonces scope Inside Airbnb",
+      "theme": "vol", "type": "stock", "unit": "n", "polarity": 0, "order": 4,
+      "status": "ok", "source": "sum",
+      "formula": "Comptage brut sur tout le périmètre Inside Airbnb (= n_listings pour les 68 villes hors agglo)",
+      "description": "Nombre d'annonces sur le périmètre complet Inside Airbnb. Pour les 7 agglos, inclut les communes périphériques (Talence pour Bordeaux, etc.). Pour les 68 autres villes, identique à n_listings. Conservé pour traçabilité et calcul listings_1000hab_agglo."
+    },
+    "listings_1000hab": {
+      "short": "Ann./1000 hab",
+      "medium": "Annonces / 1 000 hab. (centre)",
+      "long": "Densité d'annonces Airbnb pour 1 000 habitants, périmètre commune-centre",
+      "label": "Annonces / 1 000 hab. (centre)",
+      "theme": "prs", "type": "ind", "unit": "‰ hab", "polarity": -1, "order": 1,
+      "status": "ok", "source": "calc",
+      "formula": "n_listings / pop × 1000",
+      "description": "Densité Airbnb par habitant, corrigée au périmètre commune-centre pour les 7 agglos (Bordeaux, Lisbonne, Porto, Bergamo, Los Angeles, Genève, Thessalonique). Les listings hors commune-centre sont exclus du numérateur. Indicateur de référence pour comparaisons inter-villes."
+    },
+    "listings_1000hab_agglo": {
+      "short": "Ann./1Kh agglo",
+      "medium": "Annonces / 1 000 hab. (agglo)",
+      "long": "Densité d'annonces incluant tout le périmètre Inside Airbnb (agglo), 7 villes uniquement",
+      "label": "Annonces / 1 000 hab. (agglo)",
+      "theme": "prs", "type": "ind", "unit": "‰", "polarity": -1, "order": 1.5,
+      "status": "ok", "source": "calc",
+      "formula": "n_listings / pop × 1000 (uniquement pour les 7 agglos, NaN sinon)",
+      "description": "Densité incluant tous les listings du périmètre Inside Airbnb (agglo/province) rapportés à la population commune. Disponible uniquement pour les 7 villes agglo. Valeur gonflée par construction (numérateur agglo / dénominateur commune). Conservé pour traçabilité."
+    },
+    "density_l_km2": {
+      "short": "Ann./km²",
+      "medium": "Densité annonces par km²",
+      "long": "Nombre d'annonces centre par km² de superficie commune-centre",
+      "label": "Densité annonces par km²",
+      "theme": "prs", "type": "ind", "unit": "n/km²", "polarity": -1, "order": 1.8,
+      "status": "ok", "source": "calc",
+      "formula": "n_listings / area_centre_km2",
+      "description": "Densité spatiale d'annonces rapportée à la superficie GeoJSON commune-centre (en km²). Plus comparable entre villes que le ratio par habitant car indépendant de la densité de population. Paris ≈ 485/km², Porto ≈ 228/km²."
+    },
+    "area_centre_km2": {
+      "short": "Superficie",
+      "medium": "Superficie centre (km²)",
+      "long": "Superficie du périmètre commune-centre en km² (depuis GeoJSON, projection UTM)",
+      "label": "Superficie centre (km²)",
+      "theme": "ctx", "type": "stock", "unit": "km²", "polarity": 0, "order": 3,
+      "status": "ok", "source": "ext",
+      "description": "Superficie du périmètre commune-centre calculée depuis les GeoJSON Inside Airbnb avec projection UTM. Pour les 7 agglos, seul le centre (commune) est compté. Source : neighbourhoods.geojson."
+    },
+    "listings_1000hsg": {
+      "short": "Ann./1000 logt",
+      "medium": "Annonces / 1 000 logements",
+      "long": "Densité d'annonces Airbnb pour 1 000 logements",
+      "label": "Annonces / 1 000 logements",
+      "theme": "prs", "type": "ind", "unit": "‰ logt", "polarity": -1, "order": 2,
+      "status": "ok", "source": "calc",
+      "formula": "n_listings / housing × 1000",
+      "description": "Densité Airbnb rapportée au parc de logements. Proxy de la pression immobilière (soustraction potentielle au parc résidentiel)."
+    },
+    "entire_1000hsg": {
+      "short": "Ent./1000 logt",
+      "medium": "Entiers / 1 000 logements",
+      "long": "Logements entiers Airbnb pour 1 000 logements du parc",
+      "label": "Entiers / 1 000 logements",
+      "theme": "prs", "type": "ind", "unit": "‰", "polarity": -1, "order": 3,
+      "status": "ok", "source": "calc",
+      "formula": "n_entire / housing × 1000",
+      "description": "Logements entiers Airbnb pour 1 000 logements. Proxy direct de soustraction au parc résidentiel (hors chambres privées/partagées)."
+    },
+
+    "entire_1000rp": {
+      "short": "Ent./logt (RP)",
+      "medium": "Logt entiers / 1 000 rés. principales",
+      "long": "Logements entiers Airbnb pour 1 000 résidences principales (INSEE 2022)",
+      "label": "Logt entiers / 1 000 rés. principales",
+      "theme": "prs", "type": "ind", "unit": "‰ RP", "polarity": -1, "order": 2.1,
+      "status": "ok", "source": "calc",
+      "formula": "n_entire / rp × 1000",
+      "description": "Logements entiers (Entire home/apt) Airbnb pour 1 000 résidences principales (RP, INSEE 2022). Mesure la pression directe sur le parc résidentiel occupé : seuls les logements entiers sont comptés car ils correspondent à des logements potentiellement soustraits au marché locatif. Disponible niveau France sp10 (country, city, arr, iris)."
+    },
+    "listings_1000rps": {
+      "short": "Ann./logt (tot)",
+      "medium": "Annonces / 1 000 logt occupés (RS et RP)",
+      "long": "Total annonces Airbnb pour 1 000 logements occupés (RP + rés. secondaires, INSEE 2022)",
+      "label": "Annonces / 1 000 logt occupés (RS et RP)",
+      "theme": "prs", "type": "ind", "unit": "‰ logt occ.", "polarity": -1, "order": 2.2,
+      "status": "ok", "source": "calc",
+      "formula": "n_listings / (rp + res_sec) × 1000",
+      "description": "Total annonces Airbnb pour 1 000 logements occupés (résidences principales + résidences secondaires et logements occasionnels, INSEE 2022). Exclut les logements vacants du dénominateur. Pertinent car les résidences secondaires sont le vivier naturel de la location Airbnb. Disponible niveau France sp10."
+    },
+    "listings_1000prop": {
+      "short": "Ann./1000 prop",
+      "medium": "Annonces / 1 000 propriétaires",
+      "long": "Densité d'annonces pour 1 000 personnes propriétaires (pers. en RP proprio, INSEE)",
+      "label": "Annonces / 1 000 propriétaires",
+      "theme": "prs", "type": "ind", "unit": "‰ prop.", "polarity": -1, "order": 2.3,
+      "status": "ok", "source": "calc",
+      "formula": "n_listings / nper_prop × 1000",
+      "description": "Annonces Airbnb pour 1 000 personnes vivant en RP occupée par un propriétaire (nper_rp_prop, INSEE 2022). Proxy du potentiel de mise en location par les propriétaires résidents. Disponible niveau France sp10."
+    },
+
+    "_comment_px": "══════════ px — Prix ══════════",
+    "prix_med": {
+      "short": "Prix méd.",
+      "medium": "Prix médian (tous types)",
+      "long": "Prix médian par nuit en EUR, tous types de logement confondus",
+      "label": "Prix médian (tous types)",
+      "theme": "px", "type": "prix", "unit": "€/nuit tous types", "polarity": 0, "order": 1,
+      "status": "ok", "source": "sum",
+      "description": "Prix médian par nuit en EUR, tous types confondus (entire + private + shared). Converti en EUR via taux de change fixe."
+    },
+    "prix_med_entire": {
+      "short": "Px méd. entier",
+      "medium": "Prix méd. logement entier",
+      "long": "Prix médian par nuit en EUR, logements entiers uniquement (Entire home/apt)",
+      "label": "Prix méd. logement entier",
+      "theme": "px", "type": "prix", "unit": "€/nuit entier", "polarity": 0, "order": 2,
+      "status": "ok", "source": "sum",
+      "description": "Prix médian par nuit en EUR, filtré logements entiers (Entire home/apt). Référence principale pour comparaisons inter-villes car type dominant (80-90 % de l'offre)."
+    },
+    "prix_med_private": {
+      "short": "Px ch. priv. €",
+      "medium": "Prix méd. chambre privée",
+      "long": "Prix médian par nuit en EUR, chambres privées uniquement (Private room)",
+      "label": "Prix méd. chambre privée",
+      "theme": "px", "type": "prix", "unit": "€/nuit", "polarity": 0, "order": 3,
+      "status": "ok", "source": "sum",
+      "description": "Prix médian par nuit en EUR, chambres privées uniquement. Alternative économique au logement entier."
+    },
+    "prix_med_shared": {
+      "short": "Px ch. part. €",
+      "medium": "Prix méd. chambre partagée",
+      "long": "Prix médian par nuit en EUR, chambres partagées uniquement (Shared room)",
+      "label": "Prix méd. chambre partagée",
+      "theme": "px", "type": "prix", "unit": "€/nuit", "polarity": 0, "order": 4,
+      "status": "planned", "source": "sum",
+      "description": "Prix médian par nuit en EUR, chambres partagées. Segment marginal (< 3 % de l'offre dans la plupart des villes). Non calculé pour l'instant (trop peu d'observations par ville)."
+    },
+    "prix_med_1br": {
+      "short": "Px 1 chbr. €",
+      "medium": "Prix méd. entier 1 chambre",
+      "long": "Prix médian par nuit en EUR, logements entiers avec 1 chambre (bedrooms=1)",
+      "label": "Prix méd. entier 1 chambre",
+      "theme": "px", "type": "prix", "unit": "€/nuit", "polarity": 0, "order": 5,
+      "status": "ok", "source": "gz",
+      "formula": "median(price_eur) WHERE room_type='Entire home/apt' AND bedrooms=1 AND n≥10",
+      "description": "Prix médian par nuit, logements entiers 1 chambre. Seuil minimum 10 annonces par ville sinon null."
+    },
+    "prix_med_2br": {
+      "short": "Px 2 chbr. €",
+      "medium": "Prix méd. entier 2 chambres",
+      "long": "Prix médian par nuit en EUR, logements entiers avec 2 chambres (bedrooms=2)",
+      "label": "Prix méd. entier 2 chambres",
+      "theme": "px", "type": "prix", "unit": "€/nuit", "polarity": 0, "order": 6,
+      "status": "ok", "source": "gz",
+      "formula": "median(price_eur) WHERE room_type='Entire home/apt' AND bedrooms=2 AND n≥10",
+      "description": "Prix médian par nuit, logements entiers 2 chambres. Seuil minimum 10 annonces par ville sinon null."
+    },
+    "prix_med_3br_plus": {
+      "short": "Px 3+ chbr. €",
+      "medium": "Prix méd. entier 3+ chambres",
+      "long": "Prix médian par nuit en EUR, logements entiers avec 3 chambres ou plus (bedrooms≥3)",
+      "label": "Prix méd. entier 3+ chambres",
+      "theme": "px", "type": "prix", "unit": "€/nuit", "polarity": 0, "order": 7,
+      "status": "ok", "source": "gz",
+      "formula": "median(price_eur) WHERE room_type='Entire home/apt' AND bedrooms≥3 AND n≥10",
+      "description": "Prix médian par nuit, logements entiers 3+ chambres. Segment haut de gamme / familles. Seuil minimum 10."
+    },
+    "prix_moy": {
+      "short": "Prix moy. €",
+      "medium": "Prix moyen (tous types)",
+      "long": "Prix moyen par nuit en EUR, tous types de logement confondus",
+      "label": "Prix moyen (tous types)",
+      "theme": "px", "type": "prix", "unit": "€/nuit", "polarity": 0, "order": 8,
+      "status": "ok", "source": "sum",
+      "description": "Prix moyen par nuit en EUR, tous types confondus. Plus sensible aux valeurs extrêmes que la médiane."
+    },
+    "prix_q25": {
+      "short": "Prix Q1 €",
+      "medium": "Prix premier quartile",
+      "long": "Premier quartile du prix par nuit en EUR (25e percentile)",
+      "label": "Prix premier quartile",
+      "theme": "px", "type": "prix", "unit": "€/nuit", "polarity": 0, "order": 9,
+      "status": "ok", "source": "sum",
+      "description": "Premier quartile du prix par nuit en EUR. Borne basse du marché (25 % des annonces sont en dessous)."
+    },
+    "prix_q75": {
+      "short": "Prix Q3 €",
+      "medium": "Prix troisième quartile",
+      "long": "Troisième quartile du prix par nuit en EUR (75e percentile)",
+      "label": "Prix troisième quartile",
+      "theme": "px", "type": "prix", "unit": "€/nuit", "polarity": 0, "order": 10,
+      "status": "ok", "source": "sum",
+      "description": "Troisième quartile du prix par nuit en EUR. Borne haute du marché (25 % des annonces sont au-dessus)."
+    },
+    "prix_iqr": {
+      "short": "IQR prix €",
+      "medium": "Écart interquartile prix",
+      "long": "Écart interquartile du prix par nuit en EUR (Q3 - Q1)",
+      "label": "Écart interquartile prix",
+      "theme": "px", "type": "prix", "unit": "€/nuit", "polarity": 0, "order": 11,
+      "status": "ok", "source": "calc",
+      "formula": "prix_q75 - prix_q25",
+      "description": "Dispersion tarifaire mesurée par l'écart interquartile. Haut = marché très hétérogène (coexistence budget et premium)."
+    },
+
+    "_comment_str": "══════════ str — Structure du marché ══════════",
+    "pct_entire": {
+      "short": "% Logt entiers",
+      "medium": "% Logements entiers",
+      "long": "Part des logements entiers dans l'offre active (Entire home/apt)",
+      "label": "% Logements entiers",
+      "theme": "str", "type": "pct", "unit": "%", "polarity": 1, "order": 1,
+      "status": "ok", "source": "sum",
+      "description": "Part de logements entiers (Entire home/apt) dans l'offre active. Valeur élevée = offre orientée tourisme (vs partage de logement)."
+    },
+    "pct_multi": {
+      "short": "% Multi-hôtes",
+      "medium": "% Multi-hôtes",
+      "long": "Part des annonces gérées par des hôtes multi-annonces (>1 annonce)",
+      "label": "% Multi-hôtes",
+      "theme": "str", "type": "pct", "unit": "> 1 ann.", "polarity": -1, "order": 2,
+      "status": "ok", "source": "sum",
+      "description": "Part de listings gérés par des hôtes ayant plus d'une annonce (calculated_host_listings_count > 1). Proxy de professionnalisation du marché."
+    },
+    "pct_longterm": {
+      "short": "% Longue durée",
+      "medium": "% Longue durée",
+      "long": "Part des annonces avec minimum de nuits ≥ 30 (location longue durée)",
+      "label": "% Longue durée",
+      "theme": "str", "type": "pct", "unit": "% ann. ≥ 30 j", "polarity": -1, "order": 3,
+      "status": "ok", "source": "sum",
+      "description": "Part de listings avec minimum_nights ≥ 30. Valeur élevée = effet régulation (contournement plafond 120 nuits) ou marché de baux mobilité."
+    },
+    "ratio_lh": {
+      "short": "Ann./hôte",
+      "medium": "Ratio annonces par hôte",
+      "long": "Nombre moyen d'annonces par hôte (n_listings / n_hosts)",
+      "label": "Ratio annonces par hôte",
+      "theme": "str", "type": "ind", "unit": "ratio", "polarity": -1, "order": 4,
+      "status": "ok", "source": "calc",
+      "formula": "n_listings / n_hosts",
+      "description": "Nombre moyen d'annonces par hôte. Valeur élevée = marché dominé par des gestionnaires professionnels."
+    },
+
+    "_comment_cr": "══════════ cr — Concentration ══════════",
+    "cr_hosts_50pct": {
+      "short": "Lorenz 50 %",
+      "medium": "% Hôtes pour 50 % de l'offre",
+      "long": "Part des hôtes nécessaires pour détenir 50 % de l'offre (courbe de Lorenz)",
+      "label": "% Hôtes pour 50 % de l'offre",
+      "theme": "cr", "type": "pct", "unit": "%", "polarity": -1, "order": 1,
+      "status": "ok", "source": "calc",
+      "formula": "Lorenz : N_hosts cumulés descendant jusqu'à 50 % des listings / N_hosts × 100",
+      "description": "Part de hôtes nécessaires pour détenir 50 % de l'offre. Valeur basse = concentration forte (quelques gros hôtes dominent). Dérivé de la courbe de Lorenz."
+    },
+    "cr_top10_pct": {
+      "short": "% Ann. top 10",
+      "medium": "CR10 — Part des 10 premiers hôtes",
+      "long": "Part de marché des 10 plus gros hôtes (ratio de concentration industrielle)",
+      "label": "CR10 — Part des 10 premiers hôtes",
+      "theme": "cr", "type": "pct", "unit": "top 10 hôtes", "polarity": -1, "order": 2,
+      "status": "ok", "source": "calc",
+      "formula": "sum(listings des 10 premiers hosts) / n_listings × 100",
+      "description": "Part de marché des 10 plus gros hôtes. Mesure classique de concentration industrielle. Sensible à la taille du marché (plus pertinent pour les grandes villes)."
+    },
+    "cr_host_5plus": {
+      "short": "Hôtes ≥5 ann.",
+      "medium": "% Hôtes avec ≥ 5 annonces",
+      "long": "Part des hôtes gérant au moins 5 annonces (seuil semi-professionnel)",
+      "label": "% Hôtes avec ≥ 5 annonces",
+      "theme": "cr", "type": "pct", "unit": "%", "polarity": -1, "order": 3,
+      "status": "ok", "source": "calc",
+      "formula": "count(hosts avec ≥5 listings) / n_hosts × 100",
+      "description": "Part des hôtes gérant au moins 5 annonces. Seuil de professionnalisation intermédiaire (gestionnaire semi-professionnel)."
+    },
+    "cr_host_10plus": {
+      "short": "% Hôtes pro",
+      "medium": "% Hôtes avec ≥ 10 annonces",
+      "long": "Part des hôtes gérant au moins 10 annonces (seuil professionnel)",
+      "label": "% Hôtes avec ≥ 10 annonces",
+      "theme": "cr", "type": "pct", "unit": "≥ 10 ann.", "polarity": -1, "order": 4,
+      "status": "ok", "source": "calc",
+      "formula": "count(hosts avec ≥10 listings) / n_hosts × 100",
+      "description": "Part des hôtes gérant au moins 10 annonces. Seuil de professionnalisation élevé (opérateur / conciergerie)."
+    },
+    "cr_offre_5plus": {
+      "short": "Offre ≥5 ann.",
+      "medium": "% Offre par hôtes ≥ 5 annonces",
+      "long": "Part de l'offre détenue par les hôtes gérant ≥ 5 annonces",
+      "label": "% Offre par hôtes ≥ 5 annonces",
+      "theme": "cr", "type": "pct", "unit": "%", "polarity": -1, "order": 5,
+      "status": "ok", "source": "calc",
+      "formula": "sum(listings des hosts ≥5) / n_listings × 100",
+      "description": "Part de l'offre détenue par les hôtes ≥5 annonces. Mesure l'emprise des professionnels sur le volume total d'annonces."
+    },
+    "cr_offre_10plus": {
+      "short": "% Offre pro",
+      "medium": "% Ann. hôtes ≥ 10 annonces",
+      "long": "Part de l'offre détenue par les hôtes gérant ≥ 10 annonces",
+      "label": "% Ann. hôtes ≥ 10 annonces",
+      "theme": "cr", "type": "pct", "unit": "≥ 10 ann.", "polarity": -1, "order": 6,
+      "status": "ok", "source": "calc",
+      "formula": "sum(listings des hosts ≥10) / n_listings × 100",
+      "description": "Part de l'offre détenue par les hôtes ≥10 annonces. Emprise des gros opérateurs / conciergeries."
+    },
+
+    "_comment_act": "══════════ act — Activité et disponibilité ══════════",
+    "dispo_med": {
+      "short": "Dispo. méd.",
+      "medium": "Disponibilité médiane",
+      "long": "Disponibilité médiane en jours par an (availability_365)",
+      "label": "Disponibilité médiane",
+      "theme": "act", "type": "stock", "unit": "j/an", "polarity": 0, "order": 1,
+      "status": "ok", "source": "sum",
+      "description": "Disponibilité médiane en jours par an (champ availability_365). Proxy de l'intention de location (365 = toujours dispo, bas = occasionnel)."
+    },
+    "dispo_moy": {
+      "short": "Dispo. moy.",
+      "medium": "Disponibilité moyenne",
+      "long": "Disponibilité moyenne en jours par an",
+      "label": "Disponibilité moyenne",
+      "theme": "act", "type": "stock", "unit": "j/an", "polarity": 0, "order": 2,
+      "status": "ok", "source": "sum",
+      "description": "Disponibilité moyenne en jours par an. Complémentaire de la médiane pour détecter la dispersion."
+    },
+    "reviews_med": {
+      "short": "Avis méd.",
+      "medium": "Nombre d'avis médian",
+      "long": "Nombre médian d'avis total par annonce (proxy ancienneté et activité)",
+      "label": "Nombre d'avis médian",
+      "theme": "act", "type": "stock", "unit": "n", "polarity": 1, "order": 3,
+      "status": "ok", "source": "sum",
+      "description": "Nombre médian d'avis total (number_of_reviews). Proxy combiné d'ancienneté et d'activité de réservation."
+    },
+    "rpm_med": {
+      "short": "Avis/mois",
+      "medium": "Avis par mois (médiane)",
+      "long": "Nombre médian d'avis par mois (reviews_per_month, proxy taux de réservation)",
+      "label": "Avis par mois (médiane)",
+      "theme": "act", "type": "ind", "unit": "/mois", "polarity": 1, "order": 4,
+      "status": "ok", "source": "sum",
+      "description": "Reviews par mois médian (reviews_per_month, excluant les null). Proxy du taux de réservation. Inside Airbnb estime ~50 % des séjours donnent un avis."
+    },
+    "occupancy_est": {
+      "short": "Occup. méd.",
+      "medium": "Occupation estimée médiane",
+      "long": "Occupation estimée médiane en jours par an (estimé Inside Airbnb)",
+      "label": "Occupation estimée médiane",
+      "theme": "act", "type": "ind", "unit": "j/an est.", "polarity": 0, "order": 5,
+      "status": "ok", "source": "gz",
+      "csv_col": "occupancy_est_med", "gz_col": "estimated_occupancy_l365d",
+      "description": "Occupation estimée médiane sur 365 jours. Calculé par Inside Airbnb à partir de la disponibilité et des reviews. Valeur approximative."
+    },
+    "occupancy_est_moy": {
+      "short": "Occup. moy.",
+      "medium": "Occupation estimée moyenne",
+      "long": "Occupation estimée moyenne en jours par an",
+      "label": "Occupation estimée moyenne",
+      "theme": "act", "type": "ind", "unit": "j/an", "polarity": 0, "order": 6,
+      "status": "ok", "source": "gz",
+      "description": "Occupation estimée moyenne sur 365 jours. Complémentaire de la médiane."
+    },
+    "revenue_est_med": {
+      "short": "Rev. méd.",
+      "medium": "Revenu estimé médian",
+      "long": "Revenu estimé médian en EUR par an (estimé Inside Airbnb, converti EUR)",
+      "label": "Revenu estimé médian",
+      "theme": "act", "type": "prix", "unit": "€/an est.", "polarity": 0, "order": 7,
+      "status": "ok", "source": "gz",
+      "gz_col": "estimated_revenue_l365d",
+      "description": "Revenu estimé médian sur 365 jours, calculé par Inside Airbnb et converti en EUR. Valeur approximative (basée sur occupation estimée × prix)."
+    },
+    "revenue_est_moy": {
+      "short": "Rev. moy. €",
+      "medium": "Revenu estimé moyen",
+      "long": "Revenu estimé moyen en EUR par an",
+      "label": "Revenu estimé moyen",
+      "theme": "act", "type": "prix", "unit": "€/an", "polarity": 0, "order": 8,
+      "status": "ok", "source": "gz",
+      "description": "Revenu estimé moyen sur 365 jours, converti en EUR. Plus sensible aux valeurs extrêmes que la médiane."
+    },
+
+    "_comment_rev": "══════════ rev — Notes qualité (gz) ══════════",
+    "review_rating": {
+      "short": "Note méd.",
+      "medium": "Note globale médiane",
+      "long": "Note globale médiane des avis (review_scores_rating, échelle 0-5)",
+      "label": "Note globale médiane",
+      "theme": "rev", "type": "ind", "unit": "/5", "polarity": 1, "order": 1,
+      "status": "ok", "source": "gz",
+      "csv_col": "rev_rating_med", "gz_col": "review_scores_rating",
+      "description": "Note globale médiane (review_scores_rating, échelle 0-5). Aggrège les 6 sous-scores. Fortement concentrée autour de 4.5-4.8 (plafond Airbnb)."
+    },
+    "review_accuracy": {
+      "short": "Exactitude",
+      "medium": "Note exactitude médiane",
+      "long": "Note médiane d'exactitude de l'annonce (review_scores_accuracy)",
+      "label": "Note exactitude médiane",
+      "theme": "rev", "type": "ind", "unit": "/5", "polarity": 1, "order": 2,
+      "status": "ok", "source": "gz",
+      "csv_col": "rev_accuracy_med", "gz_col": "review_scores_accuracy",
+      "description": "Note médiane d'exactitude de l'annonce. Écart entre la description et la réalité."
+    },
+    "review_cleanliness": {
+      "short": "Propreté",
+      "medium": "Note propreté médiane",
+      "long": "Note médiane de propreté (review_scores_cleanliness)",
+      "label": "Note propreté médiane",
+      "theme": "rev", "type": "ind", "unit": "/5", "polarity": 1, "order": 3,
+      "status": "ok", "source": "gz",
+      "csv_col": "rev_cleanliness_med", "gz_col": "review_scores_cleanliness",
+      "description": "Note médiane de propreté. Sous-score le plus discriminant dans les avis."
+    },
+    "review_checkin": {
+      "short": "Arrivée",
+      "medium": "Note arrivée médiane",
+      "long": "Note médiane du processus d'arrivée (review_scores_checkin)",
+      "label": "Note arrivée médiane",
+      "theme": "rev", "type": "ind", "unit": "/5", "polarity": 1, "order": 4,
+      "status": "ok", "source": "gz",
+      "csv_col": "rev_checkin_med", "gz_col": "review_scores_checkin",
+      "description": "Note médiane du processus d'arrivée (check-in). Qualité de l'accueil et facilité d'accès."
+    },
+    "review_communication": {
+      "short": "Communic.",
+      "medium": "Note communication médiane",
+      "long": "Note médiane de communication avec l'hôte (review_scores_communication)",
+      "label": "Note communication médiane",
+      "theme": "rev", "type": "ind", "unit": "/5", "polarity": 1, "order": 5,
+      "status": "ok", "source": "gz",
+      "csv_col": "rev_communication_med", "gz_col": "review_scores_communication",
+      "description": "Note médiane de communication hôte. Réactivité et qualité des échanges."
+    },
+    "review_location": {
+      "short": "Emplacement",
+      "medium": "Note emplacement médiane",
+      "long": "Note médiane d'emplacement (review_scores_location)",
+      "label": "Note emplacement médiane",
+      "theme": "rev", "type": "ind", "unit": "/5", "polarity": 1, "order": 6,
+      "status": "ok", "source": "gz",
+      "csv_col": "rev_location_med", "gz_col": "review_scores_location",
+      "description": "Note médiane d'emplacement. Qualité de la localisation (transports, commerces, quartier)."
+    },
+    "review_value": {
+      "short": "Qualité/prix",
+      "medium": "Note qualité-prix médiane",
+      "long": "Note médiane du rapport qualité-prix (review_scores_value)",
+      "label": "Note qualité-prix médiane",
+      "theme": "rev", "type": "ind", "unit": "/5", "polarity": 1, "order": 7,
+      "status": "ok", "source": "gz",
+      "csv_col": "rev_value_med", "gz_col": "review_scores_value",
+      "description": "Note médiane du rapport qualité-prix. Sous-score le plus variable et le plus corrélé à la satisfaction globale."
+    },
+    "rev_coverage_pct": {
+      "short": "Couv. avis %",
+      "medium": "Couverture des avis",
+      "long": "Part des annonces ayant au moins une note (review_scores_rating non null)",
+      "label": "Couverture des avis",
+      "theme": "rev", "type": "pct", "unit": "%", "polarity": 1, "order": 8,
+      "status": "ok", "source": "gz",
+      "description": "Part de listings ayant au moins une note (review_scores_rating non null). Proxy de l'activité effective (une annonce sans avis n'a jamais été réservée ou a été créée récemment)."
+    },
+    "rev_rating_n": {
+      "short": "N notes glob.",
+      "medium": "Nb avis avec note globale",
+      "long": "Nombre d'annonces ayant une note globale non null",
+      "label": "Nb avis avec note globale",
+      "theme": "rev", "type": "stock", "unit": "n", "polarity": 0, "order": 9,
+      "status": "ok", "source": "gz",
+      "description": "Comptage des annonces avec review_scores_rating non null. Dénominateur de rev_coverage_pct."
+    },
+    "rev_accuracy_n": {
+      "short": "N exactitude",
+      "medium": "Nb avis avec note exactitude",
+      "long": "Nombre d'annonces ayant une note d'exactitude non null",
+      "label": "Nb avis avec note exactitude",
+      "theme": "rev", "type": "stock", "unit": "n", "polarity": 0, "order": 10,
+      "status": "ok", "source": "gz",
+      "description": "Comptage des annonces avec review_scores_accuracy non null."
+    },
+    "rev_cleanliness_n": {
+      "short": "N propreté",
+      "medium": "Nb avis avec note propreté",
+      "long": "Nombre d'annonces ayant une note de propreté non null",
+      "label": "Nb avis avec note propreté",
+      "theme": "rev", "type": "stock", "unit": "n", "polarity": 0, "order": 11,
+      "status": "ok", "source": "gz",
+      "description": "Comptage des annonces avec review_scores_cleanliness non null."
+    },
+    "rev_checkin_n": {
+      "short": "N arrivée",
+      "medium": "Nb avis avec note arrivée",
+      "long": "Nombre d'annonces ayant une note d'arrivée non null",
+      "label": "Nb avis avec note arrivée",
+      "theme": "rev", "type": "stock", "unit": "n", "polarity": 0, "order": 12,
+      "status": "ok", "source": "gz",
+      "description": "Comptage des annonces avec review_scores_checkin non null."
+    },
+    "rev_communication_n": {
+      "short": "N communic.",
+      "medium": "Nb avis avec note communication",
+      "long": "Nombre d'annonces ayant une note de communication non null",
+      "label": "Nb avis avec note communication",
+      "theme": "rev", "type": "stock", "unit": "n", "polarity": 0, "order": 13,
+      "status": "ok", "source": "gz",
+      "description": "Comptage des annonces avec review_scores_communication non null."
+    },
+    "rev_location_n": {
+      "short": "N emplacement",
+      "medium": "Nb avis avec note emplacement",
+      "long": "Nombre d'annonces ayant une note d'emplacement non null",
+      "label": "Nb avis avec note emplacement",
+      "theme": "rev", "type": "stock", "unit": "n", "polarity": 0, "order": 14,
+      "status": "ok", "source": "gz",
+      "description": "Comptage des annonces avec review_scores_location non null."
+    },
+    "rev_value_n": {
+      "short": "N qualité/px",
+      "medium": "Nb avis avec note qualité-prix",
+      "long": "Nombre d'annonces ayant une note de qualité-prix non null",
+      "label": "Nb avis avec note qualité-prix",
+      "theme": "rev", "type": "stock", "unit": "n", "polarity": 0, "order": 15,
+      "status": "ok", "source": "gz",
+      "description": "Comptage des annonces avec review_scores_value non null."
+    },
+
+    "_comment_cap": "══════════ cap — Capacité logements (gz) ══════════",
+    "accommodates_med": {
+      "short": "Capacité méd.",
+      "medium": "Capacité d'accueil médiane",
+      "long": "Nombre médian de personnes accueillies par annonce (accommodates)",
+      "label": "Capacité d'accueil médiane",
+      "theme": "cap", "type": "stock", "unit": "pers", "polarity": 0, "order": 1,
+      "status": "ok", "source": "gz",
+      "gz_col": "accommodates",
+      "description": "Nombre médian de personnes accueillies (champ accommodates). Proxy de la taille des logements proposés."
+    },
+    "accommodates_moy": {
+      "short": "Capacité moy.",
+      "medium": "Capacité d'accueil moyenne",
+      "long": "Nombre moyen de personnes accueillies par annonce",
+      "label": "Capacité d'accueil moyenne",
+      "theme": "cap", "type": "stock", "unit": "pers", "polarity": 0, "order": 2,
+      "status": "ok", "source": "gz",
+      "description": "Nombre moyen de personnes accueillies. Complémentaire de la médiane."
+    },
+    "bedrooms_med": {
+      "short": "Chambres méd.",
+      "medium": "Nombre de chambres médian",
+      "long": "Nombre médian de chambres par annonce (bedrooms, hors null)",
+      "label": "Nombre de chambres médian",
+      "theme": "cap", "type": "stock", "unit": "n", "polarity": 0, "order": 3,
+      "status": "ok", "source": "gz",
+      "gz_col": "bedrooms",
+      "description": "Nombre médian de chambres par listing (champ bedrooms, excluant les null). Studios comptent 0 ou 1 chambre."
+    },
+
+    "_comment_host": "══════════ host — Profil hôte (gz) ══════════",
+    "pct_superhost": {
+      "short": "% Superhôtes",
+      "medium": "% Superhôtes",
+      "long": "Part des annonces gérées par des superhôtes (host_is_superhost = t)",
+      "label": "% Superhôtes",
+      "theme": "host", "type": "pct", "unit": "%", "polarity": 1, "order": 1,
+      "status": "ok", "source": "gz",
+      "gz_col": "host_is_superhost",
+      "description": "Part de listings gérés par des superhôtes. Statut Airbnb attribué aux hôtes bien notés et réactifs. Proxy de maturité du marché."
+    },
+    "pct_instant_book": {
+      "short": "% Réserv. inst.",
+      "medium": "% Réservation instantanée",
+      "long": "Part des annonces en réservation instantanée (instant_bookable = t)",
+      "label": "% Réservation instantanée",
+      "theme": "host", "type": "pct", "unit": "%", "polarity": 0, "order": 2,
+      "status": "ok", "source": "gz",
+      "gz_col": "instant_bookable",
+      "description": "Part de listings en réservation instantanée (pas de validation manuelle par l'hôte). Proxy de professionnalisation et de fluidité du marché."
+    }
+  },
+
+  "meta_columns": {
+    "_comment": "Colonnes de métadonnées (non-indicateurs) dans le CSV",
+    "continent": "Continent (Europe, Americas, Asia-Pacific, Africa)",
+    "country_code": "Code ISO 3 lettres",
+    "city": "Slug ville (lowercase, tirets)",
+    "city_fr": "Nom français de la ville",
+    "pop_source": "Source population : confirmed | estimated | metro_estimate",
+    "n_gz": "Nombre de listings dans le fichier gz (contrôle qualité merge)"
+  },
+
+  "palettes": {
+    "stock_blue":        ["#A2D4EC", "#73BFE2", "#1696D2"],
+    "prix_divergent":    ["#084594", "#1696d2", "#a8d4e8", "#d5d5d5", "#c97b8e", "#a63d5a", "#6d1a36"],
+    "favorable_green":   ["#bcdeb4", "#98cf90", "#5aaa5a"],
+    "defavorable_violet": ["#eb99c2", "#e46aa7", "#af1f6b"],
+    "zscore_divergent":  ["#2171b5", "#6baed6", "#c6dbef", "#d5d5d5", "#e8b4c0", "#c97b8e", "#a63d5a"],
+    "prix_sequential":   ["#ffffb2", "#fecc5c", "#fd8d3c", "#e31a1c", "#bd0026", "#7b2ff2"],
+    "choropleth": {
+      "n":            { "colors": ["#f7fbff","#c6dbef","#6baed6","#2171b5","#08306b"], "stops": [0,20,60,150,350] },
+      "prix_med":     { "colors": ["#ffffcc","#fd8d3c","#e31a1c","#bd0026","#800026"], "stops": [0,80,150,250,400] },
+      "pct_multi":    { "colors": ["#f7fcf5","#a1d99b","#41ab5d","#006d2c","#00441b"], "stops": [0,30,50,70,90] },
+      "pct_entire":   { "colors": ["#f7fcf5","#a1d99b","#41ab5d","#006d2c","#00441b"], "stops": [50,70,80,90,100] },
+      "pct_longterm": { "colors": ["#fff5eb","#fdae6b","#e6550d","#a63603","#7f2704"], "stops": [0,5,15,30,60] },
+      "dispo_med":    { "colors": ["#f7fbff","#9ecae1","#4292c6","#2171b5","#084594"], "stops": [0,100,200,280,365] }
+    }
+  },
+
+  "gz_columns_reference": {
+    "_comment": "Colonnes du listings.csv.gz (79 cols total) — toutes exploitées via sp07b/sp08b",
+    "review_scores": ["review_scores_rating", "review_scores_accuracy", "review_scores_cleanliness", "review_scores_checkin", "review_scores_communication", "review_scores_location", "review_scores_value"],
+    "capacity": ["accommodates", "bedrooms", "beds", "bathrooms_text"],
+    "host_profile": ["host_is_superhost", "host_response_time", "host_response_rate", "host_acceptance_rate", "host_since", "host_identity_verified"],
+    "booking": ["instant_bookable", "property_type", "maximum_nights"],
+    "activity_estimated": ["estimated_occupancy_l365d", "estimated_revenue_l365d", "availability_30", "availability_60", "availability_90", "availability_eoy"],
+    "to_drop": ["amenities", "description", "neighborhood_overview", "host_about", "host_picture_url", "host_thumbnail_url", "picture_url", "listing_url", "host_url"]
+  }
+}

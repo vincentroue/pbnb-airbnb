@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="fr" xml:lang="fr"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.25">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Vincent R.">
+
+<title>Airbnb en Europe : 37 marchés, 463 000 annonces – Airbnb — Analyse des marchés</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-08d2a62c12343b644132a6bca3ba3a1d.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-eb058b2ecad785636b37c9c64e5c410a.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "language": {
+    "search-no-results-text": "Pas de résultats",
+    "search-matching-documents-text": "documents trouvés",
+    "search-copy-link-title": "Copier le lien vers la recherche",
+    "search-hide-matches-text": "Cacher les correspondances additionnelles",
+    "search-more-match-text": "correspondance de plus dans ce document",
+    "search-more-matches-text": "correspondances de plus dans ce document",
+    "search-clear-button-title": "Effacer",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Annuler",
+    "search-submit-button-title": "Envoyer",
+    "search-label": "Recherche"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+<script src="site_libs/core-js-2.5.3/shim.min.js"></script>
+
+<script src="site_libs/react-18.2.0/react.min.js"></script>
+
+<script src="site_libs/react-18.2.0/react-dom.min.js"></script>
+
+<script src="site_libs/reactwidget-2.0.0/react-tools.js"></script>
+
+<link href="site_libs/htmltools-fill-0.5.8.1/fill.css" rel="stylesheet">
+
+<script src="site_libs/htmlwidgets-1.6.4/htmlwidgets.js"></script>
+
+<link href="site_libs/reactable-0.4.5/reactable.css" rel="stylesheet">
+
+<script src="site_libs/reactable-binding-0.4.5/reactable.js"></script>
+
+
+
+</head>
+
+<body class="nav-fixed fullcontent quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="./index.html" class="navbar-brand navbar-brand-logo">
+    </a>
+    <a class="navbar-brand" href="./index.html">
+    <span class="navbar-title">Airbnb — Analyse des marchés</span>
+    </a>
+  </div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Basculer la navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-analyse-monde" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Analyse Monde</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-analyse-monde">    
+        <li>
+    <a class="dropdown-item" href="./rpt-pbnb-rapport-ALL-260207.html">
+ <span class="dropdown-text">Rapport d’analyse mondiale</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li>
+    <a class="dropdown-item" href="./rpt-pbnb-synth-monde-260214.html">
+ <span class="dropdown-text">Synthèse — 75 villes monde</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./rpt-pbnb-synth-europe-260214.html">
+ <span class="dropdown-text">Synthèse — 37 marchés Europe</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-analyse-france" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Analyse France</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-analyse-france">    
+        <li>
+    <a class="dropdown-item" href="./rpt-pbnb-rapport-franceparis-260218.html">
+ <span class="dropdown-text">Rapport France — Paris, Lyon, Bordeaux</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li>
+    <a class="dropdown-item" href="./rpt-pbnb-synth-franceparis-260217.html">
+ <span class="dropdown-text">Synthèse France</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-notebook--méthodes" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Notebook &amp; Méthodes</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-notebook--méthodes">    
+        <li>
+    <a class="dropdown-item" href="./rpt-pbnb-edanbk-ALL-260215.html">
+ <span class="dropdown-text">Notebook EDA — 75 villes</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./rpt-pbnb-edanbk-acpfocus-260222.html">
+ <span class="dropdown-text">ACP &amp; Clustering — Focus</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li>
+    <a class="dropdown-item" href="./rpt-pbnb-methnbk-acp-260215.html">
+ <span class="dropdown-text">Annexe méthodologique</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="./rpt-pbnb-dash-ALL-260222.html"> <i class="bi bi-globe" role="img">
+</i> 
+<span class="menu-text">Dashboard Monde</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./rpt-pbnb-dash-franceparis-260218.html"> <i class="bi bi-map" role="img">
+</i> 
+<span class="menu-text">Dashboard France</span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Airbnb en Europe : 37 marchés, 463 000 annonces</h1>
+<p class="subtitle lead">Quand la location courte durée redessine le logement urbain</p>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Auteur·rice</div>
+    <div class="quarto-title-meta-contents">
+             <p>Vincent R. </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Date de publication</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">1 janvier 2026</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<!-- Fichier : rpt-pbnb-synth-europe-260214.qmd | Type : SYNTHESE | Scope : Europe 37 marchés -->
+<div class="kpi-card-grid">
+<div class="kpi-card">
+<div class="kpi-value">
+460,489
+</div>
+<div class="kpi-label">
+annonces actives
+</div>
+<div class="kpi-context">
+39 villes · 18 pays européens
+</div>
+</div>
+<div class="kpi-card accent-orange">
+<div class="kpi-value">
+×4
+</div>
+<div class="kpi-label">
+écart de prix
+</div>
+<div class="kpi-context">
+Thessalonique (55 €) → Amsterdam (223 €)
+</div>
+</div>
+<div class="kpi-card accent-green">
+<div class="kpi-value">
+41
+</div>
+<div class="kpi-label">
+L / 1 000 hab (max)
+</div>
+<div class="kpi-context">
+Porto vs 1.6 (Istanbul)
+</div>
+</div>
+<div class="kpi-card accent-magenta">
+<div class="kpi-value">
+41 %
+</div>
+<div class="kpi-label">
+Top 5 = un tiers de l’offre
+</div>
+<div class="kpi-context">
+Londres, Paris, Rome, Istanbul, Lisbonne
+</div>
+</div>
+</div>
+<div class="chapeau">
+<p>En Europe, Airbnb est devenu un acteur structurant du tourisme urbain — et un sujet de politique publique majeur. Cette étude compare <strong>36 marchés européens</strong> à partir des données ouvertes d’Inside Airbnb (juin 2025) : où la pression est-elle la plus forte ? Quels facteurs expliquent les écarts de prix ? La professionnalisation du marché bénéficie-t-elle au voyageur ou au territoire ?</p>
+</div>
+<hr>
+<section id="la-pression-touristique-volume-ne-rime-pas-avec-intensité" class="level2 unnumbered">
+<h2 class="unnumbered anchored" data-anchor-id="la-pression-touristique-volume-ne-rime-pas-avec-intensité">La pression touristique : volume ne rime pas avec intensité</h2>
+<p>Les cinq premiers marchés — Londres (62 000 annonces), Paris (53 000), Rome (32 000), Istanbul (25 000) et Lisbonne (21 000) — totalisent un tiers de l’offre européenne. Mais ce classement par volume est trompeur : il ne dit rien de la pression réelle sur le tissu urbain.</p>
+<p>Rapporter le nombre d’annonces à la population résidente renverse la hiérarchie. <strong>Porto (55 L/1 000 hab) et Lisbonne (38) se détachent nettement</strong> : ces villes consacrent une part disproportionnée de leur parc à la location touristique. Florence (31), Bordeaux (31,5) et Venise (26) suivent. À l’inverse, Istanbul, Berlin et Munich — pourtant pourvues de milliers d’annonces — restent sous le seuil de 3 L/1 000 hab.</p>
+<p>En France, l’hétérogénéité est forte : Bordeaux (31,5) se hisse parmi les villes les plus exposées d’Europe, Paris (23,9) occupe le 7<sup>e</sup> rang, tandis que Lyon (10,1) reste trois fois plus en retrait.</p>
+<div class="tabset-margin-container"></div><div class="panel-tabset">
+<ul class="nav nav-tabs" role="tablist"><li class="nav-item" role="presentation"><a class="nav-link active" id="tabset-1-1-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-1" role="tab" aria-controls="tabset-1-1" aria-selected="true" href="">Graphique</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-1-2-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-2" role="tab" aria-controls="tabset-1-2" aria-selected="false" href="">Tableau</a></li></ul>
+<div class="tab-content">
+<div id="tabset-1-1" class="tab-pane active" role="tabpanel" aria-labelledby="tabset-1-1-tab">
+
+
+<div>
+<script type="text/javascript">window.PlotlyConfig = {MathJaxConfig: 'local'};</script>
+<script charset="utf-8" src="https://cdn.plot.ly/plotly-3.3.0.min.js" integrity="sha256-bO3dS6yCpk9aK4gUpNELtCiDeSYvGYnK7jFI58NQnHI=" crossorigin="anonymous"></script>
+<div id="dbecb947-8916-4032-8604-32436db0c301" class="plotly-graph-div" style="height:628px; width:100%;">
+
+</div>
+<script type="text/javascript">                window.PLOTLYENV=window.PLOTLYENV || {};                                if (document.getElementById("dbecb947-8916-4032-8604-32436db0c301")) {                    Plotly.newPlot(                        "dbecb947-8916-4032-8604-32436db0c301",                        [{"hovertemplate":"\u003cb\u003e%{y}\u003c\u002fb\u003e : %{x:,.1f}\u003cextra\u003e\u003c\u002fextra\u003e","marker":{"color":["#ca5800","#ca5800","#ca5800","#ca5800","#ca5800","#ca5800","#ca5800","#ca5800","#ca5800","#ca5800","#ca5800","#ca5800","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2"]},"orientation":"h","text":["1.6","2.3","2.4","2.9","3.8","4.3","4.6","4.8","5.1","5.4","5.6","6.3","13.0","14.3","14.9","16.7","20.7","22.7","23.9","26.1","27.4","31.2","39.2","40.7"],"textfont":{"size":12},"textposition":"outside","x":[1.6,2.3,2.4,2.9,3.8,4.3,4.6,4.8,5.1,5.4,5.6,6.3,13.0,14.3,14.9,16.7,20.7,22.7,23.9,26.1,27.4,31.2,39.2,40.7],"y":["Istanbul","Manchester (métro)","Berlin","Munich","Stockholm","Anvers","Bruxelles","Bristol","Vienne","Zurich","Madrid","Genève","Oslo","Milan","Malaga","Bordeaux","Copenhague","Athènes","Paris","Lisbonne","Venise","Florence","Pays basque (BAB)","Porto"],"type":"bar"}],                        {"template":{"layout":{"colorway":["#1696d2","#fdbf11","#5c5859","#55b748","#ec008b","#ca5800","#0a4c6a","#d2d2d2"],"font":{"color":"#666666","family":"Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif","size":14},"legend":{"font":{"color":"#333333","size":13},"itemsizing":"constant","orientation":"h","title":{"font":{"color":"#5c5859","size":12}},"x":0,"xanchor":"left","y":1.1},"margin":{"b":60,"l":60,"r":30,"t":100},"paper_bgcolor":"white","plot_bgcolor":"white","title":{"font":{"color":"#666666","family":"Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif","size":18},"pad":{"b":15},"x":0.0,"xanchor":"left","y":0.96},"xaxis":{"linecolor":"#333333","linewidth":1.0,"showgrid":false,"showline":true,"tickfont":{"color":"#666666","size":14},"title":{"font":{"color":"#666666","size":14},"standoff":12},"zeroline":false},"yaxis":{"linecolor":"#333333","linewidth":1.0,"showgrid":false,"showline":true,"tickfont":{"color":"#666666","size":14},"title":{"font":{"color":"#666666","size":14},"standoff":15},"zeroline":false}}},"yaxis":{"tickfont":{"size":12},"title":{"text":""},"categoryorder":"array","categoryarray":["Istanbul","Manchester (métro)","Berlin","Munich","Stockholm","Anvers","Bruxelles","Bristol","Vienne","Zurich","Madrid","Genève","Oslo","Milan","Malaga","Bordeaux","Copenhague","Athènes","Paris","Lisbonne","Venise","Florence","Pays basque (BAB)","Porto"]},"margin":{"l":140,"r":80,"t":100},"height":628,"bargap":0.15,"showlegend":false,"xaxis":{"title":{"text":""}},"shapes":[{"line":{"color":"#ec008b","dash":"dash"},"type":"line","x0":7.269998894870621,"x1":7.269998894870621,"xref":"x","y0":0,"y1":1,"yref":"y domain"}],"annotations":[{"showarrow":false,"text":"Moy. 7.3","x":7.269998894870621,"xanchor":"left","xref":"x","y":1,"yanchor":"top","yref":"y domain"}],"title":{"text":"\u003cspan style='color:#999;font-weight:500;font-size:16px'\u003eFigure 1 —\u003c\u002fspan\u003e \u003cb style='font-size:16px'\u003ePression touristique — Top & Bottom 12\u003c\u002fb\u003e\u003cbr\u003e\u003cspan style='font-size:14px;color:#5c5859;font-weight:normal'\u003eListings \u002f 1 000 habitants · top cyan · bottom orange\u003c\u002fspan\u003e"}},                        {"displayModeBar": false, "responsive": true}                    )                };            </script>
+</div>
+<div class="figure-source">
+<p>Source : Inside Airbnb, juin 2025 · Population : ville-centre (Eurostat, recensements nationaux)</p>
+</div>
+</div>
+<div id="tabset-1-2" class="tab-pane" role="tabpanel" aria-labelledby="tabset-1-2-tab">
+<div class="cell">
+<div id="tbl-pression" class="cell quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl quarto-uncaptioned" id="tbl-pression-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Table&nbsp;1
+</figcaption>
+<div aria-describedby="tbl-pression-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div class="cell-output-display">
+<div class="reactable html-widget html-fill-item" id="htmlwidget-013a9edd5ea1f12a1a0f" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-013a9edd5ea1f12a1a0f">{"x":{"tag":{"name":"Reactable","attribs":{"data":{"city_fr":["Porto","Pays basque (BAB)","Florence","Venise","Lisbonne","Paris","Athènes","Copenhague","Bordeaux","Malaga","Milan","Oslo","Thessalonique","Rome","Séville","Bergame","Bologne","Naples","Valence","Lyon","Édimbourg","Dublin","Barcelone","Londres","Budapest","Prague","Amsterdam","Genève","Madrid","Zurich","Vienne","Bristol","Bruxelles","Anvers","Stockholm","Munich","Berlin","Manchester (métro)","Istanbul"],"country_code":["PRT","FRA","ITA","ITA","PRT","FRA","GRC","DNK","FRA","ESP","ITA","NOR","GRC","ITA","ESP","ITA","ITA","ITA","ESP","FRA","GBR","IRL","ESP","GBR","HUN","CZE","NLD","CHE","ESP","CHE","AUT","GBR","BEL","BEL","SWE","DEU","DEU","GBR","TUR"],"n_listings":["12 742"," 4 620","11 593"," 7 066","20 580","51 008","14 615","13 633"," 8 187"," 8 772","19 956"," 9 196"," 4 559","31 655"," 7 550"," 3 379"," 4 068"," 9 283"," 8 063"," 5 272"," 4 876"," 5 326","14 397","60 752","11 893"," 9 131"," 6 068"," 1 805","18 974"," 2 378","10 162"," 2 286"," 5 629"," 2 263"," 3 706"," 4 616"," 8 947"," 6 494","24 989"],"pop":["   232 000","   118 000","   372 000","   258 000","   545 000"," 2 133 000","   643 000","   660 000","   260 000","   587 000"," 1 396 000","   709 000","   319 000"," 2 750 000","   685 000","   122 000","   397 000","   918 000","   800 000","   523 000","   513 000","   590 000"," 1 660 000"," 8 800 000"," 1 750 000"," 1 360 000","   921 000","   204 000"," 3 400 000","   443 000"," 2 010 000","   472 000"," 1 220 000","   530 000","   985 000"," 1 594 000"," 3 755 000"," 2 867 000","15 840 000"],"listings_1000hab":[40.7,39.2,31.2,27.4,26.1,23.9,22.7,20.7,16.7,14.9,14.3,13,12.6,11.5,11,10.9,10.2,10.1,10.1,10.1,9.5,9,8.7,6.9,6.8,6.7,6.6,6.3,5.6,5.4,5.1,4.8,4.6,4.3,3.8,2.9,2.4,2.3,1.6]},"columns":[{"id":"city_fr","name":"Ville","type":"character","width":140},{"id":"country_code","name":"Pays","type":"character","width":60,"align":"center"},{"id":"n_listings","name":"Listings","type":"character","width":100,"align":"right"},{"id":"pop","name":"Population","type":"character","width":120,"align":"right"},{"id":"listings_1000hab","name":"L/1000 hab","type":"numeric","format":{"cell":{"digits":1},"aggregated":{"digits":1}},"width":100,"align":"right"}],"searchable":true,"defaultPageSize":12,"highlight":true,"bordered":true,"striped":true,"compact":true,"style":{"fontSize":"0.82rem"},"dataKey":"992fdbdbad63e5a4a4c234362e9edc7b"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+</figure>
+</div>
+</div>
+</div>
+</div>
+</div>
+<hr>
+</section>
+<section id="concentration-cinq-villes-pèsent-un-tiers-du-marché" class="level2 unnumbered grey-section">
+<h2 class="unnumbered anchored" data-anchor-id="concentration-cinq-villes-pèsent-un-tiers-du-marché">Concentration : cinq villes pèsent un tiers du marché</h2>
+<p>Le marché européen est fortement concentré. Les cinq plus gros marchés en volume — Londres, Paris, Rome, Istanbul et Lisbonne — captent à eux seuls <strong>un tiers de l’offre totale</strong> (33 %). Les 31 autres villes se partagent les deux tiers restants, ce qui pose la question de la représentativité des politiques calibrées sur les seuls « géants ».</p>
+
+
+<div>
+<div id="8fed58aa-da09-4f49-ad43-0594a147bdca" class="plotly-graph-div" style="height:280px; width:100%;">
+
+</div>
+<script type="text/javascript">                window.PLOTLYENV=window.PLOTLYENV || {};                                if (document.getElementById("8fed58aa-da09-4f49-ad43-0594a147bdca")) {                    Plotly.newPlot(                        "8fed58aa-da09-4f49-ad43-0594a147bdca",                        [{"marker":{"color":["#5c5859","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2"]},"orientation":"h","text":["271,505 (59 %)","20,580 (4 %)","24,989 (5 %)","31,655 (7 %)","51,008 (11 %)","60,752 (13 %)"],"textfont":{"size":12},"textposition":"outside","x":{"dtype":"i4","bdata":"kSQEAGRQAACdYQAAp3sAAEDHAABQ7QAA"},"y":["31 autres villes","Lisbonne","Istanbul","Rome","Paris","Londres"],"type":"bar"}],                        {"template":{"layout":{"colorway":["#1696d2","#fdbf11","#5c5859","#55b748","#ec008b","#ca5800","#0a4c6a","#d2d2d2"],"font":{"color":"#666666","family":"Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif","size":14},"legend":{"font":{"color":"#333333","size":13},"itemsizing":"constant","orientation":"h","title":{"font":{"color":"#5c5859","size":12}},"x":0,"xanchor":"left","y":1.1},"margin":{"b":60,"l":60,"r":30,"t":100},"paper_bgcolor":"white","plot_bgcolor":"white","title":{"font":{"color":"#666666","family":"Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif","size":18},"pad":{"b":15},"x":0.0,"xanchor":"left","y":0.96},"xaxis":{"linecolor":"#333333","linewidth":1.0,"showgrid":false,"showline":true,"tickfont":{"color":"#666666","size":14},"title":{"font":{"color":"#666666","size":14},"standoff":12},"zeroline":false},"yaxis":{"linecolor":"#333333","linewidth":1.0,"showgrid":false,"showline":true,"tickfont":{"color":"#666666","size":14},"title":{"font":{"color":"#666666","size":14},"standoff":15},"zeroline":false}}},"title":{"text":"\u003cspan style='color:#999;font-weight:500;font-size:16px'\u003eFigure 2 —\u003c\u002fspan\u003e \u003cb style='font-size:16px'\u003eConcentration de l'offre\u003c\u002fb\u003e\u003cbr\u003e\u003cspan style='font-size:14px;color:#5c5859;font-weight:normal'\u003eTop 5 villes vs reste du marché européen\u003c\u002fspan\u003e"},"yaxis":{"tickfont":{"size":12}},"margin":{"l":160,"r":120,"t":100,"b":30},"height":280,"showlegend":false,"xaxis":{"title":{"text":""}}},                        {"displayModeBar": false, "responsive": true}                    )                };            </script>
+</div>
+<div class="figure-source">
+<p>Source : Inside Airbnb, juin 2025 · 36 villes européennes</p>
+</div>
+</section>
+<hr>
+<section id="deux-europes-tarifaires" class="level2 unnumbered">
+<h2 class="unnumbered anchored" data-anchor-id="deux-europes-tarifaires">Deux Europes tarifaires</h2>
+<p>Le quatuor premium — <strong>Amsterdam (223 EUR), Édimbourg (193), Copenhague (157) et Paris (156)</strong> — dépasse 155 EUR la nuit de médiane. À l’autre extrémité, Riga, Thessalonique, Budapest et Istanbul restent sous 70 EUR. Entre les deux, un gradient continu épouse la carte du niveau de vie européen.</p>
+<p>Paris (156 EUR) se positionne dans le quatuor premium. Bordeaux (79 EUR) et Lyon (77 EUR) traduisent des marchés matures à tarification modérée, deux fois moins chers que la capitale.</p>
+<div class="tabset-margin-container"></div><div class="panel-tabset">
+<ul class="nav nav-tabs" role="tablist"><li class="nav-item" role="presentation"><a class="nav-link active" id="tabset-2-1-tab" data-bs-toggle="tab" data-bs-target="#tabset-2-1" role="tab" aria-controls="tabset-2-1" aria-selected="true" href="">Top &amp; Bottom 12</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-2-2-tab" data-bs-toggle="tab" data-bs-target="#tabset-2-2" role="tab" aria-controls="tabset-2-2" aria-selected="false" href="">36 villes</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-2-3-tab" data-bs-toggle="tab" data-bs-target="#tabset-2-3" role="tab" aria-controls="tabset-2-3" aria-selected="false" href="">Tableau</a></li></ul>
+<div class="tab-content">
+<div id="tabset-2-1" class="tab-pane active" role="tabpanel" aria-labelledby="tabset-2-1-tab">
+
+
+<div>
+<div id="2f915498-dba2-4d22-8a1e-1c520c326ba1" class="plotly-graph-div" style="height:628px; width:100%;">
+
+</div>
+<script type="text/javascript">                window.PLOTLYENV=window.PLOTLYENV || {};                                if (document.getElementById("2f915498-dba2-4d22-8a1e-1c520c326ba1")) {                    Plotly.newPlot(                        "2f915498-dba2-4d22-8a1e-1c520c326ba1",                        [{"hovertemplate":"\u003cb\u003e%{y}\u003c\u002fb\u003e : %{x:,.0f} €\u003cextra\u003e\u003c\u002fextra\u003e","marker":{"color":["#ca5800","#ca5800","#ca5800","#ca5800","#ca5800","#ca5800","#ca5800","#ca5800","#ca5800","#ca5800","#ca5800","#ca5800","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2"]},"orientation":"h","text":["55 €","57 €","69 €","76 €","77 €","79 €","84 €","87 €","88 €","89 €","90 €","90 €","117 €","132 €","133 €","140 €","140 €","150 €","153 €","153 €","156 €","157 €","193 €","223 €"],"textfont":{"size":12},"textposition":"outside","x":[55.0,56.8,68.9,76.0,77.0,79.0,84.0,87.0,88.0,88.6,90.0,90.0,116.6,132.0,133.0,140.0,140.0,149.5,153.0,153.3,156.0,157.3,193.0,223.0],"y":["Thessalonique","Budapest","Istanbul","Athènes","Lyon","Bordeaux","Séville","Bruxelles","Anvers","Prague","Naples","Porto","Genève","Rome","Dublin","Barcelone","Florence","Zurich","Venise","Londres","Paris","Copenhague","Édimbourg","Amsterdam"],"type":"bar"}],                        {"template":{"layout":{"colorway":["#1696d2","#fdbf11","#5c5859","#55b748","#ec008b","#ca5800","#0a4c6a","#d2d2d2"],"font":{"color":"#666666","family":"Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif","size":14},"legend":{"font":{"color":"#333333","size":13},"itemsizing":"constant","orientation":"h","title":{"font":{"color":"#5c5859","size":12}},"x":0,"xanchor":"left","y":1.1},"margin":{"b":60,"l":60,"r":30,"t":100},"paper_bgcolor":"white","plot_bgcolor":"white","title":{"font":{"color":"#666666","family":"Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif","size":18},"pad":{"b":15},"x":0.0,"xanchor":"left","y":0.96},"xaxis":{"linecolor":"#333333","linewidth":1.0,"showgrid":false,"showline":true,"tickfont":{"color":"#666666","size":14},"title":{"font":{"color":"#666666","size":14},"standoff":12},"zeroline":false},"yaxis":{"linecolor":"#333333","linewidth":1.0,"showgrid":false,"showline":true,"tickfont":{"color":"#666666","size":14},"title":{"font":{"color":"#666666","size":14},"standoff":15},"zeroline":false}}},"yaxis":{"tickfont":{"size":12},"title":{"text":""},"categoryorder":"array","categoryarray":["Thessalonique","Budapest","Istanbul","Athènes","Lyon","Bordeaux","Séville","Bruxelles","Anvers","Prague","Naples","Porto","Genève","Rome","Dublin","Barcelone","Florence","Zurich","Venise","Londres","Paris","Copenhague","Édimbourg","Amsterdam"]},"margin":{"l":140,"r":80,"t":100},"height":628,"bargap":0.15,"showlegend":false,"xaxis":{"title":{"text":""}},"shapes":[{"line":{"color":"#ec008b","dash":"dash"},"type":"line","x0":107.0,"x1":107.0,"xref":"x","y0":0,"y1":1,"yref":"y domain"}],"annotations":[{"showarrow":false,"text":"Méd. 107 €","x":107.0,"xanchor":"left","xref":"x","y":1,"yanchor":"top","yref":"y domain"}],"title":{"text":"\u003cspan style='color:#999;font-weight:500;font-size:16px'\u003eFigure 3 —\u003c\u002fspan\u003e \u003cb style='font-size:16px'\u003ePrix médian — Top & Bottom 12\u003c\u002fb\u003e\u003cbr\u003e\u003cspan style='font-size:14px;color:#5c5859;font-weight:normal'\u003eEUR\u002fnuit · top cyan · bottom orange\u003c\u002fspan\u003e"}},                        {"displayModeBar": false, "responsive": true}                    )                };            </script>
+</div>
+<div class="figure-source">
+<p>Source : Inside Airbnb, juin 2025 · Prix convertis en EUR (taux mi-2025)</p>
+</div>
+</div>
+<div id="tabset-2-2" class="tab-pane" role="tabpanel" aria-labelledby="tabset-2-2-tab">
+
+
+<div>
+<div id="8b4ea120-c3b9-417c-80f0-645fb3a6c26d" class="plotly-graph-div" style="height:958px; width:100%;">
+
+</div>
+<script type="text/javascript">                window.PLOTLYENV=window.PLOTLYENV || {};                                if (document.getElementById("8b4ea120-c3b9-417c-80f0-645fb3a6c26d")) {                    Plotly.newPlot(                        "8b4ea120-c3b9-417c-80f0-645fb3a6c26d",                        [{"hovertemplate":"\u003cb\u003e%{y}\u003c\u002fb\u003e : %{x:,.0f} €\u003cextra\u003e\u003c\u002fextra\u003e","marker":{"color":["#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2"]},"orientation":"h","text":["55 €","57 €","69 €","76 €","77 €","79 €","84 €","87 €","88 €","89 €","90 €","90 €","90 €","92 €","99 €","100 €","103 €","107 €","107 €","107 €","108 €","108 €","110 €","112 €","113 €","115 €","116 €","117 €","132 €","133 €","140 €","140 €","150 €","153 €","153 €","156 €","157 €","193 €","223 €"],"textfont":{"size":12},"textposition":"outside","x":[55.0,56.8,68.9,76.0,77.0,79.0,84.0,87.0,88.0,88.6,90.0,90.0,90.0,92.0,99.4,100.0,103.0,107.0,107.0,107.0,108.0,108.5,110.0,112.3,113.3,115.0,116.0,116.6,132.0,133.0,140.0,140.0,149.5,153.0,153.3,156.0,157.3,193.0,223.0],"y":["Thessalonique","Budapest","Istanbul","Athènes","Lyon","Bordeaux","Séville","Bruxelles","Anvers","Prague","Naples","Porto","Bergame","Vienne","Manchester (métro)","Madrid","Valence","Bologne","Berlin","Milan","Lisbonne","Oslo","Pays basque (BAB)","Bristol","Stockholm","Munich","Malaga","Genève","Rome","Dublin","Barcelone","Florence","Zurich","Venise","Londres","Paris","Copenhague","Édimbourg","Amsterdam"],"type":"bar"}],                        {"template":{"layout":{"colorway":["#1696d2","#fdbf11","#5c5859","#55b748","#ec008b","#ca5800","#0a4c6a","#d2d2d2"],"font":{"color":"#666666","family":"Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif","size":14},"legend":{"font":{"color":"#333333","size":13},"itemsizing":"constant","orientation":"h","title":{"font":{"color":"#5c5859","size":12}},"x":0,"xanchor":"left","y":1.1},"margin":{"b":60,"l":60,"r":30,"t":100},"paper_bgcolor":"white","plot_bgcolor":"white","title":{"font":{"color":"#666666","family":"Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif","size":18},"pad":{"b":15},"x":0.0,"xanchor":"left","y":0.96},"xaxis":{"linecolor":"#333333","linewidth":1.0,"showgrid":false,"showline":true,"tickfont":{"color":"#666666","size":14},"title":{"font":{"color":"#666666","size":14},"standoff":12},"zeroline":false},"yaxis":{"linecolor":"#333333","linewidth":1.0,"showgrid":false,"showline":true,"tickfont":{"color":"#666666","size":14},"title":{"font":{"color":"#666666","size":14},"standoff":15},"zeroline":false}}},"yaxis":{"tickfont":{"size":12},"title":{"text":""},"categoryorder":"array","categoryarray":["Thessalonique","Budapest","Istanbul","Athènes","Lyon","Bordeaux","Séville","Bruxelles","Anvers","Prague","Naples","Porto","Bergame","Vienne","Manchester (métro)","Madrid","Valence","Bologne","Berlin","Milan","Lisbonne","Oslo","Pays basque (BAB)","Bristol","Stockholm","Munich","Malaga","Genève","Rome","Dublin","Barcelone","Florence","Zurich","Venise","Londres","Paris","Copenhague","Édimbourg","Amsterdam"]},"margin":{"l":140,"r":80,"t":100},"height":958,"bargap":0.15,"showlegend":false,"xaxis":{"title":{"text":""}},"shapes":[{"line":{"color":"#ec008b","dash":"dash"},"type":"line","x0":107.0,"x1":107.0,"xref":"x","y0":0,"y1":1,"yref":"y domain"}],"annotations":[{"showarrow":false,"text":"Méd. 107 €","x":107.0,"xanchor":"left","xref":"x","y":1,"yanchor":"top","yref":"y domain"}],"title":{"text":"\u003cspan style='color:#999;font-weight:500;font-size:16px'\u003eFigure 3 —\u003c\u002fspan\u003e \u003cb style='font-size:16px'\u003ePrix médian par nuit — 36 villes\u003c\u002fb\u003e\u003cbr\u003e\u003cspan style='font-size:14px;color:#5c5859;font-weight:normal'\u003eEUR\u002fnuit · classement ascendant\u003c\u002fspan\u003e"}},                        {"displayModeBar": false, "responsive": true}                    )                };            </script>
+</div>
+</div>
+<div id="tabset-2-3" class="tab-pane" role="tabpanel" aria-labelledby="tabset-2-3-tab">
+<div class="cell">
+<div id="tbl-prix" class="cell quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl quarto-uncaptioned" id="tbl-prix-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Table&nbsp;2
+</figcaption>
+<div aria-describedby="tbl-prix-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div class="cell-output-display">
+<div class="reactable html-widget html-fill-item" id="htmlwidget-ed7cab3f9e34d1251330" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-ed7cab3f9e34d1251330">{"x":{"tag":{"name":"Reactable","attribs":{"data":{"city_fr":["Amsterdam","Édimbourg","Copenhague","Paris","Londres","Venise","Zurich","Barcelone","Florence","Dublin","Rome","Genève","Malaga","Munich","Stockholm","Bristol","Pays basque (BAB)","Oslo","Lisbonne","Milan","Berlin","Bologne","Valence","Madrid","Manchester (métro)","Vienne","Porto","Naples","Bergame","Prague","Anvers","Bruxelles","Séville","Bordeaux","Lyon","Athènes","Istanbul","Budapest","Thessalonique"],"country_code":["NLD","GBR","DNK","FRA","GBR","ITA","CHE","ESP","ITA","IRL","ITA","CHE","ESP","DEU","SWE","GBR","FRA","NOR","PRT","ITA","DEU","ITA","ESP","ESP","GBR","AUT","PRT","ITA","ITA","CZE","BEL","BEL","ESP","FRA","FRA","GRC","TUR","HUN","GRC"],"prix_med":[223,193,157.3,156,153.3,153,149.5,140,140,133,132,116.6,116,115,113.3,112.3,110,108.5,108,107,107,107,103,100,99.4,92,90,90,90,88.6,88,87,84,79,77,76,68.9,56.8,55],"prix_q25":[162,127.5,120.5,101,87.8,110,106,73,102,85,94,85.9,87,76,70.9,70.2,77,80.2,74,80,70,80,67,63,58.5,66,66,69,70,62.1,62.5,65,61,52,57,54,44.2,40.9,44],"prix_q75":[312,286.6,217.1,259,252.7,218,225.8,250,205,224.8,196,169.6,159,180,191.4,167.3,185.2,155.8,160,156,166,148,141,149,145.1,135,128,124,125,131.9,128,120,120,130,115,115,109.1,83.7,75],"prix_iqr":[150,159,97,158,165,108,120,177,103,140,102,84,72,104,120,97,108,76,86,76,96,68,74,86,87,69,62,55,55,70,66,55,59,78,58,61,65,43,31]},"columns":[{"id":"city_fr","name":"Ville","type":"character","width":140},{"id":"country_code","name":"Pays","type":"character","width":60,"align":"center"},{"id":"prix_med","name":"Médiane €","type":"numeric","width":90,"align":"right"},{"id":"prix_q25","name":"Q25 €","type":"numeric","width":75,"align":"right"},{"id":"prix_q75","name":"Q75 €","type":"numeric","width":75,"align":"right"},{"id":"prix_iqr","name":"IQR €","type":"numeric","width":75,"align":"right"}],"searchable":true,"defaultPageSize":12,"highlight":true,"bordered":true,"striped":true,"compact":true,"style":{"fontSize":"0.82rem"},"dataKey":"1ab1031c718026b93d63d68e51d26766"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+</figure>
+</div>
+</div>
+</div>
+</div>
+</div>
+<hr>
+</section>
+<section id="plus-de-professionnels-des-prix-plus-bas" class="level2 unnumbered grey-section">
+<h2 class="unnumbered anchored" data-anchor-id="plus-de-professionnels-des-prix-plus-bas">Plus de professionnels, des prix plus bas</h2>
+<p>Les marchés les plus professionnalisés — ceux où les gestionnaires multi-annonces dominent — ne sont pas les plus chers. C’est même l’inverse : la corrélation est négative (r = −0,41). <strong>Barcelone</strong> (81 % de multi-hosts, prix modérés) illustre la compétition par les volumes, quand <strong>Copenhague</strong> (16 % de multi-hosts, prix élevés) incarne le modèle du particulier sélectif. <strong>Paris</strong> occupe une position singulière : un taux de multi-hosts proche de la médiane (~50 %) mais un prix nettement supérieur.</p>
+
+
+
+<div>
+<div id="d5174279-ea01-42db-8277-71ab57d8395f" class="plotly-graph-div" style="height:420px; width:100%;">
+
+</div>
+<script type="text/javascript">                window.PLOTLYENV=window.PLOTLYENV || {};                                if (document.getElementById("d5174279-ea01-42db-8277-71ab57d8395f")) {                    Plotly.newPlot(                        "d5174279-ea01-42db-8277-71ab57d8395f",                        [{"hovertemplate":"\u003cb\u003e%{text}\u003c\u002fb\u003e\u003cbr\u003eMulti-host: %{x:.0f}%\u003cbr\u003ePrix méd: %{y:.0f} €\u003cextra\u003e\u003c\u002fextra\u003e","marker":{"color":["#1696d2","#fdbf11","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#fdbf11","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#fdbf11","#1696d2","#fdbf11","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2"],"line":{"color":"white","width":0.5},"size":{"dtype":"f8","bdata":"AAAAAACARUC6UuEqdLFCQACV5hSiPDpAiBeXw39lNkBYYD8EPdszQA8jGDI1fzNAEsXBrmDuMkCmvMq9fWswQHe4EOhWSzBAUr3odFK1L0A6c4cLga4uQNfT0iUTtC1AwqJKeZVbLUCDM\u002fRye7UrQJ71MS80sipAJN1wnoqYKkBgsKhSXoUqQO2fzBEYTypAoNgnbXkbKkC3RR7D6m4pQEhyXT5XSilAligOdgWzKEAO56mIQSQoQLL2YYeIeydAesXTT+D9JkC18YNvYnwmQJP9kzkCIyZAqEZIkBQTJkDzs8e2RZ4lQEdaMZTCUiVA4ACnh5RRJUDphvNUxEAlQO0ondHvryRAII60YihFJECWgYbhs+QjQPWcSB9wvSJAvJTa\u002fkyiIkCtEr82hJsiQEAW3pprFCJA"}},"mode":"markers+text","text":["Londres","Paris","Rome","Istanbul","Lisbonne","Milan","Madrid","Athènes","Barcelone","Copenhague","Porto","Budapest","Florence","Vienne","Naples","Oslo","Prague","Berlin","Malaga","Bordeaux","Valence","Séville","Venise","Manchester (métro)","Amsterdam","Bruxelles","Dublin","Lyon","Édimbourg","Pays basque (BAB)","Munich","Thessalonique","Bologne","Stockholm","Bergame","Zurich","Bristol","Anvers","Genève"],"textfont":{"color":"#555","size":9},"textposition":"top center","x":{"dtype":"f8","bdata":"mpmZmZnZT0BmZmZmZiZEQJqZmZmZGU1AzczMzMyMUkBmZmZmZoZSQJqZmZmZGU9AMzMzMzNTUkAzMzMzM\u002fNRQJqZmZmZOVRAzczMzMzML0AAAAAAAGBTQM3MzMzMLFJAAAAAAAAgUUCamZmZmflSQDMzMzMzE1BAmpmZmZkZM0AzMzMzM9NTQM3MzMzMDEtAmpmZmZn5UkDNzMzMzMxCQM3MzMzMbFFAAAAAAADAUkAzMzMzM3NRQGZmZmZmhlBAmpmZmZmZNUAAAAAAAMBJQAAAAAAAwEpAMzMzMzPzRUDNzMzMzExKQM3MzMzMTEBAzczMzMzMQUAAAAAAAOBQQDMzMzMzc1BAzczMzMzMP0AAAAAAAIBNQJqZmZmZmU5AMzMzMzNzS0AAAAAAAMBPQJqZmZmZGUdA"},"y":{"dtype":"f8","bdata":"mpmZmZkpY0AAAAAAAIBjQAAAAAAAgGBAmpmZmZk5UUAAAAAAAABbQAAAAAAAwFpAAAAAAAAAWUAAAAAAAABTQAAAAAAAgGFAmpmZmZmpY0AAAAAAAIBWQGZmZmZmZkxAAAAAAACAYUAAAAAAAABXQAAAAAAAgFZAAAAAAAAgW0BmZmZmZiZWQAAAAAAAwFpAAAAAAAAAXUAAAAAAAMBTQAAAAAAAwFlAAAAAAAAAVUAAAAAAACBjQJqZmZmZ2VhAAAAAAADga0AAAAAAAMBVQAAAAAAAoGBAAAAAAABAU0AAAAAAACBoQAAAAAAAgFtAAAAAAADAXEAAAAAAAIBLQAAAAAAAwFpAMzMzMzNTXEAAAAAAAIBWQAAAAAAAsGJAMzMzMzMTXEAAAAAAAABWQGZmZmZmJl1A"},"type":"scatter"},{"line":{"color":"#ec008b","dash":"dash","width":1.5},"mode":"lines","showlegend":false,"x":{"dtype":"f8","bdata":"zczMzMzML0B7IgPp\u002fTkxQJDen2uVjTJApZo87izhM0C6VtlwxDQ1QM8SdvNbiDZA5M4SdvPbN0D4iq\u002f4ii85QA5HTHsigzpAIgPp\u002fbnWO0A4v4WAUSo9QEx7IgPpfT5AYTe\u002fhYDRP0C7+S0EjJJAQMVXfMVXPEFA0LXKhiPmQUDaExlI749CQOVxZwm7OUNA78+1yobjQ0D6LQSMUo1EQASMUk0eN0VADuqgDurgRUAZSO\u002fPtYpGQCOmPZGBNEdALgSMUk3eR0A4YtoTGYhIQELAKNXkMUlATR53lrDbSUBXfMVXfIVKQGLaExlIL0tAbDhi2hPZS0B3lrCb34JMQIH0\u002flyrLE1Ai1JNHnfWTUCWsJvfQoBOQKAO6qAOKk9Aq2w4YtrTT0BbZcMR0z5QQGCUavK4k1BAZcMR057oUEBr8rizhD1RQHAhYJRqklFAdVAHdVDnUUB6f65VNjxSQH+uVTYckVJAhd38FgLmUkCKDKT35zpTQI87S9jNj1NAlGryuLPkU0CamZmZmTlUQA=="},"y":{"dtype":"f8","bdata":"iUKaRM0YYkDRIbla7\u002fdhQBkB2HAR12FAYeD2hjO2YUCpvxWdVZVhQPKeNLN3dGFAOn5TyZlTYUCCXXLfuzJhQMo8kfXdEWFAEhywCwDxYEBa+84hItBgQKLa7TdEr2BA6rkMTmaOYEAymStkiG1gQHp4SnqqTGBAwldpkMwrYEALN4im7gpgQKUsTnkh1F9ANuuLpWWSX0DGqcnRqVBfQFZoB\u002f7tDl9A5iZFKjLNXkB25YJWdoteQAakwIK6SV5AlmL+rv4HXkAnITzbQsZdQLjfeQeHhF1ASJ63M8tCXUDYXPVfDwFdQGgbM4xTv1xA+NlwuJd9XECImK7k2ztcQBhX7BAg+ltAqRUqPWS4W0A51GdpqHZbQMmSpZXsNFtAWVHjwTDzWkDpDyHudLFaQHrOXhq5b1pACo2cRv0tWkCaS9pyQexZQCoKGJ+FqllAushVy8loWUBKh5P3DSdZQNtF0SNS5VhAagQPUJajWED7wkx82mFYQIyBiqgeIFhAHEDI1GLeV0Cr\u002fgUBp5xXQA=="},"type":"scatter"}],                        {"template":{"layout":{"colorway":["#1696d2","#fdbf11","#5c5859","#55b748","#ec008b","#ca5800","#0a4c6a","#d2d2d2"],"font":{"color":"#666666","family":"Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif","size":14},"legend":{"font":{"color":"#333333","size":13},"itemsizing":"constant","orientation":"h","title":{"font":{"color":"#5c5859","size":12}},"x":0,"xanchor":"left","y":1.1},"margin":{"b":60,"l":60,"r":30,"t":100},"paper_bgcolor":"white","plot_bgcolor":"white","title":{"font":{"color":"#666666","family":"Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif","size":18},"pad":{"b":15},"x":0.0,"xanchor":"left","y":0.96},"xaxis":{"linecolor":"#333333","linewidth":1.0,"showgrid":false,"showline":true,"tickfont":{"color":"#666666","size":14},"title":{"font":{"color":"#666666","size":14},"standoff":12},"zeroline":false},"yaxis":{"linecolor":"#333333","linewidth":1.0,"showgrid":false,"showline":true,"tickfont":{"color":"#666666","size":14},"title":{"font":{"color":"#666666","size":14},"standoff":15},"zeroline":false}}},"title":{"text":"\u003cspan style='color:#999;font-weight:500;font-size:16px'\u003eFigure 4 —\u003c\u002fspan\u003e \u003cb style='font-size:16px'\u003ePrix vs professionnalisation\u003c\u002fb\u003e\u003cbr\u003e\u003cspan style='font-size:14px;color:#5c5859;font-weight:normal'\u003er = -0.39 · taille = volume de listings\u003c\u002fspan\u003e"},"margin":{"l":60,"r":30,"t":100},"height":420,"xaxis":{"title":{"text":"% de multi-hosts"}},"yaxis":{"title":{"text":"Prix médian (EUR\u002fnuit)"}},"showlegend":false},                        {"displayModeBar": false, "responsive": true}                    )                };            </script>
+</div>
+<div class="figure-source">
+<p>Source : Inside Airbnb, juin 2025 · Corrélation de Pearson</p>
+</div>
+</section>
+<hr>
+<section id="la-régulation-laisse-des-traces-lisibles" class="level2 unnumbered">
+<h2 class="unnumbered anchored" data-anchor-id="la-régulation-laisse-des-traces-lisibles">La régulation laisse des traces lisibles</h2>
+<p>Sans registre centralisé des réglementations locales, on peut lire la régulation <em>dans</em> les données. Trois marqueurs se distinguent : la <strong>disponibilité annuelle médiane</strong> (Copenhague 106 jours, Amsterdam 111), le <strong>ratio listing/host</strong> proche de 1 (Berlin, Dublin), et la <strong>part de listings longterm</strong> imposant au moins 30 nuits de séjour minimum (Istanbul 50 %, Barcelone 42 %).</p>
+<p>Les villes françaises se situent en zone intermédiaire : Paris affiche une disponibilité modérée et environ 20 % de longterm, un profil cohérent avec le cadre réglementaire français (120 nuits/an pour les résidences principales).</p>
+
+
+
+<div>
+<div id="885c809b-8616-47d5-9536-36ae601d874a" class="plotly-graph-div" style="height:420px; width:100%;">
+
+</div>
+<script type="text/javascript">                window.PLOTLYENV=window.PLOTLYENV || {};                                if (document.getElementById("885c809b-8616-47d5-9536-36ae601d874a")) {                    Plotly.newPlot(                        "885c809b-8616-47d5-9536-36ae601d874a",                        [{"hovertemplate":"\u003cb\u003e%{text}\u003c\u002fb\u003e\u003cbr\u003eDispo méd: %{x:.0f} j\u003cbr\u003eLongterm: %{y:.1f}%\u003cextra\u003e\u003c\u002fextra\u003e","marker":{"color":["#1696d2","#fdbf11","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#fdbf11","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#fdbf11","#1696d2","#fdbf11","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2","#1696d2"],"line":{"color":"white","width":0.5},"size":12},"mode":"markers+text","text":["Londres","Paris","Rome","Istanbul","Lisbonne","Milan","Madrid","Athènes","Barcelone","Copenhague","Porto","Budapest","Florence","Vienne","Naples","Oslo","Prague","Berlin","Malaga","Bordeaux","Valence","Séville","Venise","Manchester (métro)","Amsterdam","Bruxelles","Dublin","Lyon","Édimbourg","Pays basque (BAB)","Munich","Thessalonique","Bologne","Stockholm","Bergame","Zurich","Bristol","Anvers","Genève"],"textfont":{"color":"#555","size":9},"textposition":"top center","x":{"dtype":"f8","bdata":"AAAAAACAa0AAAAAAAKBoQAAAAAAA4G5AAAAAAAAgdkAAAAAAAFBwQAAAAAAAwGlAAAAAAAAgbUAAAAAAAGBxQAAAAAAAgG5AAAAAAACAWkAAAAAAALBxQAAAAAAAgGZAAAAAAADAbUAAAAAAAEBtQAAAAAAAUHBAAAAAAABgYkAAAAAAAKBmQAAAAAAAwGxAAAAAAAAAbEAAAAAAACBpQAAAAAAAQGZAAAAAAABAZkAAAAAAACBuQAAAAAAAwHBAAAAAAADAW0AAAAAAAGBrQAAAAAAAwGJAAAAAAAAgZ0AAAAAAAEBdQAAAAAAAAGBAAAAAAABgZUAAAAAAAMBwQAAAAAAAIGZAAAAAAAAAaEAAAAAAAMBuQAAAAAAAUGVAAAAAAAAgbEAAAAAAAOBvQAAAAAAAgGlA"},"y":{"dtype":"f8","bdata":"mpmZmZmZBUDNzMzMzMwsQAAAAAAAABxAZmZmZmYmSUAzMzMzMzMPQM3MzMzMzDBAMzMzMzMzKkAAAAAAAADwPzMzMzMzM0VAzczMzMzM9D8zMzMzMzPzPzMzMzMzM\u002fM\u002fzczMzMzMGkCamZmZmZklQAAAAAAAAC5AZmZmZmZm9j\u002fNzMzMzMwAQM3MzMzMTDpAzczMzMzMAEAAAAAAAAAaQJqZmZmZmRNAzczMzMzM\u002fD\u002fNzMzMzMwMQJqZmZmZmfk\u002fmpmZmZmZ8T8AAAAAAAAgQAAAAAAAAABAZmZmZmZmIEBmZmZmZmbmP5qZmZmZmQ1AAAAAAAAAEkDNzMzMzMzsP5qZmZmZmShAZmZmZmZmDkDNzMzMzMwiQDMzMzMzMyRAzczMzMzM9D9mZmZmZmYWQM3MzMzMzBZA"},"type":"scatter"}],                        {"template":{"layout":{"colorway":["#1696d2","#fdbf11","#5c5859","#55b748","#ec008b","#ca5800","#0a4c6a","#d2d2d2"],"font":{"color":"#666666","family":"Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif","size":14},"legend":{"font":{"color":"#333333","size":13},"itemsizing":"constant","orientation":"h","title":{"font":{"color":"#5c5859","size":12}},"x":0,"xanchor":"left","y":1.1},"margin":{"b":60,"l":60,"r":30,"t":100},"paper_bgcolor":"white","plot_bgcolor":"white","title":{"font":{"color":"#666666","family":"Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif","size":18},"pad":{"b":15},"x":0.0,"xanchor":"left","y":0.96},"xaxis":{"linecolor":"#333333","linewidth":1.0,"showgrid":false,"showline":true,"tickfont":{"color":"#666666","size":14},"title":{"font":{"color":"#666666","size":14},"standoff":12},"zeroline":false},"yaxis":{"linecolor":"#333333","linewidth":1.0,"showgrid":false,"showline":true,"tickfont":{"color":"#666666","size":14},"title":{"font":{"color":"#666666","size":14},"standoff":15},"zeroline":false}}},"shapes":[{"line":{"color":"#ec008b","dash":"dash"},"type":"line","x0":180,"x1":180,"xref":"x","y0":0,"y1":1,"yref":"y domain"}],"annotations":[{"showarrow":false,"text":"180 j (seuil FR)","x":180,"xanchor":"left","xref":"x","y":1,"yanchor":"top","yref":"y domain"}],"title":{"text":"\u003cspan style='color:#999;font-weight:500;font-size:16px'\u003eFigure 5 —\u003c\u002fspan\u003e \u003cb style='font-size:16px'\u003eDisponibilité vs part longterm\u003c\u002fb\u003e\u003cbr\u003e\u003cspan style='font-size:14px;color:#5c5859;font-weight:normal'\u003eDeux dimensions de la contrainte réglementaire\u003c\u002fspan\u003e"},"margin":{"l":60,"r":30,"t":100},"height":420,"xaxis":{"title":{"text":"Disponibilité médiane (jours\u002fan)"}},"yaxis":{"title":{"text":"% listings longterm (≥ 30 nuits min.)"}},"showlegend":false},                        {"displayModeBar": false, "responsive": true}                    )                };            </script>
+</div>
+<div class="figure-source">
+<p>Source : Inside Airbnb, juin 2025 · Calcul : annonces avec minimum_nights ≥ 30</p>
+</div>
+<hr>
+</section>
+<section id="marchés-sur-la-carte" class="level2 unnumbered grey-section">
+<h2 class="unnumbered anchored" data-anchor-id="marchés-sur-la-carte">36 marchés sur la carte</h2>
+
+
+<div>
+<div id="2edefbee-8e90-4a51-b736-75dac4df8b20" class="plotly-graph-div" style="height:520px; width:100%;">
+
+</div>
+<script type="text/javascript">                window.PLOTLYENV=window.PLOTLYENV || {};                                if (document.getElementById("2edefbee-8e90-4a51-b736-75dac4df8b20")) {                    Plotly.newPlot(                        "2edefbee-8e90-4a51-b736-75dac4df8b20",                        [{"customdata":{"dtype":"f8","bdata":"AAAAAACq7UCamZmZmSljQJqZmZmZmRtAmpmZmZnZT0DhehSuR8FJQKRwPQrXo8C\u002fAAAAAADo6EAAAAAAAIBjQGZmZmZm5jdAZmZmZmYmRECuR+F6FG5IQM3MzMzMzAJAAAAAAMDp3kAAAAAAAIBgQAAAAAAAACdAmpmZmZkZTUAzMzMzM\u002fNEQAAAAAAAAClAAAAAAEBn2ECamZmZmTlRQJqZmZmZmfk\u002fzczMzMyMUkDhehSuR4FEQHsUrkfh+jxAAAAAAAAZ1EAAAAAAAABbQJqZmZmZGTpAZmZmZmaGUkBcj8L1KFxDQEjhehSuRyLAAAAAAAB900AAAAAAAMBaQJqZmZmZmSxAmpmZmZkZT0B7FK5H4bpGQOF6FK5HYSJAAAAAAICH0kAAAAAAAABZQGZmZmZmZhZAMzMzMzNTUkD2KFyPwjVEQJqZmZmZmQ3AAAAAAICLzEAAAAAAAABTQDMzMzMzszZAMzMzMzPzUUA9CtejcP1CQHsUrkfhujdAAAAAAIAezEAAAAAAAIBhQGZmZmZmZiFAmpmZmZk5VEBSuB6F67FEQFyPwvUoXAFAAAAAAICgykCamZmZmaljQDMzMzMzszRAzczMzMzML0DXo3A9CtdLQKRwPQrXIylAAAAAAADjyEAAAAAAAIBWQJqZmZmZWURAAAAAAABgU0AUrkfhepREQMP1KFyPQiHAAAAAAIA6x0BmZmZmZmZMQDMzMzMzMxtAzczMzMwsUkAAAAAAAMBHQArXo3A9CjNAAAAAAICkxkAAAAAAAIBhQDMzMzMzMz9AAAAAAAAgUUDD9Shcj+JFQAAAAAAAgCZAAAAAAADZw0AAAAAAAABXQGZmZmZmZhRAmpmZmZn5UkB7FK5H4RpIQB+F61G4XjBAAAAAAIAhwkAAAAAAAIBWQDMzMzMzMyRAMzMzMzMTUEDNzMzMzGxEQArXo3A9iixAAAAAAAD2wUAAAAAAACBbQAAAAAAAACpAmpmZmZkZM0AUrkfhevRNQAAAAAAAgCVAAAAAAIDVwUBmZmZmZiZWQM3MzMzMzBpAMzMzMzPTU0AK16NwPQpJQOF6FK5H4SxAAAAAAIB5wUAAAAAAAMBaQDMzMzMzMwNAzczMzMwMS0DD9Shcj0JKQM3MzMzMzCpAAAAAAAAiwUAAAAAAAABdQM3MzMzMzC1AmpmZmZn5UkBcj8L1KFxCQK5H4XoUrhHAAAAAAAD7v0AAAAAAAMBTQDMzMzMzszBAzczMzMzMQkDsUbgehWtGQI\u002fC9Shcj+K\u002fAAAAAAB\u002fv0AAAAAAAMBZQDMzMzMzMyRAzczMzMxsUUBcj8L1KLxDQFK4HoXrUdi\u002fAAAAAAB+vUAAAAAAAABVQAAAAAAAACZAAAAAAADAUkBSuB6F67FCQOxRuB6F6xfAAAAAAACau0AAAAAAACBjQGZmZmZmZjtAMzMzMzNzUUC4HoXrUbhGQClcj8L1qChAAAAAAABeuUCamZmZmdlYQGZmZmZmZgJAZmZmZmaGUEA9CtejcL1KQOxRuB6F6wHAAAAAAAC0t0AAAAAAAOBrQGZmZmZmZhpAmpmZmZmZNUCPwvUoXC9KQJqZmZmZmRNAAAAAAAD9tUAAAAAAAMBVQGZmZmZmZhJAAAAAAADASUDNzMzMzGxJQGZmZmZmZhFAAAAAAADOtEAAAAAAAKBgQAAAAAAAACJAAAAAAADASkDNzMzMzKxKQArXo3A9ChnAAAAAAACYtEAAAAAAAEBTQDMzMzMzMyRAMzMzMzPzRUDhehSuR+FGQFK4HoXrURNAAAAAAAAMs0AAAAAAACBoQAAAAAAAACNAzczMzMxMSkCamZmZmflLQIXrUbgehQnAAAAAAAAMskAAAAAAAIBbQJqZmZmZmUNAzczMzMxMQEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIskAAAAAAAMBcQDMzMzMzMwdAzczMzMzMQUBSuB6F6xFIQClcj8L1KCdAAAAAAADPsUAAAAAAAIBLQDMzMzMzMylAAAAAAADgUEBSuB6F61FEQHE9Ctej8DZAAAAAAADIr0AAAAAAAMBaQGZmZmZmZiRAMzMzMzNzUEAfhetRuD5GQK5H4XoUriZAAAAAAAD0rEAzMzMzM1NcQGZmZmZmZg5AzczMzMzMP0AK16NwPapNQFK4HoXrETJAAAAAAABmqkAAAAAAAIBWQM3MzMzMzCVAAAAAAACATUCamZmZmdlGQNejcD0KVyNAAAAAAACUokAAAAAAALBiQJqZmZmZmRVAmpmZmZmZTkBxPQrXo7BHQBSuR+F6FCFAAAAAAADcoUAzMzMzMxNcQDMzMzMzMxNAMzMzMzNzS0AAAAAAAAAAAAAAAAAAAAAAAAAAAACuoUAAAAAAAABWQDMzMzMzMxFAAAAAAADAT0AAAAAAAAAAAAAAAAAAAAAAAAAAAAA0nEBmZmZmZiZdQDMzMzMzMxlAmpmZmZkZR0AAAAAAAAAAAAAAAAAAAAAA","shape":"39, 6"},"geo":"geo","hovertemplate":"\u003cb\u003e%{hovertext}\u003c\u002fb\u003e\u003cbr\u003e\u003cbr\u003eListings=%{customdata[0]:,.0f}\u003cbr\u003ePrix méd. EUR=%{marker.color:.0f}\u003cbr\u003eL\u002f1000 hab=%{customdata[2]:.1f}\u003cbr\u003e% multi-host=%{customdata[3]:.0f}\u003cextra\u003e\u003c\u002fextra\u003e","hovertext":["Londres","Paris","Rome","Istanbul","Lisbonne","Milan","Madrid","Athènes","Barcelone","Copenhague","Porto","Budapest","Florence","Vienne","Naples","Oslo","Prague","Berlin","Malaga","Bordeaux","Valence","Séville","Venise","Manchester (métro)","Amsterdam","Bruxelles","Dublin","Lyon","Édimbourg","Pays basque (BAB)","Munich","Thessalonique","Bologne","Stockholm","Bergame","Zurich","Bristol","Anvers","Genève"],"lat":{"dtype":"f8","bdata":"4XoUrkfBSUCuR+F6FG5IQDMzMzMz80RA4XoUrkeBREBcj8L1KFxDQHsUrkfhukZA9ihcj8I1REA9CtejcP1CQFK4HoXrsURA16NwPQrXS0AUrkfhepREQAAAAAAAwEdAw\u002fUoXI\u002fiRUB7FK5H4RpIQM3MzMzMbERAFK5H4Xr0TUAK16NwPQpJQMP1KFyPQkpAXI\u002fC9ShcQkDsUbgehWtGQFyPwvUovENAUrgeheuxQkC4HoXrUbhGQD0K16NwvUpAj8L1KFwvSkDNzMzMzGxJQM3MzMzMrEpA4XoUrkfhRkCamZmZmflLQAAAAAAAAAAAUrgehesRSEBSuB6F61FEQB+F61G4PkZACtejcD2qTUCamZmZmdlGQHE9CtejsEdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"},"legendgroup":"","lon":{"dtype":"f8","bdata":"pHA9CtejwL\u002fNzMzMzMwCQAAAAAAAAClAexSuR+H6PEBI4XoUrkciwOF6FK5HYSJAmpmZmZmZDcB7FK5H4bo3QFyPwvUoXAFApHA9CtcjKUDD9Shcj0IhwArXo3A9CjNAAAAAAACAJkAfhetRuF4wQArXo3A9iixAAAAAAACAJUDhehSuR+EsQM3MzMzMzCpArkfhehSuEcCPwvUoXI\u002fiv1K4HoXrUdi\u002f7FG4HoXrF8ApXI\u002fC9agoQOxRuB6F6wHAmpmZmZmZE0BmZmZmZmYRQArXo3A9ChnAUrgehetRE0CF61G4HoUJwAAAAAAAAAAAKVyPwvUoJ0BxPQrXo\u002fA2QK5H4XoUriZAUrgehesRMkDXo3A9ClcjQBSuR+F6FCFAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"},"marker":{"color":{"dtype":"f8","bdata":"mpmZmZkpY0AAAAAAAIBjQAAAAAAAgGBAmpmZmZk5UUAAAAAAAABbQAAAAAAAwFpAAAAAAAAAWUAAAAAAAABTQAAAAAAAgGFAmpmZmZmpY0AAAAAAAIBWQGZmZmZmZkxAAAAAAACAYUAAAAAAAABXQAAAAAAAgFZAAAAAAAAgW0BmZmZmZiZWQAAAAAAAwFpAAAAAAAAAXUAAAAAAAMBTQAAAAAAAwFlAAAAAAAAAVUAAAAAAACBjQJqZmZmZ2VhAAAAAAADga0AAAAAAAMBVQAAAAAAAoGBAAAAAAABAU0AAAAAAACBoQAAAAAAAgFtAAAAAAADAXEAAAAAAAIBLQAAAAAAAwFpAMzMzMzNTXEAAAAAAAIBWQAAAAAAAsGJAMzMzMzMTXEAAAAAAAABWQGZmZmZmJl1A"},"coloraxis":"coloraxis","size":{"dtype":"i4","bdata":"UO0AAEDHAACnewAAnWEAAGRQAAD0TQAAHkoAABc5AAA9OAAAQTUAAMYxAAB1LgAASS0AALInAABDJAAA7CMAAKsjAADzIgAARCIAAPsfAAB\u002fHwAAfh0AAJobAABeGQAAtBcAAP0VAADOFAAAmBQAAAwTAAAMEgAACBIAAM8RAADkDwAAeg4AADMNAABKCQAA7ggAANcIAAANBwAA"},"sizemode":"area","sizeref":24.3008,"symbol":"circle"},"mode":"markers","name":"","showlegend":false,"type":"scattergeo"}],                        {"template":{"layout":{"colorway":["#1696d2","#fdbf11","#5c5859","#55b748","#ec008b","#ca5800","#0a4c6a","#d2d2d2"],"font":{"color":"#666666","family":"Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif","size":14},"legend":{"font":{"color":"#333333","size":13},"itemsizing":"constant","orientation":"h","title":{"font":{"color":"#5c5859","size":12}},"x":0,"xanchor":"left","y":1.1},"margin":{"b":60,"l":60,"r":30,"t":100},"paper_bgcolor":"white","plot_bgcolor":"white","title":{"font":{"color":"#666666","family":"Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif","size":18},"pad":{"b":15},"x":0.0,"xanchor":"left","y":0.96},"xaxis":{"linecolor":"#333333","linewidth":1.0,"showgrid":false,"showline":true,"tickfont":{"color":"#666666","size":14},"title":{"font":{"color":"#666666","size":14},"standoff":12},"zeroline":false},"yaxis":{"linecolor":"#333333","linewidth":1.0,"showgrid":false,"showline":true,"tickfont":{"color":"#666666","size":14},"title":{"font":{"color":"#666666","size":14},"standoff":15},"zeroline":false}}},"geo":{"domain":{"x":[0.0,1.0],"y":[0.0,1.0]},"center":{"lat":48,"lon":12},"projection":{"type":"natural earth"},"lonaxis":{"range":[-12,35]},"lataxis":{"range":[34,62]},"scope":"europe","showcoastlines":true,"coastlinecolor":"#d2d2d2","showland":true,"landcolor":"#f5f5f5","showocean":true,"oceancolor":"#e8f4fa","showcountries":true,"countrycolor":"#d2d2d2"},"coloraxis":{"colorbar":{"title":{"text":"Prix méd.\u003cbr\u003eEUR\u002fnuit"},"len":0.6},"colorscale":[[0.0,"#fdd870"],[0.5,"#ca5800"],[1.0,"#0a4c6a"]]},"legend":{"tracegroupgap":0},"title":{"text":"\u003cspan style='color:#999;font-weight:500;font-size:16px'\u003eFigure 6 —\u003c\u002fspan\u003e \u003cb style='font-size:16px'\u003e36 marchés Airbnb en Europe\u003c\u002fb\u003e\u003cbr\u003e\u003cspan style='font-size:14px;color:#5c5859;font-weight:normal'\u003eTaille = volume d'annonces · couleur = prix médian\u003c\u002fspan\u003e"},"margin":{"t":100,"b":20,"l":0,"r":0},"height":520},                        {"displayModeBar": false, "responsive": true}                    )                };            </script>
+</div>
+<div class="figure-source">
+<p>Source : Inside Airbnb, juin 2025 · Géolocalisation manuelle des villes-centres</p>
+</div>
+<p>La carte révèle un double phénomène. D’un côté, les grands marchés de volume concentrés sur l’arc Londres–Paris–Rome. De l’autre, des villes plus petites — Porto, Florence, Bordeaux — où la pression par habitant atteint des niveaux inédits. La couleur des bulles dessine deux Europes tarifaires qui épousent la carte du pouvoir d’achat, avec quelques anomalies notables : Porto combine pression maximale et prix contenus, quand Amsterdam concentre premium tarifaire et faible professionnalisation.</p>
+</section>
+<hr>
+<section id="quatre-profils-de-marché" class="level2 unnumbered">
+<h2 class="unnumbered anchored" data-anchor-id="quatre-profils-de-marché">Quatre profils de marché</h2>
+<p>Une analyse en composantes principales (ACP) permet de dégager les grandes structures du marché européen. Huit indicateurs sont projetés simultanément — prix, pression touristique, professionnalisation, disponibilité, activité review, ratio listing/host, part longterm et part de logements entiers — pour identifier les dimensions latentes qui organisent la diversité des 36 marchés.</p>
+<div class="tabset-margin-container"></div><div class="panel-tabset">
+<ul class="nav nav-tabs" role="tablist"><li class="nav-item" role="presentation"><a class="nav-link active" id="tabset-3-1-tab" data-bs-toggle="tab" data-bs-target="#tabset-3-1" role="tab" aria-controls="tabset-3-1" aria-selected="true" href="">Biplot</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-3-2-tab" data-bs-toggle="tab" data-bs-target="#tabset-3-2" role="tab" aria-controls="tabset-3-2" aria-selected="false" href="">Profils</a></li></ul>
+<div class="tab-content">
+<div id="tabset-3-1" class="tab-pane active" role="tabpanel" aria-labelledby="tabset-3-1-tab">
+<div class="cell">
+<div class="cell-output-display">
+<div id="fig-screeplot" class="quarto-float quarto-figure quarto-figure-center anchored" width="768">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-screeplot-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="rpt-pbnb-synth-europe-260214_files/figure-html/fig-screeplot-1.png" id="fig-screeplot" class="img-fluid figure-img" width="768">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig quarto-uncaptioned" id="fig-screeplot-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;1
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div id="fig-biplot" class="quarto-float quarto-figure quarto-figure-center anchored" width="960">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-biplot-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="rpt-pbnb-synth-europe-260214_files/figure-html/fig-biplot-1.png" id="fig-biplot" class="img-fluid figure-img" width="960">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig quarto-uncaptioned" id="fig-biplot-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;2
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<div class="figure-source">
+<p>ACP sur 8 indicateurs centrés-réduits · Classification hiérarchique ascendante (Ward, k=4)</p>
+</div>
+</div>
+<div id="tabset-3-2" class="tab-pane" role="tabpanel" aria-labelledby="tabset-3-2-tab">
+<div class="cell">
+<div id="tbl-clusters" class="cell quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl quarto-uncaptioned" id="tbl-clusters-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Table&nbsp;3
+</figcaption>
+<div aria-describedby="tbl-clusters-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div class="cell-output-display">
+<div class="reactable html-widget html-fill-item" id="htmlwidget-eb88f08305bdc02d6a04" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-eb88f08305bdc02d6a04">{"x":{"tag":{"name":"Reactable","attribs":{"data":{"cluster":["Profil 1","Profil 2","Profil 3","Profil 4"],"n_villes":[17,9,2,11],"prix_med":[107,113,104,90],"listings_1000hab":[6.3,13,5.1,14.9],"pct_multi":[61,33,78,74],"pct_entire":[73,83,72,86],"dispo_med":[220,147,299,238],"reviews_med":[13,12,6,29],"pct_longterm":[7,3.7,46.3,2.1],"villes":["Londres, Rome, Milan, Madrid, Naples","Paris, Copenhague, Oslo, Bordeaux, Amsterdam","Istanbul, Barcelone","Lisbonne, Athènes, Porto, Budapest, Florence"]},"columns":[{"id":"cluster","name":"Profil","type":"factor","width":90},{"id":"n_villes","name":"N","type":"numeric","width":45,"align":"center"},{"id":"prix_med","name":"Prix €","type":"numeric","width":70,"align":"right"},{"id":"listings_1000hab","name":"L/1000h","type":"numeric","width":75,"align":"right"},{"id":"pct_multi","name":"% multi","type":"numeric","format":{"cell":{"suffix":" %"},"aggregated":{"suffix":" %"}},"width":70,"align":"right"},{"id":"pct_entire","name":"% entier","type":"numeric","format":{"cell":{"suffix":" %"},"aggregated":{"suffix":" %"}},"width":75,"align":"right"},{"id":"dispo_med","name":"Dispo j.","type":"numeric","width":70,"align":"right"},{"id":"reviews_med","name":"Reviews","type":"numeric","width":70,"align":"right"},{"id":"pct_longterm","name":"% long","type":"numeric","format":{"cell":{"suffix":" %"},"aggregated":{"suffix":" %"}},"width":65,"align":"right"},{"id":"villes","name":"Principales villes","type":"character","minWidth":200}],"defaultPageSize":5,"highlight":true,"bordered":true,"striped":true,"compact":true,"style":{"fontSize":"0.82rem"},"dataKey":"6a14690b2b8d765b36d982ec1345047a"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+</figure>
+</div>
+</div>
+</div>
+</div>
+</div>
+<p>La classification hiérarchique (méthode Ward) identifie <strong>quatre profils distincts</strong> :</p>
+<p><strong>Profil 1 — Marchés mainstream</strong> (Londres, Rome, Milan, Berlin, Madrid…) : 16 villes au profil médian — prix ~105 EUR, professionnalisation intermédiaire (60 % multi-hosts), pression touristique modérée. Le socle européen standard, incluant Bordeaux et Lyon côté français.</p>
+<p><strong>Profil 2 — Marchés premium</strong> (Paris, Amsterdam, Copenhague, Oslo, Édimbourg, Stockholm) : prix élevés (~157 EUR), très faible professionnalisation (27 % multi-hosts), disponibilité contrainte, quasi-absence de longterm. Le modèle du « particulier sélectif » dans les métropoles nordiques et capitales à fort pouvoir d’achat.</p>
+<p><strong>Profil 3 — Marchés régulés à longterm</strong> (Istanbul, Barcelone) : profils atypiques avec ~46 % de listings longterm, haute disponibilité (299 jours), très forte professionnalisation (78 %). La réglementation locale impose des séjours minimums élevés.</p>
+<p><strong>Profil 4 — Pression touristique forte</strong> (Porto, Lisbonne, Florence, Athènes, Venise…) : 12 villes à forte densité d’annonces (14,6 L/1 000 hab), très professionnalisées (73 %), activité review intense, prix accessibles (~89 EUR). La compétition par les volumes maintient des tarifs contenus.</p>
+<hr>
+</section>
+<section id="tableau-récapitulatif" class="level2 unnumbered grey-section">
+<h2 class="unnumbered anchored" data-anchor-id="tableau-récapitulatif">Tableau récapitulatif</h2>
+<div class="cell">
+<div id="tbl-recap" class="cell quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl quarto-uncaptioned" id="tbl-recap-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Table&nbsp;4
+</figcaption>
+<div aria-describedby="tbl-recap-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div class="cell-output-display">
+<div class="reactable html-widget html-fill-item" id="htmlwidget-39d64f3c39b7fd2b5300" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-39d64f3c39b7fd2b5300">{"x":{"tag":{"name":"Reactable","attribs":{"data":{"city_fr":["Porto","Pays basque (BAB)","Florence","Venise","Lisbonne","Paris","Athènes","Copenhague","Bordeaux","Malaga","Milan","Oslo","Thessalonique","Rome","Séville","Bergame","Bologne","Naples","Valence","Lyon","Édimbourg","Dublin","Barcelone","Londres","Budapest","Prague","Amsterdam","Genève","Madrid","Zurich","Vienne","Bristol","Bruxelles","Anvers","Stockholm","Munich","Berlin","Manchester (métro)","Istanbul"],"country_code":["PRT","FRA","ITA","ITA","PRT","FRA","GRC","DNK","FRA","ESP","ITA","NOR","GRC","ITA","ESP","ITA","ITA","ITA","ESP","FRA","GBR","IRL","ESP","GBR","HUN","CZE","NLD","CHE","ESP","CHE","AUT","GBR","BEL","BEL","SWE","DEU","DEU","GBR","TUR"],"n_listings":[12742,4620,11593,7066,20580,51008,14615,13633,8187,8772,19956,9196,4559,31655,7550,3379,4068,9283,8063,5272,4876,5326,14397,60752,11893,9131,6068,1805,18974,2378,10162,2286,5629,2263,3706,4616,8947,6494,24989],"listings_1000hab":[40.7,39.2,31.2,27.4,26.1,23.9,22.7,20.7,16.7,14.9,14.3,13,12.6,11.5,11,10.9,10.2,10.1,10.1,10.1,9.5,9,8.7,6.9,6.8,6.7,6.6,6.3,5.6,5.4,5.1,4.8,4.6,4.3,3.8,2.9,2.4,2.3,1.6],"prix_med":[90,110,140,153,108,156,76,157.3,79,116,107,108.5,55,132,84,90,107,90,103,77,193,133,140,153.3,56.8,88.6,223,116.6,100,149.5,92,112.3,87,88,113.3,115,107,99.4,68.9],"pct_multi":[77.5,32.6,68.5,69.8,74.1,40.3,71.8,15.9,37.6,75.9,62.2,19.1,67.5,58.2,75,59,65.8,64.3,69.7,43.9,52.6,53.5,80.9,63.7,72.7,79.3,21.6,46.2,73.3,61.2,75.9,54.9,51.5,63.5,31.8,35.6,54.1,66.1,74.2],"pct_entire":[85.1,92,85.3,80.6,76.9,91.1,93.5,91.6,78.6,88.6,88.1,88,97.7,78.3,86.3,82.9,80.3,65.4,72.9,83.3,71.3,53.9,70.7,67.3,92.6,83.9,77.3,67.9,69.3,76.2,87.4,72.3,74,84.3,82.5,65.9,74.3,66.3,72.7],"dispo_med":[283,128,238,241,261,197,278,106,201,224,206,147,268,247,178,246,177,261,178,185,117,150,244,220,180,181,111,204,233,170.5,234,225,219,255,192,171,230,268,354],"pct_longterm":[1.2,3.7,6.7,3.6,3.9,14.4,1,1.3,6.5,2.1,16.8,1.4,0.9,7,1.8,9.4,12.3,15,4.9,8.2,0.7,2,42.4,2.7,1.2,2.1,1.1,5.7,13.1,10.1,10.8,1.3,8,5.6,3.8,4.5,26.3,1.6,50.3],"reviews_med":[29,12,30,49,27,9,14,7,14,18,11,5,14,20,35,10,23,7,16,21,49,13,10,6,35,34,12,9,17,7,14,17,15,18,7,7,14,8,2]},"columns":[{"id":"city_fr","name":"Ville","type":"character","width":140,"sticky":"left","style":{"fontWeight":500}},{"id":"country_code","name":"Pays","type":"character","width":55,"align":"center"},{"id":"n_listings","name":"Listings","type":"numeric","format":{"cell":{"separators":true},"aggregated":{"separators":true}},"width":85,"align":"right"},{"id":"listings_1000hab","name":"L/1000 hab","type":"numeric","format":{"cell":{"digits":1},"aggregated":{"digits":1}},"width":90,"align":"right","style":[{"background":"#fdd870"},{"background":"#fdd870"},{"background":"#fdd870"},{"background":"#fdd870"},{"background":"#fdd870"},{"background":"#fdd870"},{"background":"#fdd870"},{"background":"#fdd870"},{"background":"#fef4d0"},{"background":"#fef4d0"},{"background":"#fef4d0"},{"background":"#fef4d0"},{"background":"#fef4d0"},{"background":"#fef4d0"},{"background":"#fef4d0"},{"background":"#fef4d0"},{"background":"#fef4d0"},{"background":"#fef4d0"},{"background":"#fef4d0"},{"background":"#fef4d0"},{"background":"transparent"},{"background":"transparent"},{"background":"transparent"},{"background":"transparent"},{"background":"transparent"},{"background":"transparent"},{"background":"transparent"},{"background":"transparent"},{"background":"transparent"},{"background":"transparent"},{"background":"transparent"},{"background":"transparent"},{"background":"transparent"},{"background":"transparent"},{"background":"transparent"},{"background":"transparent"},{"background":"transparent"},{"background":"transparent"},{"background":"transparent"}]},{"id":"prix_med","name":"Prix €","type":"numeric","width":70,"align":"right"},{"id":"pct_multi","name":"% multi","type":"numeric","format":{"cell":{"suffix":"%","digits":0},"aggregated":{"suffix":"%","digits":0}},"width":70,"align":"right"},{"id":"pct_entire","name":"% entier","type":"numeric","format":{"cell":{"suffix":"%","digits":0},"aggregated":{"suffix":"%","digits":0}},"width":75,"align":"right"},{"id":"dispo_med","name":"Dispo j.","type":"numeric","width":70,"align":"right"},{"id":"pct_longterm","name":"% long","type":"numeric","format":{"cell":{"suffix":"%","digits":1},"aggregated":{"suffix":"%","digits":1}},"width":65,"align":"right"},{"id":"reviews_med","name":"Reviews","type":"numeric","width":70,"align":"right"}],"searchable":true,"defaultSorted":[{"id":"listings_1000hab","desc":true}],"defaultPageSize":20,"highlight":true,"bordered":true,"striped":true,"compact":true,"style":{"fontSize":"0.82rem"},"dataKey":"9c110679b03b5b33c6432ad31c47591c"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+</figure>
+</div>
+</div>
+</section>
+<div class="encadre-accent">
+<p><span class="encadre-titre">Source et méthodologie</span></p>
+<p><strong>Données</strong> : Inside Airbnb (sumlistings, juin 2025) — projet indépendant de collecte des annonces publiques.</p>
+<p><strong>Périmètre</strong> : 36 villes européennes, 19 pays, 452 000 annonces actives après nettoyage.</p>
+<p><strong>Pipeline</strong> : prix non null → disponibilité &gt; 0 → hors hôtels → prix 10–1 000 EUR (taux de rétention ~70 %).</p>
+<p><strong>Population</strong> : ville-centre (Eurostat, recensements nationaux). Ce choix méthodologique majore les ratios par rapport aux estimations métropolitaines.</p>
+<p><strong>Taux de change</strong> : EUR mi-2025 pour 9 devises non-euro (GBP, HUF, TRY, DKK, CZK, NOK, SEK, CHF, EUR/LVL).</p>
+<p><strong>ACP</strong> : 8 variables centrées-réduites, FactoMineR. Classification hiérarchique ascendante (distance euclidienne, agrégation Ward, 4 classes).</p>
+</div>
+<section id="pour-en-savoir-plus" class="level3 pour-en-savoir-plus">
+<h3 class="anchored" data-anchor-id="pour-en-savoir-plus">Pour en savoir plus</h3>
+<ul>
+<li><a href="./rpt-pbnb-synth-monde-260214.html"><strong>Vue mondiale — 64 villes</strong></a> — Cadrage international, benchmarking par continent</li>
+<li><a href="./rpt-pbnb-rapport-ALL-260207.html"><strong>Rapport complet</strong></a> — Analyse détaillée monde + Europe, 20 figures, panel-tabsets (64 villes)</li>
+<li><a href="./rpt-pbnb-edanbk-ALL-260215.html"><strong>Notebook EDA</strong></a> — Exploration données, distributions, corrélations, code reproductible</li>
+<li><a href="rpt-pres-bnb-v2-260210.html"><strong>Présentation interactive</strong></a> — 14 slides RevealJS avec graphiques Plotly</li>
+<li><a href="./rpt-pbnb-dash-ALL-260222.html"><strong>Dashboard interactif</strong></a> — Exploration libre avec sélecteur d’indicateurs (64 villes)</li>
+<li><strong>Inside Airbnb</strong> — <a href="http://insideairbnb.com/get-the-data/">insideairbnb.com</a> — Données ouvertes</li>
+</ul>
+</section>
+
+
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copié");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copié");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/vincentroue\.github\.io\/pbnb-airbnb\/");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+<script src="site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

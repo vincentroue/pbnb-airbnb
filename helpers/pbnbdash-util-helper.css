@@ -1,0 +1,193 @@
+/* pbnbdash-util-helper.css
+ * Dashboard Airbnb France — Paris · Lyon · Bordeaux
+ * Styles extraits du QMD monolithique v1 (260215)
+ * v2 — 2026-02-18
+ */
+
+/* &s &BANNER_HEADER - KPI briques header */
+.banner {
+  background:#f8f9fa; border-bottom:3px solid #0a4c6a;
+  padding:12px 20px; margin-bottom:0;
+}
+.kpi-row { display:flex; gap:16px; align-items:center; }
+.kpi-brick {
+  background:white; border-left:4px solid #1696d2; border-radius:0 4px 4px 0;
+  padding:8px 14px; box-shadow:0 1px 3px rgba(0,0,0,0.08); min-width:120px;
+}
+.kpi-brick.accent-orange { border-left-color:#ca5800; }
+.kpi-brick.accent-green { border-left-color:#55b748; }
+.kpi-brick .kv { font-size:1.6em; font-weight:700; color:#0a4c6a; line-height:1.1; }
+.kpi-brick.accent-orange .kv { color:#ca5800; }
+.kpi-brick.accent-green .kv { color:#55b748; }
+.kpi-brick .kl { font-size:0.75em; color:#5c5859; margin-top:2px; }
+/* &e */
+
+/* &s &MAP_STYLES - Carte MapLibre et contrôles */
+.maplibregl-map { background:#e8e8e8 !important; }
+.map-ctrl {
+  position:absolute; top:8px; left:8px; z-index:5;
+  background:rgba(255,255,255,0.95); border-radius:6px;
+  padding:8px 12px; font-size:12px; box-shadow:0 1px 4px rgba(0,0,0,0.18);
+  display:flex; flex-direction:column; gap:5px; max-width:220px;
+  border:1px solid #d1d5db;
+}
+.map-ctrl select { width:100%; font-size:11px; padding:3px 4px; border:1px solid #94a3b8; border-radius:3px; }
+.map-ctrl label { display:flex; align-items:center; gap:4px; cursor:pointer; font-size:11px; }
+.map-ctrl .mt { font-weight:700; font-size:11px; color:#0a4c6a; }
+.map-legend {
+  position:absolute; bottom:24px; left:8px; z-index:5;
+  background:rgba(255,255,255,0.93); border-radius:3px;
+  padding:6px 10px; font-size:10px; box-shadow:0 1px 2px rgba(0,0,0,0.1);
+}
+.lg-bar { display:flex; height:12px; border-radius:2px; overflow:hidden; width:200px; margin:3px 0; }
+.lg-bar div { flex:1; }
+.lg-labels { display:flex; justify-content:space-between; font-size:9px; color:#888; font-weight:400; }
+/* &e */
+
+/* &s &TERRITORY_TABLE - Tableau territoires */
+.t { overflow-y:auto; overflow-x:hidden; font-size:12px; }
+.t:hover { overflow-x:auto; }
+.t table { border-collapse:collapse; width:100%; }
+.t th {
+  position:sticky; top:0; z-index:3; background:#e5e7eb;
+  border-bottom:2px solid #94a3b8; padding:5px 6px; font-size:11px;
+  cursor:pointer; user-select:none; white-space:nowrap;
+  text-align:left;
+}
+.t th .th-unit { display:block; font-weight:400; font-style:italic; font-size:9px; color:#6b7280; }
+.t tr.supra th { background:#d1d5db; text-align:center; font-size:10px; font-weight:600; letter-spacing:0.3px;
+  text-transform:uppercase; color:#374151; padding:3px 4px; border-bottom:1px solid #94a3b8; border-left:1px solid #e5e7eb; }
+.t tr.supra th:first-child { border-left:none; }
+.t th:hover { background:#d1d5db; }
+.t th.active { background:#bfdbfe; font-weight:700; }
+.t td { padding:4px 6px; border-bottom:1px solid #f1f5f9; white-space:nowrap; font-size:12px; min-width:60px; }
+.t tr:hover { background:#f8fafc; }
+.t .sticky-fr { position:sticky; z-index:2; background:#f0f9ff; font-weight:600; box-shadow:0 1px 0 #93c5fd; }
+.t .sticky-city { position:sticky; z-index:1; background:#fefce8; font-weight:600; box-shadow:0 1px 0 #fde68a; }
+.t .bar-bg { display:inline-block; height:10px; background:#f3f4f6; border-radius:2px; vertical-align:middle; width:70px; border:none; }
+.t .bar-fill { display:block; height:100%; border-radius:2px; }
+.t-toolbar { display:flex; align-items:center; gap:8px; margin-bottom:4px; font-size:12px; }
+.t-toolbar input { padding:4px 8px; font-size:12px; border:1px solid #d1d5db; border-radius:3px; width:140px; }
+.t-toolbar .info { color:#6b7280; font-size:11px; }
+/* &e */
+
+/* &s &HOST_TABLE - Tableau top hôtes */
+.th { font-size:9px; }
+.th table { border-collapse:collapse; width:100%; }
+.th th { background:#fef3c7; border-bottom:2px solid #f59e0b; padding:2px 4px; font-size:8px; cursor:pointer; user-select:none; white-space:nowrap; position:sticky; top:0; z-index:2; }
+.th td { padding:2px 4px; border-bottom:1px solid #f5f5f4; font-size:9px; white-space:nowrap; }
+.th tr:hover { background:#fffbeb; }
+/* &e */
+
+/* &s &CITY_ROW_LAYOUT - Grid bypass Quarto layout bug */
+.city-row { display:grid; grid-template-columns:40fr 60fr; gap:1px; height:500px; background:#d1d5db; border:1px solid #d1d5db; }
+.city-right { display:grid; grid-template-rows:auto 1fr; grid-template-columns:55fr 8fr; gap:4px; overflow:hidden; }
+.city-story {
+  grid-column:1/-1; background:#f8fafc; border-radius:0;
+  padding:8px 14px; font-size:12px; line-height:1.5; color:#475569;
+  display:flex; flex-wrap:wrap; align-items:center; gap:6px 16px;
+}
+.city-story .sk { font-size:16px; font-weight:700; color:#0a4c6a; }
+.city-story .sk.accent { color:#ca5800; }
+.city-story .sl { font-size:10px; color:#6b7280; }
+.city-story .sp { font-size:11px; color:#334155; flex-basis:100%; margin-top:2px; }
+.city-card {
+  background:white; border-radius:0; box-shadow:none;
+  overflow:hidden; display:flex; flex-direction:column;
+}
+.city-card-header {
+  font-size:13px; font-weight:600; padding:7px 10px;
+  border-bottom:1px solid #e5e7eb; color:#0a4c6a; flex-shrink:0;
+}
+.city-card-header.map-header {
+  background:#6b7280; color:#fff; font-size:15px; font-weight:700; letter-spacing:0.3px;
+  display:flex; justify-content:center; align-items:center; gap:10px;
+}
+.map-header .indic-tag { font-size:12px; font-weight:400; opacity:0.85; }
+/* &e */
+
+/* &s &TOP_BLOCK - Section blue marine blocks */
+.top-block-header {
+  background:#0a4c6a; color:#fff; font-size:13px; font-weight:600;
+  padding:6px 12px; border-radius:0; letter-spacing:0.3px;
+}
+/* &e */
+
+/* &s &CARD_ALIGN - Top-align card content */
+.card-body { justify-content:flex-start !important; align-items:flex-start !important; padding-top:4px !important; }
+.cell-output-display { align-self:flex-start; width:100%; }
+.bslib-card .card-body { padding-top:4px !important; }
+/* All cards: no rounded borders, top-aligned content */
+.bslib-card { border-radius:0 !important; overflow:hidden; }
+.bslib-card .card-body { display:flex; flex-direction:column; justify-content:flex-start !important; }
+/* Dashboard title bar — distinct from navbar */
+.navbar .navbar-title, .navbar-brand { font-weight:700 !important; }
+.bslib-page-title { background:#0a4c6a !important; color:white !important; padding:8px 16px !important; }
+h2.anchored { margin-top:0 !important; padding-top:0 !important; }
+/* &e */
+
+/* &s &KPI_GRID - Bloc KPI structuré 3 colonnes + panel hôtes */
+.kpi-grid { display:grid; grid-template-columns:3.5fr 0.8fr; gap:0; height:100%; }
+.kpi-panel { display:flex; flex-direction:column; background:white; border:1px solid #e5e7eb; }
+.kpi-header {
+  background:#0a4c6a; color:white; padding:6px 16px; font-size:12px;
+  display:flex; justify-content:space-between; align-items:center;
+}
+.kpi-blocs { display:flex; flex:1; min-height:0; }
+.kpi-bloc { flex:1; padding:10px 14px; border-right:1px solid #e5e7eb; overflow-y:auto; }
+.kpi-bloc:last-child { border-right:none; }
+.kpi-bloc-title {
+  font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;
+  padding-bottom:4px; margin-bottom:6px; border-bottom:2px solid;
+}
+.kpi-item { margin-bottom:8px; }
+.kpi-item .kv { font-size:20px; font-weight:800; display:inline; }
+.kpi-item .kl { font-size:12px; color:#374151; display:inline; margin-left:6px; }
+.kpi-item .kt { font-size:8.5px; color:#475569; margin-top:2px; line-height:1.3; }
+.kpi-item .kt .u { color:#0a4c6a; } .kpi-item .kt .d { color:#ca5800; }
+.kpi-narr { margin-bottom:8px; font-size:11px; line-height:1.4; color:#374151; }
+.kpi-narr strong { font-size:13px; font-weight:800; }
+.hosts-panel {
+  background:#f8f9fa; border:1px solid #e5e7eb; border-left:none;
+  display:flex; flex-direction:column; overflow:hidden;
+}
+.hosts-panel .hosts-hd {
+  font-size:11px; font-weight:700; color:#374151; padding:6px 12px;
+  background:#e5e7eb; border-bottom:1px solid #d1d5db;
+}
+.hosts-panel .hosts-scroll { overflow-y:auto; flex:1; }
+.hosts-panel table { width:100%; border-collapse:collapse; font-size:10px; }
+.hosts-panel th {
+  position:sticky; top:0; background:#e5e7eb; padding:3px 6px;
+  text-align:left; font-size:9px; font-weight:600; color:#374151;
+}
+.hosts-panel td { padding:2px 6px; border-bottom:1px solid #f1f5f9; }
+/* &e */
+
+/* &s &IRIS_TOOLTIP - Tooltip IRIS enrichi (singleton DOM, inspiré ptod) */
+.iris-tooltip {
+  display:none; position:fixed; z-index:9999;
+  background:rgba(15,23,42,0.95); color:#e2e8f0;
+  padding:8px 12px; border-radius:6px;
+  font-size:11px; line-height:1.5;
+  pointer-events:none; max-width:280px;
+  box-shadow:0 4px 12px rgba(0,0,0,0.3);
+  border:1px solid rgba(255,255,255,0.08);
+}
+/* &e */
+
+/* &s &POPUP_DARK - Popup MapLibre fond noir (carte monde/scatter) */
+.city-popup-dark .maplibregl-popup-content {
+  background: rgba(15,23,42,0.95) !important;
+  color: #e2e8f0;
+  border-radius: 6px;
+  padding: 8px 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,255,255,0.08);
+  max-width: 300px;
+}
+.city-popup-dark .maplibregl-popup-tip {
+  border-top-color: rgba(15,23,42,0.95) !important;
+  border-bottom-color: rgba(15,23,42,0.95) !important;
+}
+/* &e */
