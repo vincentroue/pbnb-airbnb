@@ -1,0 +1,49 @@
+---
+title: "Airbnb dans six villes françaises face aux marchés européens"
+subtitle: "Offre, professionnalisation et pression résidentielle à Paris, Lyon, Bordeaux et au Pays Basque · benchmark 23 métropoles européennes — Inside Airbnb juin 2025"
+date: today
+categories: ["Rapport"]
+number-sections: false
+title-block-banner: "#1690bd"
+title-block-banner-color: white
+---
+
+<!-- Fichier : rpt-pbnb-rapport-france.qmd | Type : RAPPORT | Scope : France 6 villes + benchmark Europe -->
+<!-- MAIN assembleur ({{< include >}}). Sous-rapports dans srpt/_srpt-france-NN-*.qmd, chunks srptfr0N-* -->
+<!-- Convention : full R, variables aa_fr inline (NA-safe naf/nint), log_*_auto() -->
+
+```{r}
+#| label: setup
+#| include: false
+#| cache: false
+
+source("_setup-common.R")
+source("_data-load-france.R")
+source("_helpers-france-srpt.R")
+library(ggiraph)
+library(gt)
+
+claude_log_init("rapport-france-v2")
+log_aa_vars(aa_fr)  # Dump aa_fr$* dans le JSON — source unique pour Pass 2 narration
+```
+
+{{< include srpt/_srpt-france-00-cadrage.qmd >}}
+
+## 1. La France dans l'espace européen
+
+{{< include srpt/_srpt-france-01-europe.qmd >}}
+
+## 2. Six marchés français : trois profils
+
+{{< include srpt/_srpt-france-02-6villes.qmd >}}
+
+## 3. Pression infraterritoriale et régulation
+
+{{< include srpt/_srpt-france-03-iris-synth.qmd >}}
+
+```{r}
+#| label: log-save
+#| include: false
+
+claude_log_save()
+```

@@ -1,0 +1,93 @@
+# _quarto.yml — Airbnb v2 (full R, conventions ggdl)
+# Refonte propre depuis rpt-bis/, données identiques (data/interim/)
+
+project:
+  type: website
+  output-dir: _output
+  render:
+    - index.qmd
+    - rpt-pbnb-synth-monde.qmd
+    - rpt-pbnb-edanbk-macro.qmd
+    - rpt-pbnb-edanbk-micro.qmd
+    # - rpt-pbnb-explore-kpi.qmd
+    - rpt-pbnb-acpnbk-monde.qmd
+    - rpt-pbnb-methnbk-methode-260430.qmd
+    - rpt-pbnb-rapport-france.qmd   # MAIN assembleur srpt france (4 parties) — 2026-06-05
+    - "!srpt/"   # exclure sous-rapports (préfixe _ + dossier)
+    - "!dev/"    # exclure viewers dev
+    # DÉSACTIVÉS — focus par ville (anciens noms de colonnes, à reprendre en session dédiée)
+    # - rpt-pbnb-focus-paris.qmd
+    # - rpt-pbnb-focus-lyon.qmd
+    # - rpt-pbnb-focus-bordeaux.qmd
+    # - rpt-pbnb-focus-bab.qmd
+    # - rpt-pbnb-rapport-france.qmd
+    # - rpt-pbnb-synth-france.qmd
+    # - rpt-pbnb-rapport-monde.qmd
+    # - rpt-pbnb-rapport-france.qmd
+
+website:
+  title: "Airbnb — Analyse des marchés v2"
+  navbar:
+    background: "#0a3d5c"
+    left:
+      - href: index.qmd
+        text: "Accueil"
+      - href: rpt-pbnb-synth-monde.qmd
+        text: "Synthèse Monde"
+      - href: rpt-pbnb-edanbk-macro.qmd
+        text: "EDA Macro"
+      - href: rpt-pbnb-edanbk-micro.qmd
+        text: "EDA Micro"
+      - href: rpt-pbnb-explore-kpi.qmd
+        text: "Explorateur KPI"
+      - href: rpt-pbnb-acpnbk-monde.qmd
+        text: "ACP Typologie"
+      - href: rpt-pbnb-methnbk-methode-260430.qmd
+        text: "Méthodologie"
+      - href: rpt-pbnb-rapport-france.qmd
+        text: "Rapport France"
+      # - href: rpt-pbnb-synth-france.qmd
+      #   text: "Synthèse France"
+      # - href: rpt-pbnb-rapport-monde.qmd
+      #   text: "Rapport Monde"
+      # - href: rpt-pbnb-rapport-france.qmd
+      #   text: "Rapport France"
+
+lang: fr
+date-format: "DD MMMM YYYY"
+
+execute:
+  echo: false
+  warning: false
+  message: false
+  cache: true
+  freeze: auto
+
+format:
+  html:
+    theme: [cosmo, config/theme-pbnb-v2.scss]
+    toc: true
+    toc-location: left
+    toc-title: "Sommaire"
+    code-fold: true
+    code-tools: true
+    code-summary: "Afficher le code"
+    embed-resources: false
+    favicon: assets/favicon-pbnb-live.svg
+    grid:
+      body-width: 950px
+      sidebar-width: 250px
+      margin-width: 250px
+      gutter-width: 2rem
+    fig-width: 10
+    fig-height: 7
+    fig-dpi: 250      # base print — figures raster nettes en PDF
+    fig-align: left
+    include-in-header:
+      - text: |
+          <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap" rel="stylesheet">
+      - file: assets/favicon-swap.html
+    include-after-body: config/scrollspy-fix.html  # fix ScrollSpy cassé en mode website + toc-location:left
+
+author:
+  name: "Vincent Roue"
