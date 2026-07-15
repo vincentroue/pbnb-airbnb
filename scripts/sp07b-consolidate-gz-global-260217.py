@@ -5,13 +5,13 @@
 # Utilise city-reference-airbnb-260217.csv comme source de vérité.
 #
 # Usage:
-#   python scripts/sp07b-consolidate-gz-global-260217.py [--europe-only]
+#   python scripts/sp07b-consolidate-gz-global-260217.py [--snapshot 26-06] [--europe-only]
 #
 # Outputs:
-#   data/interim/dblistingfull_2506_cons_global.parquet
-#   data/interim/dblistingfull_2506_cons_europe.parquet (si --europe-only)
+#   data/interim/dblistingfull_<SNAP>_cons_global.parquet  (SNAP: 2506 défaut, 2606 via --snapshot 26-06)
+#   data/interim/dblistingfull_<SNAP>_cons_europe.parquet  (si --europe-only)
 #
-# Fichier: sp07b-consolidate-gz-global-260217.py | dcr: 26-02-17 | dup: 26-02-17
+# Fichier: sp07b-consolidate-gz-global-260217.py | dcr: 26-02-17 | dup: 26-07-15
 
 from pathlib import Path
 import pandas as pd
@@ -23,18 +23,40 @@ import sys
 BASE = Path(r"C:\Users\vince\hh\pq\PDS\pbnb-airbnb-log-jrr-jpy")
 RAW_BASE = BASE / "data" / "raw" / "zudb-inside-airbnbbnb"
 INTERIM_DIR = BASE / "data" / "interim"
-REF_CSV = BASE / "data" / "external" / "city-reference-airbnb-260217.csv"
+REF_CSV = BASE / "data" / "external" / "city-reference-airbnb-260222.csv"
 
 europe_only = "--europe-only" in sys.argv
 scope = "europe" if europe_only else "global"
+
+# Snapshot cible paramétrable : --snapshot 26-06 (défaut 25-06 pour rétrocompat)
 SNAPSHOT = "25-06"
+for _i, _a in enumerate(sys.argv):
+    if _a == "--snapshot" and _i + 1 < len(sys.argv):
+        SNAPSHOT = sys.argv[_i + 1]
+SNAP_TAG = SNAPSHOT.replace("-", "")  # "26-06" -> "2606"
+
+# Proxy TOTAL {snapshot_cible: {ville: snapshot_substitut}} : ville dont TOUT le snapshot cible est vide/absent
+# à la source. On FORCE le snapshot de substitution (même saison), PRIORITAIRE sur le fallback auto.
+# Flaggé is_proxy=1 -> exclu de TOUTE l'évolution.
+#   - berlin 26-06 : fichier vide (604 o) chez Inside Airbnb -> proxy juin 2025 complet
+PROXY_SNAPSHOT = {
+    "26-06": {"berlin": "25-06"},
+}
+
+# Prix-invalide {snapshot_cible: {villes}} : SEUL le prix est corrompu à la source, le reste (volumes, avis,
+# occupation, structure, concentration) est valide en 2026. On GARDE le vrai snapshot cible mais on met
+# price / price_eur / estimated_revenue_l365d à NA (flag price_invalid=1) -> exclu de la seule évolution PRIX.
+#   - zurich / geneva 26-06 : prix ~0,15/nuit (100% < 10 EUR) ; non-prix 2026 complet (3308 / 2593 annonces)
+PRICE_INVALID = {
+    "26-06": {"zurich", "geneva"},
+}
 
 # Colonnes à garder (sur ~79 disponibles)
 KEEP_COLS = [
     # Identifiants
-    "id", "host_id",
+    "id", "name", "host_id", "host_name",
     # Géo
-    "latitude", "longitude", "neighbourhood_cleansed",
+    "latitude", "longitude", "neighbourhood_cleansed", "neighbourhood_group_cleansed",
     # Logement
     "property_type", "room_type", "accommodates", "bedrooms", "bathrooms_text",
     # Prix et dispo
@@ -64,7 +86,7 @@ _ref_int = _ref[_ref["status"] == "integrated"]
 if europe_only:
     _ref_int = _ref_int[_ref_int["continent"] == "Europe"]
 CITIES = _ref_int.set_index("city")[
-    ["raw_folder", "raw_country", "country_code", "continent", "pop", "housing"]
+    ["raw_folder", "raw_country", "country_code", "continent", "pop", "housing", "lat", "lon"]
 ].to_dict("index")
 
 # Taux FX
@@ -80,9 +102,28 @@ CITY_NBH_FILTERS = {
 # &s &LOAD_GZ
 def load_gz_city(city, meta):
     """Charge un gz avec colonnes sélectionnées + métadonnées."""
-    gz_path = RAW_BASE / meta["raw_folder"] / meta["raw_country"] / city / SNAPSHOT / "listings.csv.gz"
-    if not gz_path.exists():
-        return None, f"pas de gz {SNAPSHOT}"
+    city_dir = RAW_BASE / meta["raw_folder"] / meta["raw_country"] / city
+    snap_used = SNAPSHOT
+    proxies = PROXY_SNAPSHOT.get(SNAPSHOT, {})
+    if city in proxies:
+        # Ville connue inexploitable pour ce snapshot (vide/corrompue) -> on FORCE le proxy
+        snap_used = proxies[city]
+        gz_path = city_dir / snap_used / "listings.csv.gz"
+        print(f"  [PROXY] {city}: {SNAPSHOT} inexploitable à la source -> proxy {snap_used} (is_proxy=1, pas d'évolution)")
+        if not gz_path.exists():
+            return None, f"proxy {snap_used} absent"
+    else:
+        gz_path = city_dir / snap_used / "listings.csv.gz"
+        if not gz_path.exists():
+            # Fallback : snapshot le plus récent disponible
+            snap_dirs = sorted([d.name for d in city_dir.iterdir()
+                               if d.is_dir() and (d / "listings.csv.gz").exists()], reverse=True)
+            if snap_dirs:
+                snap_used = snap_dirs[0]
+                gz_path = city_dir / snap_used / "listings.csv.gz"
+                print(f"  [FALLBACK] {city}: {SNAPSHOT} absent, utilise {snap_used}")
+            else:
+                return None, f"pas de gz {SNAPSHOT}"
 
     # Lire header pour filtrer aux colonnes existantes
     with gzip.open(gz_path, "rt", encoding="utf-8") as f:
@@ -107,14 +148,38 @@ def load_gz_city(city, meta):
         elif "neighbourhood_cleansed" in df.columns:
             df = df[df["neighbourhood_cleansed"].isin(keep)]
 
+    # Renommer neighbourhood pour compatibilité downstream (sp08, rapports)
+    rename_map = {}
+    if "neighbourhood_cleansed" in df.columns:
+        rename_map["neighbourhood_cleansed"] = "neighbourhood"
+    if "neighbourhood_group_cleansed" in df.columns:
+        rename_map["neighbourhood_group_cleansed"] = "neighbourhood_group"
+    if rename_map:
+        df = df.rename(columns=rename_map)
+
     # Métadonnées
     df["city"] = city
     df["country_code"] = meta["country_code"]
     df["continent"] = meta["continent"]
 
+    # Traçabilité snapshot (proxy/fallback rendus visibles pour sp08 + évolution)
+    df["snapshot_target"] = SNAPSHOT
+    df["snapshot_src"] = snap_used
+    df["is_proxy"] = np.int8(1 if snap_used != SNAPSHOT else 0)
+    # Prix corrompu à la source (Zurich/Geneva) : non-prix 2026 conservé, prix/revenu -> NA
+    is_price_invalid = city in PRICE_INVALID.get(SNAPSHOT, set())
+    df["price_invalid"] = np.int8(1 if is_price_invalid else 0)
+
     # Prix EUR
     fx = FX_EUR.get(meta["country_code"], 1.0)
     df["price_eur"] = (df["price"] * fx).round(2)
+
+    if is_price_invalid:
+        # prix + revenu inexploitables -> NA (on garde volumes/avis/occupation/structure 2026)
+        df["price"] = np.nan
+        df["price_eur"] = np.nan
+        if "estimated_revenue_l365d" in df.columns:
+            df["estimated_revenue_l365d"] = np.nan
 
     # Flags
     df["is_entire_home"] = (df["room_type"] == "Entire home/apt").astype(np.int8)
@@ -126,27 +191,36 @@ def load_gz_city(city, meta):
         if col in df.columns:
             df[col] = df[col].map({"t": 1, "f": 0}).astype("Int8")
 
-    # host_response_rate "95%" -> float
+    # host_response_rate "95%" -> float (certains fichiers ont déjà des float)
     if "host_response_rate" in df.columns:
-        df["host_response_rate"] = (
-            df["host_response_rate"].str.rstrip("%").astype(float) / 100
-        ).round(3)
+        if df["host_response_rate"].dtype == object:
+            df["host_response_rate"] = (
+                df["host_response_rate"].str.rstrip("%").astype(float) / 100
+            ).round(3)
 
-    # Population et logements
+    # Population, logements, coordonnées
     df["city_pop"] = meta.get("pop", np.nan)
     df["city_housing"] = meta.get("housing", np.nan)
+    df["city_lat"] = meta.get("lat", np.nan)
+    df["city_lon"] = meta.get("lon", np.nan)
 
     return df, None
 # &e
 
 # &s &CLEANING
-def clean_gz(df):
-    """Pipeline cleaning identique à sp08."""
+def clean_gz(df, price_invalid=False):
+    """Pipeline cleaning identique à sp08.
+
+    price_invalid=True (Zurich/Geneva 26-06) : on saute les filtres PRIX (price déjà NA)
+    et on garde les lignes pour les indicateurs non-prix ; on filtre quand même dispo/hotel.
+    """
     n_before = len(df)
-    df = df[df["price"].notna()]
+    if not price_invalid:
+        df = df[df["price"].notna()]
     df = df[df["availability_365"] > 0]
     df = df[df["room_type"] != "Hotel room"]
-    df = df[(df["price_eur"] >= 10) & (df["price_eur"] <= 1000)]
+    if not price_invalid:
+        df = df[(df["price_eur"] >= 10) & (df["price_eur"] <= 2000)]
     n_after = len(df)
     return df, n_before, n_after
 # &e
@@ -169,11 +243,13 @@ if __name__ == "__main__":
             errors.append(city)
             continue
 
-        df, n_raw, n_clean = clean_gz(df)
+        price_invalid = city in PRICE_INVALID.get(SNAPSHOT, set())
+        df, n_raw, n_clean = clean_gz(df, price_invalid=price_invalid)
         pct = round(n_clean / n_raw * 100, 1) if n_raw > 0 else 0
         all_dfs.append(df)
+        tag = " [PRIX->NA, non-prix 2026 gardé]" if price_invalid else ""
         print(f"  [OK]   {city}: {n_raw:,} -> {n_clean:,} ({pct}%) "
-              f"| {meta['country_code']} | {len(df.columns)} cols")
+              f"| {meta['country_code']} | {len(df.columns)} cols{tag}")
 
     if not all_dfs:
         print("\nAucune ville chargée!")
@@ -192,7 +268,7 @@ if __name__ == "__main__":
     n_countries = df_all["country_code"].nunique()
 
     # Export
-    out_path = INTERIM_DIR / f"dblistingfull_2506_cons_{scope}.parquet"
+    out_path = INTERIM_DIR / f"dblistingfull_{SNAP_TAG}_cons_{scope}.parquet"
     df_all.to_parquet(out_path, index=False)
     size_mb = out_path.stat().st_size / 1024 / 1024
 
@@ -203,6 +279,19 @@ if __name__ == "__main__":
     print(f"Villes: {n_cities} | Pays: {n_countries}")
     print(f"Colonnes: {len(df_all.columns)}")
     print(f"Export: {out_path.name} ({size_mb:.0f} MB)")
+
+    # Villes en proxy total (snapshot réellement lu != cible) -> exclues de TOUTE l'évolution
+    if "is_proxy" in df_all.columns and (df_all["is_proxy"] == 1).any():
+        prox = (df_all[df_all["is_proxy"] == 1]
+                .groupby("city")["snapshot_src"].first().to_dict())
+        print(f"\n[PROXY total] {len(prox)} ville(s) (is_proxy=1, exclure de TOUTE l'évolution):")
+        for c, s in sorted(prox.items()):
+            print(f"    {c}: cible {SNAPSHOT} -> lu {s}")
+
+    # Villes prix-invalide -> non-prix 2026 gardé, prix/revenu NA -> exclues de la seule évolution PRIX
+    if "price_invalid" in df_all.columns and (df_all["price_invalid"] == 1).any():
+        pinv = sorted(df_all[df_all["price_invalid"] == 1]["city"].unique().tolist())
+        print(f"\n[PRIX invalide] {len(pinv)} ville(s) (price_invalid=1, non-prix 2026 gardé, prix->NA): {', '.join(pinv)}")
 
     if errors:
         print(f"\nManquants ({len(errors)}): {', '.join(errors)}")
