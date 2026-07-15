@@ -70,6 +70,16 @@ def levels_only(df):
     drop = _evol_colnames()
     return df.drop(columns=[c for c in df.columns if c in drop], errors="ignore")
 
+def _agg_key(df):
+    """Clé composite identifiant une ligne d'agrégat (level + son identifiant)."""
+    lvl = df["level"].astype(str)
+    ident = np.select(
+        [lvl == "world", lvl == "continent", lvl == "continent_detail", lvl == "country"],
+        ["world", df["continent"].astype(str), df["continent_detail"].astype(str), df["country_code"].astype(str)],
+        default="",
+    )
+    return lvl + "|" + ident
+
 def enrich(cur, ref, key="city"):
     """Ajoute _ref2 + colonne d'évolution au bon type, puis applique les flags."""
     ref_idx = ref.drop_duplicates(key).set_index(key)
@@ -126,6 +136,24 @@ if __name__ == "__main__":
     n_evol = len([c for c in enriched.columns if c.endswith(f"_{PER}")])
     n_ref = len([c for c in enriched.columns if c.endswith(f"_{REF2}")])
     print(f"Enrichi : {cur_path.name} (+{n_evol} cols évol, +{n_ref} cols _{REF2})")
+
+    # 2bis) AGRÉGATS (monde/continent/continent_detail/pays) — même logique, clé composite
+    agg_cur_path = INTERIM / f"kpi_global_by_aggregate_{SNAP_CUR}.csv"
+    agg_ref_path = INTERIM / f"kpi_global_by_aggregate_{SNAP_REF}.csv"
+    if agg_cur_path.exists() and agg_ref_path.exists():
+        cur_agg = levels_only(pd.read_csv(agg_cur_path))
+        ref_agg = levels_only(pd.read_csv(agg_ref_path))
+        cur_agg["_aggkey"] = _agg_key(cur_agg)
+        ref_agg["_aggkey"] = _agg_key(ref_agg)
+        pa = pd.concat([ref_agg.assign(snapshot=SNAP_REF), cur_agg.assign(snapshot=SNAP_CUR)],
+                       ignore_index=True, sort=False)
+        pa.drop(columns=["_aggkey"]).to_parquet(INTERIM / "kpi_bnb_serie_panel_agg.parquet", index=False)
+        agg_enriched = enrich(cur_agg, ref_agg, key="_aggkey").drop(columns=["_aggkey"])
+        agg_enriched.to_csv(agg_cur_path, index=False, encoding="utf-8-sig")
+        n_agg = len([c for c in agg_enriched.columns if c.endswith(f"_{PER}")])
+        print(f"Agrégats: {agg_cur_path.name} (+{n_agg} cols évol) + panel_agg ({len(pa)} lignes)")
+    else:
+        print("Agrégats: fichiers absents, sauté")
 
     # 3) Aperçu
     ev_vol = f"vol_n_ann_vevol_{PER}"
