@@ -224,18 +224,19 @@ def load_gz_city(city, meta):
 
 # &s &CLEANING
 def clean_gz(df, price_invalid=False):
-    """Pipeline cleaning identique à sp08.
+    """Nettoyage : ACTIVITÉ (comptage) = dispo>0 + pas hôtel, INDÉPENDANT du prix.
 
-    price_invalid=True (Zurich/Geneva 26-06) : on saute les filtres PRIX (price déjà NA)
-    et on garde les lignes pour les indicateurs non-prix ; on filtre quand même dispo/hotel.
+    Les prix null / hors [10,2000] sont mis à NA (exclus des stats de prix) mais l'annonce
+    reste COMPTÉE. Raison : le taux de prix-null change entre 2025 (~21%) et 2026 (~17%) à
+    cause du nouveau mécanisme price_quote d'Inside Airbnb -> filtrer sur le prix fausserait
+    l'évolution du VOLUME (ex. Nashville +6% réel affiché +43%). La médiane de prix, elle,
+    n'utilise que les prix valides (les NA sont ignorés). price_invalid : prix déjà NA (Zurich/Geneva/BA).
     """
     n_before = len(df)
+    df = df[(df["availability_365"] > 0) & (df["room_type"] != "Hotel room")].copy()
     if not price_invalid:
-        df = df[df["price"].notna()]
-    df = df[df["availability_365"] > 0]
-    df = df[df["room_type"] != "Hotel room"]
-    if not price_invalid:
-        df = df[(df["price_eur"] >= 10) & (df["price_eur"] <= 2000)]
+        bad = df["price_eur"].isna() | (df["price_eur"] < 10) | (df["price_eur"] > 2000)
+        df.loc[bad, ["price", "price_eur"]] = np.nan
     n_after = len(df)
     return df, n_before, n_after
 # &e
