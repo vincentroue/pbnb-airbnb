@@ -19,11 +19,20 @@
 import pandas as pd
 import numpy as np
 from pathlib import Path
+import sys
 
 # &s &CONFIG
 BASE = Path(r"C:\Users\vince\hh\pq\PDS\pbnb-airbnb-log-jrr-jpy")
 INTERIM_DIR = BASE / "data" / "interim"
-INPUT_PATH = INTERIM_DIR / "dblistingfull_2506_cons_global.parquet"
+
+# Snapshot cible paramétrable : --snapshot 26-06 (défaut 25-06 pour rétrocompat)
+SNAPSHOT = "25-06"
+for _i, _a in enumerate(sys.argv):
+    if _a == "--snapshot" and _i + 1 < len(sys.argv):
+        SNAPSHOT = sys.argv[_i + 1]
+SNAP_TAG = SNAPSHOT.replace("-", "")  # "26-06" -> "2606"
+
+INPUT_PATH = INTERIM_DIR / f"dblistingfull_{SNAP_TAG}_cons_global.parquet"
 # &e
 
 # &s &LOAD
@@ -39,13 +48,13 @@ print(f"Villes : {df['city'].nunique()}")
 # &s &AGGREGATE
 def classify_host_type(row):
     """Type Adamiak : single-room / single-home / multi-room / multi-home / mixed."""
-    if row["n_listings"] == 1:
-        if row["n_entire"] == 1:
+    if row["vol_n_ann"] == 1:
+        if row["str_n_entire"] == 1:
             return "single-home"
         else:
             return "single-room"
     else:
-        if row["n_entire"] == 0:
+        if row["str_n_entire"] == 0:
             return "multi-room"
         elif row["n_private"] == 0 and row["n_shared"] == 0:
             return "multi-home"
@@ -84,27 +93,27 @@ df["is_shared"] = (df["room_type"] == "Shared room").astype(int)
 # Agrégation par host × ville
 agg = df.groupby(["host_id", "city"]).agg(
     # Volume
-    n_listings=("id", "count"),
-    n_entire=("is_entire_home", "sum"),
+    vol_n_ann=("id", "count"),
+    str_n_entire=("is_entire_home", "sum"),
     n_private=("is_private", "sum"),
     n_shared=("is_shared", "sum"),
     # Prix
-    prix_med=("price_eur", "median"),
+    px_med=("price_eur", "median"),
     prix_min=("price_eur", "min"),
     prix_max=("price_eur", "max"),
-    prix_moy=("price_eur", "mean"),
+    px_moy=("price_eur", "mean"),
     # Reviews
-    rev_rating_med=("review_scores_rating", lambda x: x.dropna().median() if x.notna().any() else np.nan),
+    actrv_note_glb=("review_scores_rating", lambda x: x.dropna().median() if x.notna().any() else np.nan),
     rev_nb_total=("number_of_reviews", "sum"),
-    rpm_med=("reviews_per_month", lambda x: x.dropna().median() if x.notna().any() else np.nan),
+    actrv_avis_mois=("reviews_per_month", lambda x: x.dropna().median() if x.notna().any() else np.nan),
     rpm_total=("reviews_per_month", lambda x: x.dropna().sum()),
     # Capacité
     accommodates_total=("accommodates", "sum"),
-    accommodates_med=("accommodates", "median"),
+    str_cap_pers_med=("accommodates", "median"),
     bedrooms_total=("bedrooms", lambda x: x.dropna().sum()),
     # Disponibilité
-    dispo_med=("availability_365", "median"),
-    dispo_moy=("availability_365", "mean"),
+    act_cal_ouvert_med=("availability_365", "median"),
+    act_cal_ouvert_moy=("availability_365", "mean"),
     pct_yearround=("availability_365", lambda x: round((x > 180).mean() * 100, 1)),
     # Géo
     n_quartiers=("neighbourhood_cleansed", "nunique"),
@@ -113,17 +122,17 @@ agg = df.groupby(["host_id", "city"]).agg(
     is_superhost=("host_is_superhost", "first"),
     # Revenue estimé
     revenue_est_total=("estimated_revenue_l365d", lambda x: x.dropna().sum() if x.notna().any() else np.nan),
-    occupancy_est_med=("estimated_occupancy_l365d", lambda x: x.dropna().median() if x.notna().any() else np.nan),
+    act_reserv_j_med=("estimated_occupancy_l365d", lambda x: x.dropna().median() if x.notna().any() else np.nan),
     # Méta
     country_code=("country_code", "first"),
     continent=("continent", "first"),
 ).reset_index()
 
 # Colonnes dérivées
-agg["pct_entire"] = (agg["n_entire"] / agg["n_listings"] * 100).round(1)
+agg["str_entire_pct"] = (agg["str_n_entire"] / agg["vol_n_ann"] * 100).round(1)
 agg["host_type"] = agg.apply(classify_host_type, axis=1)
-agg["host_cat_simple"] = agg["n_listings"].apply(classify_host_category_simple)
-agg["host_cat_detail"] = agg["n_listings"].apply(classify_host_category_detail)
+agg["host_cat_simple"] = agg["vol_n_ann"].apply(classify_host_category_simple)
+agg["host_cat_detail"] = agg["vol_n_ann"].apply(classify_host_category_detail)
 agg["prix_range"] = (agg["prix_max"] - agg["prix_min"]).round(1)
 # &e
 
@@ -135,23 +144,23 @@ agg = agg.merge(host_cities, on="host_id", how="left")
 
 # &s &EXPORT
 # Tri par volume décroissant
-agg = agg.sort_values(["n_listings", "rev_nb_total"], ascending=[False, False])
+agg = agg.sort_values(["vol_n_ann", "rev_nb_total"], ascending=[False, False])
 
 # Export parquet complet
-out_parquet = INTERIM_DIR / "dbhosts_2506_cons_global.parquet"
+out_parquet = INTERIM_DIR / f"dbhosts_{SNAP_TAG}_cons_global.parquet"
 agg.to_parquet(out_parquet, index=False)
 
 # Export CSV top 500 pour inspection
-out_csv = INTERIM_DIR / "dbhosts_top500_2506.csv"
+out_csv = INTERIM_DIR / f"dbhosts_top500_{SNAP_TAG}.csv"
 agg.head(500).to_csv(out_csv, index=False, encoding="utf-8-sig")
 
-n_hosts = len(agg)
+vol_n_hotes = len(agg)
 n_cities = agg["city"].nunique()
 
 print(f"\n{'=' * 60}")
 print(f"RÉSULTAT")
 print(f"{'=' * 60}")
-print(f"Hôtes : {n_hosts:,} (host × ville)")
+print(f"Hôtes : {vol_n_hotes:,} (host × ville)")
 print(f"Villes : {n_cities}")
 print(f"Colonnes : {len(agg.columns)}")
 print(f"Export : {out_parquet.name} ({out_parquet.stat().st_size / 1024 / 1024:.1f} MB)")
@@ -161,25 +170,25 @@ print(f"Export : {out_csv.name} (top 500)")
 print(f"\n--- Répartition host_type (Adamiak) ---")
 type_stats = agg["host_type"].value_counts()
 for t, n in type_stats.items():
-    print(f"  {t:<15s} {n:>8,} ({n/n_hosts*100:>5.1f}%)")
+    print(f"  {t:<15s} {n:>8,} ({n/vol_n_hotes*100:>5.1f}%)")
 
 print(f"\n--- Répartition host_cat_detail ---")
 cat_stats = agg["host_cat_detail"].value_counts()
 for c, n in cat_stats.items():
-    print(f"  {c:<15s} {n:>8,} ({n/n_hosts*100:>5.1f}%)")
+    print(f"  {c:<15s} {n:>8,} ({n/vol_n_hotes*100:>5.1f}%)")
 
 # Multi-villes
 multi_city = agg[agg["n_cities"] > 1]
 print(f"\n--- Hôtes multi-villes ---")
-print(f"  {len(multi_city):,} hôtes opèrent dans 2+ villes ({len(multi_city)/n_hosts*100:.1f}%)")
+print(f"  {len(multi_city):,} hôtes opèrent dans 2+ villes ({len(multi_city)/vol_n_hotes*100:.1f}%)")
 if len(multi_city) > 0:
-    top_multi = multi_city.nlargest(10, "n_listings")[["host_id", "city", "n_listings", "n_cities", "host_type"]]
+    top_multi = multi_city.nlargest(10, "vol_n_ann")[["host_id", "city", "vol_n_ann", "n_cities", "host_type"]]
     print(f"\n  Top 10 multi-villes :")
     print(top_multi.to_string(index=False))
 
 # Top 15 par volume
 print(f"\n--- Top 15 hôtes (volume) ---")
-top_cols = ["host_id", "city", "n_listings", "host_type", "prix_med", "rev_rating_med", "revenue_est_total"]
+top_cols = ["host_id", "city", "vol_n_ann", "host_type", "px_med", "actrv_note_glb", "revenue_est_total"]
 top_cols = [c for c in top_cols if c in agg.columns]
 print(agg[top_cols].head(15).to_string(index=False))
 

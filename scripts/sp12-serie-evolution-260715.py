@@ -38,8 +38,10 @@ REF2 = SNAP_REF[:2]                 # "25"
 PER = SNAP_REF[:2] + SNAP_CUR[:2]   # "2526"
 
 # Indicateurs clés & type d'évolution
-VEVOL = ["vol_n_ann", "vol_n_hotes", "px_med", "px_entire_med", "str_ratio_ann_hote",
-         "act_reserv_j_med", "actrv_avis_mois", "act_revenu_med"]
+# PRIX + REVENU EXCLUS de l'évolution : cassés par le changement de méthode Inside Airbnb 2026
+# (price base->devis daté ; act_revenu_med = occupation x prix). Cf reference_inside_airbnb_price_total_display.
+# (px_med, px_entire_med, act_revenu_med retirés le 2026-07-17)
+VEVOL = ["vol_n_ann", "vol_n_hotes", "str_ratio_ann_hote", "act_reserv_j_med", "actrv_avis_mois"]
 VDIFP = ["str_entire_pct", "str_minnuits30_pct", "cr_host_single_pct", "cr_host_pro_pct",
          "cr_offre_top10pct_pct", "act_reserv_taux", "act_superhost_pct",
          "str_instantbook_pct", "cr_host_1plus"]
@@ -48,27 +50,16 @@ PRICE_COLS = ["px_med", "px_entire_med", "act_revenu_med"]  # -> NA si price_inv
 # &e
 
 # &s &HELPERS
-def _evol_colnames():
-    """Noms EXACTS des colonnes générées par ce run (période PER + réf REF2)."""
-    names = set()
-    for base in VEVOL:
-        names.add(f"{base}_vevol_{PER}")
-    for base in VDIFP:
-        names.add(f"{base}_vdifp_{PER}")
-    for base in VABS:
-        names.add(f"{base}_vabs_{PER}")
-    for base in VEVOL + VDIFP + VABS:
-        names.add(f"{base}_{REF2}")
-    return names
-
 def levels_only(df):
-    """Retire UNIQUEMENT les colonnes d'évolution de CE run (idempotence + panel propre).
+    """Retire les colonnes d'évolution de CE run, PAR SUFFIXE de période (PER) + réf (_REF2).
 
-    Ne touche pas aux colonnes d'évolution d'autres périodes déjà présentes
-    (ex. ctx_tour_nights_total_vevol_2224, contexte externe).
+    Par suffixe et pas noms exacts -> nettoie aussi les colonnes ORPHELINES d'indicateurs
+    retirés des listes (ex. px_med_vevol_2526 après exclusion du prix). Ne touche pas aux
+    évol d'AUTRES périodes (ex. ctx_tour_nights_total_vevol_2224). Vérifié : aucune col de
+    base ne finit en _2526/_25.
     """
-    drop = _evol_colnames()
-    return df.drop(columns=[c for c in df.columns if c in drop], errors="ignore")
+    suff = (f"_vevol_{PER}", f"_vdifp_{PER}", f"_vabs_{PER}", f"_{REF2}")
+    return df.drop(columns=[c for c in df.columns if c.endswith(suff)], errors="ignore")
 
 def _agg_key(df):
     """Clé composite identifiant une ligne d'agrégat (level + son identifiant)."""
