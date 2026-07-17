@@ -47,6 +47,20 @@ _ref = pd.read_csv(REF_CSV)
 _ref_idx = _ref[_ref["city"].notna()].set_index("city")
 _fx = _ref.dropna(subset=["country_code", "fx_eur"]).drop_duplicates("country_code")
 FX_EUR = dict(zip(_fx["country_code"], _fx["fx_eur"]))
+# Override par taux DATÉ du snapshot du run (même table que sp07b) — pour revenue_eur
+_CC2CUR = {"GBR": "GBP", "HUN": "HUF", "TUR": "TRY", "DNK": "DKK", "CZE": "CZK", "SWE": "SEK",
+           "NOR": "NOK", "CHE": "CHF", "USA": "USD", "CAN": "CAD", "AUS": "AUD", "JPN": "JPY",
+           "CHN": "CNY", "TWN": "TWD", "SGP": "SGD", "THA": "THB", "BRA": "BRL", "MEX": "MXN", "ZAF": "ZAR"}
+_fxd_path = BASE / "data" / "external" / "fx-by-date-airbnb-260717.csv"
+if _fxd_path.exists():
+    _fxd = pd.read_csv(_fxd_path)
+    _col = f"fx_eur_{SNAP_TAG}"
+    if _col in _fxd.columns:
+        _cur2fx = dict(zip(_fxd["cur"], _fxd[_col]))
+        for _cc, _cur in _CC2CUR.items():
+            if _cur in _cur2fx and _cc in FX_EUR:
+                FX_EUR[_cc] = round(float(_cur2fx[_cur]), 6)
+        print(f"[FX daté] snapshot {SNAP_TAG} : taux BCE appliqués (fallback figé sinon)")
 CITY_FR = _ref_idx["city_fr"].fillna("").to_dict()
 CITY_REF = _ref_idx[["pop", "housing", "pop_quality"]].to_dict("index")
 # &e

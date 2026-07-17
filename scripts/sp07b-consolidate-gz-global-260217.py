@@ -41,6 +41,7 @@ SNAP_TAG = SNAPSHOT.replace("-", "")  # "26-06" -> "2606"
 #   - berlin 26-06 : fichier vide (604 o) chez Inside Airbnb -> proxy juin 2025 complet
 PROXY_SNAPSHOT = {
     "26-06": {"berlin": "25-06"},
+    "25-06": {"buenos-aires": "25-07"},  # BA n'a pas de juin 2025 -> réf juillet 2025 (même saison, hiver austral)
 }
 
 # Prix-invalide {snapshot_cible: {villes}} : SEUL le prix est corrompu à la source, le reste (volumes, avis,
@@ -48,7 +49,8 @@ PROXY_SNAPSHOT = {
 # price / price_eur / estimated_revenue_l365d à NA (flag price_invalid=1) -> exclu de la seule évolution PRIX.
 #   - zurich / geneva 26-06 : prix ~0,15/nuit (100% < 10 EUR) ; non-prix 2026 complet (3308 / 2593 annonces)
 PRICE_INVALID = {
-    "26-06": {"zurich", "geneva"},
+    "25-06": {"buenos-aires"},                        # ARS : taux contrôlé + hyperinflation -> prix € non fiable
+    "26-06": {"zurich", "geneva", "buenos-aires"},
 }
 
 # Colonnes à garder (sur ~79 disponibles)
@@ -89,9 +91,22 @@ CITIES = _ref_int.set_index("city")[
     ["raw_folder", "raw_country", "country_code", "continent", "pop", "housing", "lat", "lon"]
 ].to_dict("index")
 
-# Taux FX
+# Taux FX — figé du ref (fallback) + override par taux DATÉ du snapshot du run
 _fx = _ref.dropna(subset=["country_code", "fx_eur"]).drop_duplicates("country_code")
 FX_EUR = dict(zip(_fx["country_code"], _fx["fx_eur"]))
+_CC2CUR = {"GBR": "GBP", "HUN": "HUF", "TUR": "TRY", "DNK": "DKK", "CZE": "CZK", "SWE": "SEK",
+           "NOR": "NOK", "CHE": "CHF", "USA": "USD", "CAN": "CAD", "AUS": "AUD", "JPN": "JPY",
+           "CHN": "CNY", "TWN": "TWD", "SGP": "SGD", "THA": "THB", "BRA": "BRL", "MEX": "MXN", "ZAF": "ZAR"}
+_fxd_path = BASE / "data" / "external" / "fx-by-date-airbnb-260717.csv"
+if _fxd_path.exists():
+    _fxd = pd.read_csv(_fxd_path)
+    _col = f"fx_eur_{SNAP_TAG}"
+    if _col in _fxd.columns:
+        _cur2fx = dict(zip(_fxd["cur"], _fxd[_col]))
+        for _cc, _cur in _CC2CUR.items():
+            if _cur in _cur2fx and _cc in FX_EUR:
+                FX_EUR[_cc] = round(float(_cur2fx[_cur]), 6)
+        print(f"[FX daté] snapshot {SNAP_TAG} : taux BCE appliqués (fallback figé sinon)")
 
 # Filtres par neighbourhood — sous-sélection géographique pour certaines villes
 CITY_NBH_FILTERS = {
