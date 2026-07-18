@@ -1,0 +1,163 @@
+---
+title: "Airbnb dans 74 villes : la synthèse en deux pages"
+subtitle: "Tendances clés, points d'étonnement et typologie des marchés — panel Inside Airbnb, juin 2025"
+date: today
+categories: ["Synthèse"]
+number-sections: false
+format:
+  html:
+    theme: [cosmo, config/theme-pbnb-v2.scss]
+    embed-resources: false
+    toc: false
+    lightbox: true
+    title-block-banner: "#1690bd"
+    title-block-banner-color: white
+    code-fold: true
+    code-tools: true
+    code-summary: "Afficher le code"
+    grid:
+      body-width: 950px
+      sidebar-width: 200px
+      margin-width: 220px
+    include-in-header:
+      - text: |
+          <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap" rel="stylesheet">
+execute:
+  echo: true
+---
+
+<!-- rpt-pbnb-synth-monde.qmd | Type : SYNTHESE | Scope : Monde 74 villes -->
+<!-- Synthèse exécutive autonome (modèle classique) : tendances + points d'étonnement + typologie ACP. -->
+<!-- Consomme aa$* (JSON source de vérité) + snapshot ACP (outputs/acp-bilan-snapshot.rds). -->
+
+```{r}
+#| label: setup
+#| include: false
+#| cache: false
+
+source("_setup-common.R")
+source("_data-load.R")
+source("_helpers-monde-srpt.R")
+```
+
+```{r}
+#| label: load-acp-bilan
+#| include: false
+#| cache: false
+
+# Bilan ACP DÉCOUPLÉ : on charge le snapshot produit par rpt-pbnb-acpnbk-monde.qmd
+# (pca, hcpc, indiv_df, cluster_names, cluster_comments, aa_*…) — zéro recompute ACP ici.
+JCN <- "C:/Users/vince/hh/pq/PDS/mutils/jrr"
+source(file.path(JCN, "jcn-dml-acp-plots.R"))
+source(file.path(JCN, "jcn-dml-hcpc-typo.R"))
+list2env(readRDS("outputs/acp-bilan-snapshot.rds"), environment())
+```
+
+{{< include srpt/_srpt-monde-synthese.qmd >}}
+
+## L'essentiel en chiffres
+
+```{r}
+#| label: synth2p-kpi
+#| cache: false
+
+# 4 kpi_band uniformes (alignés) · pas de ▲▼ manuels (le helper les ajoute via arrows=TRUE)
+kpi_row(
+  kpi_band("Périmètre du panel",
+    value = aa$n_total_km,
+    subtitle = sprintf("annonces actives · %d villes, %d pays · ~%d %% de l'offre mondiale", aa$n_villes, aa$n_pays, aa$v_couverture_pct),
+    top = sprintf("Europe : %d %% de l'offre", aa$v_eur_pct),
+    bottom = sprintf("Amérique du Nord : %d %%", aa$v_nam_pct),
+    arrows = FALSE),
+  kpi_band("Professionnalisation",
+    value = aa$v_multi, unit = "%",
+    subtitle = "de l'offre gérée par des multi-loueurs",
+    top = "63 % au niveau mondial (Adamiak 2022)",
+    bottom = sprintf("%s %% des hôtes captent 50 %% de l'offre", aa$v_hosts50),
+    arrows = FALSE),
+  kpi_band("Prix médian",
+    value = aa$v_prix_med, unit = "€/nuit",
+    subtitle = "logement entier · panel mondial",
+    top = sprintf("%s : %s €", aa$t_top_prix, aa$v_top_prix),
+    bottom = sprintf("%s : %s € — facteur %s", aa$t_bot_prix, aa$v_bot_prix, aa$v_facteur_prix),
+    arrows = FALSE),
+  kpi_band("Pression résidentielle",
+    value = aa$v_pression_med, unit = "‰",
+    subtitle = "annonces / 1 000 hab. en zone dense",
+    top = sprintf("%s : %s ‰", aa$t_top_pression, aa$v_top_pression),
+    bottom = sprintf("facteur %s entre extrêmes", aa$v_facteur_pression),
+    arrows = FALSE)
+)
+```
+
+## Six constats, un par axe d'analyse
+
+Le rapport déroule six dimensions, du portrait des volumes à la régulation. Chacune livre un constat tranché.
+
+**1 · Volumes — un marché européen, concentré sur une poignée de métropoles.** Le panel pèse `r aa$n_total_km` annonces, dont `r aa$v_eur_pct` % en Europe et `r aa$v_nam_pct` % en Amérique du Nord. Londres (plus de 60 000 annonces) et Paris (près de 50 000) écrasent le bas du classement — Genève, Riga et Bergame restent sous 2 000. L'Europe du Sud-Est (Florence, Lisbonne, Athènes, Barcelone, Naples) forme le plus gros volume cumulé du panel, devant l'Europe de l'Ouest portée par Londres et Paris.
+
+**2 · Prix et structure — une fracture d'un facteur `r aa$v_facteur_prix`, et la fin du partage.** `r aa$t_top_prix` (`r aa$v_top_prix` €/nuit) et `r aa$t_bot_prix` (`r aa$v_bot_prix` €) bornent l'écart de prix du logement entier. Surtout, **`r aa$v_entire` %** de l'offre mondiale est en logement entier — près de 100 % en Méditerranée (Thessalonique, Biarritz, Naples), marché d'investissement touristique pur où le partage entre particuliers s'est éteint. Le parc reste dominé par les studios et petits appartements (3 à 4 personnes, 1 à 2 chambres en médiane).
+
+**3 · Professionnalisation — l'économie collaborative est devenue une industrie.** `r aa$v_multi` % des annonces sont gérées par des multi-loueurs — Adamiak (2022) mesure 63 % sur 167 pays — et **`r aa$v_hosts50` %** des hôtes captent la moitié de l'offre, une concentration de revenus (Gini de 0,68, Törnberg 2022) comparable aux pays les plus inégalitaires. La gradation du particulier au super-professionnel est un continuum (corrélation de 0,87 entre part de multi-loueurs et part d'opérateurs d'au moins 10 annonces), pas un seuil : Tokyo, Hong Kong et Singapour dépassent 80 % de multi-loueurs quand Copenhague et Oslo restent sous 30 %.
+
+**4 · Pression résidentielle — les villes moyennes touristiques en première ligne.** La densité médiane est de `r aa$v_pression_med` annonces pour 1 000 habitants en zone dense, mais Venise, Florence, Lisbonne et le Pays Basque dépassent 40 ‰ — un facteur `r aa$v_facteur_pression` avec le bas du panel. À l'inverse, les mégalopoles asiatiques (Tokyo, Bangkok, Singapour) restent sous 3 ‰ : leur densité de population dilue mécaniquement la pression. L'effet sur les loyers reste mesuré — hausse de 1,3 à 1,7 % par point de densité à Lyon et Marseille, jusqu'à 3 à 7 % à Barcelone et Lisbonne.
+
+**5 · Concurrence — Airbnb a rattrapé l'hôtellerie, prix compris.** L'offre de location courte durée (LCD) croît de 9 % par an contre 1 % pour l'hôtellerie — un facteur 9. Le prix moyen par nuit d'Airbnb (166 USD en 2024) atteint la parité avec l'hôtellerie américaine (159 USD) : l'avantage tarifaire historique a disparu pour les voyageurs individuels. À Lisbonne, Florence et Barcelone, Airbnb dépasse déjà l'hôtellerie en nuitées disponibles, et des opérateurs hybrides — Blueground, premier loueur parisien avec 781 annonces — brouillent la frontière entre les deux modèles.
+
+**6 · Régulation — le tournant 2024-2025 et ses contournements.** New York a effacé 90 % de ses annonces avec la Local Law 18, mais l'offre a basculé vers les séjours d'au moins 30 jours (74 à 82 % de longue durée désormais). Amsterdam a réduit son parc de 54 % et ramené ses multi-loueurs à 18 %, Barcelone vise l'interdiction totale en 2028, le Règlement européen 2024/1028 imposera la transparence dès 2026. La France, premier marché LCD européen, a abaissé le plafond des résidences principales à 90 nuits par an — sans empêcher Paris de croître de 240 % sur la décennie.
+
+## Quatre points d'étonnement
+
+::: {.cld-ctx}
+**Les hiérarchies du marché sont largement indépendantes les unes des autres — c'est le résultat le plus contre-intuitif de l'analyse.** Quatre décorrélations remettent en cause les intuitions courantes sur la location courte durée.
+
+- **Volume et prix ne vont pas de pair** (corrélation quasi nulle). Une mégalopole peut être bon marché, une ville moyenne peut être chère : la taille du marché ne dit rien de son niveau tarifaire.
+- **Pression résidentielle et prix sont découplés** (corrélation faible, r ≈ 0,07). Lisbonne, Bergame ou le Pays Basque sont sous tension avec des prix modérés ; Amsterdam, Édimbourg et Boston affichent des nuits chères sans pression de densité particulière.
+- **Le revenu ne suit pas le prix mais l'occupation.** Édimbourg génère plus de `r aa$v_top_rev` €/an grâce à un calendrier saturé, quand Amsterdam — pourtant à `r aa$v_top_prix` €/nuit — plafonne sous 8 000 €/an. La disponibilité médiane atteint `r aa$v_dispo_med` jours par an, mais cache deux mondes : professionnels quasi permanents contre particuliers réduits à quelques semaines.
+- **L'avantage prix d'Airbnb sur l'hôtellerie a disparu.** Le prix moyen par nuit mondial d'Airbnb atteint 166 USD en 2024, quasi à parité avec l'hôtellerie américaine (159 USD). Le différentiel qui avait porté la pénétration d'Airbnb ne subsiste plus que pour les groupes et les longs séjours.
+
+*Sources : panel Inside Airbnb juin 2025 (corrélations) ; Airbnb 10-K FY2024 ; CoStar/STR 2024.*
+:::
+
+## Cinq familles de marchés
+
+La typologie issue de l'analyse en composantes principales et du clustering (`r aa_n_actives` variables actives, `r aa_n_bestk` clusters, silhouette `r aa_v_sil`) répartit les `r aa$n_villes` villes en cinq profils. Trois épousent la géographie continentale, deux la traversent. La carte ci-dessous donne la partition spatiale ; les cartes de cluster et le plan factoriel qui suivent en détaillent le contenu.
+
+::: {.column-page}
+
+```{r}
+#| label: synth-map-clusters
+#| fig-width: 9
+#| fig-height: 5
+#| cache: false
+
+clu_df <- data.frame(city_fr = indiv_df$individu,
+                     cluster = as.integer(indiv_df$cluster),
+                     stringsAsFactors = FALSE)
+clu_df$cluster_name <- factor(cluster_names[clu_df$cluster], levels = cluster_names)
+
+clu_map <- kpi |>
+  dplyr::select(city_fr, lat, lon, vol_n_ann) |>
+  dplyr::inner_join(clu_df, by = "city_fr") |>
+  dplyr::filter(!is.na(lat) & !is.na(lon))
+
+CLU_COLS <- setNames(c("#fdbf11", "#1696d2", "#55b748", "#ec008b", "#5c5859"),
+                     cluster_names)
+
+p_clu <- build_world_map(clu_map,
+  size_col = "vol_n_ann",
+  color_var = "cluster_name", color_levels = cluster_names, palette = CLU_COLS,
+  title = "Cinq familles de marchés Airbnb — partition mondiale",
+  subtitle = sprintf("%d villes · couleur = cluster ACP-HCPC · taille = annonces actives", nrow(clu_map)))
+render_girafe(p_clu, width_svg = 9, height_svg = 5)
+```
+
+:::
+
+<div class="figure-source">Source : Inside Airbnb juin 2025 · Typologie ACP-HCPC sur `r aa_n_actives` indicateurs actifs (snapshot `rpt-pbnb-acpnbk-monde`) · Projection Robinson.</div>
+
+{{< include _00-bilanacp.qmd >}}
+
+## Ce qu'il faut retenir
+
+Airbnb n'est plus une plateforme de partage mais un secteur d'hébergement professionnalisé et concentré, dont le poids local dépend moins du volume brut que de la place qu'il occupe dans le parc résidentiel des destinations touristiques. La régulation 2024-2025 ouvre une période de recomposition : durcissement dans les villes-musées européennes et nord-américaines, expansion continue dans les marchés émergents peu encadrés. Le rapport complet décline ces constats sur sept axes — du portrait des volumes à la typologie finale.

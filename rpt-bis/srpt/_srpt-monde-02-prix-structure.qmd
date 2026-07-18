@@ -1,0 +1,217 @@
+<!-- _srpt-monde-02-prix-structure.qmd -->
+<!-- Sous-rapport : Partie 2 — Marché, structure et activité. -->
+<!-- Inclus dans rpt-pbnb-synth-monde.qmd (MAIN). Convention chunks : srpt02-* -->
+<!-- v2 — 2026-06-09. Ouverture = kpi-list cadrage panel (float). Ajout px chambre privée + capacité. -->
+<!-- Tableau continent sans lignes contexte (doublon P1). Détail top/bot = rt_topbot_view rank. -->
+
+Le panel révèle deux géographies superposées et largement indépendantes : un palmarès du **prix médian** dominé par les métropoles anglo-saxonnes (Amsterdam, Édimbourg, Boston), et une géographie de la **structure de l'offre** où la Méditerranée affiche des taux de logements entiers proches de 100 % — marché d'investissement touristique pur. Le revenu hôte dépend autant du prix que de l'occupation : Amsterdam plafonne sous 8 000 €/an malgré ses 200 €/nuit, tandis que `r aa$t_top_rev` culmine à `r aa$v_top_rev_km` €/an grâce à un calendrier saturé.
+
+::: {.float-section}
+
+::: {.graph-droite-50}
+
+```{r}
+#| label: srpt02-kpi-panel-list
+#| cache: false
+
+top3_share <- round(sum(sort(kpi$vol_n_ann, decreasing = TRUE)[1:3]) /
+                    sum(kpi$vol_n_ann) * 100, 0)
+
+kpi_e2("Panel d'étude · juin 2025", list(
+  list(value = aa$n_total_km,
+       label = sprintf("annonces actives sur <strong>%d villes</strong>, %d pays", aa$n_villes, aa$n_pays)),
+  list(value = sprintf("%d&nbsp;%%", aa$v_couverture_pct),
+       label = "de l'offre mondiale Airbnb (~8 M annonces)"),
+  list(value = sprintf("%d&nbsp;%%", aa$v_eur_pct),
+       label = "des annonces en Europe"),
+  list(value = sprintf("%d&nbsp;%%", aa$v_nam_pct),
+       label = "en Amérique du Nord"),
+  list(value = sprintf("%d&nbsp;%%", top3_share),
+       label = sprintf("concentrés sur <strong>%s</strong>", aa$t_top3_villes)),
+  list(value = aa$n_hosts_km,
+       label = "hôtes uniques recensés")
+))
+```
+
+:::
+
+Cette partie examine trois dimensions imbriquées du marché, une fois le cadre des volumes posé en Partie 1 : les **niveaux tarifaires** (prix du logement entier comparé à la chambre privée, dispersion, prime Europe Ouest contre Europe Sud), la **structure de l'offre** (part de logements entiers, capacité d'accueil, contrainte de durée minimale) et l'**activité commerciale** des hôtes (calendrier ouvert, taux d'occupation estimé, revenu annuel).
+
+Trois clivages structurent les écarts entre continents : un facteur prix moyen de 2 entre l'Europe du Sud (~80 €/nuit) et l'Amérique du Nord (~150 €), une part de logements entiers proche de 100 % en Méditerranée contre moins de 70 % en Asie, et un revenu annuel estimé qui suit le prix mais s'amplifie via l'occupation — l'Amérique du Nord dépasse les 7 000 €/an quand l'Asie reste sous 2 000 €.
+
+:::
+
+::: {.panel-tabset}
+
+### Tableau par continent
+
+```{r}
+#| label: srpt02-gt-cd-lignezsc
+#| cache: false
+
+# make_cd_panel_agg (sans lignes contexte Nb villes/pays — posées en P1)
+# Vars groupées par thème : Prix · Structure · Activité (col "Theme")
+srpt02_panel <- make_cd_panel_agg(c(
+  "px_entire_med", "px_private_med",
+  "str_entire_pct", "str_cap_pers_med", "str_cap_chbr_med", "str_minnuits30_pct",
+  "act_cal_ouvert_med", "act_reserv_taux", "act_revenu_med"))
+gt_cd_panel_zscore(srpt02_panel,
+                    title = "Prix, structure et activité par groupe continental",
+                    sort_geo_by = "px_entire_med")
+log_table_auto("srpt02_gt_cd_lignezsc", srpt02_panel)
+```
+
+<div class="figure-source">Source : Inside Airbnb, juin 2025 · Afrique masquée (n &lt; 2 villes) · Coloration z-score par ligne (rose = au-dessus de la moyenne mondiale, bleu = en-dessous).</div>
+
+### Graphique par continent
+
+```{r}
+#| label: srpt02-plt-cd-smult
+#| fig-width: 9
+#| fig-height: 3.3
+#| cache: false
+
+plot_cd_bars_ordered(c("px_entire_med", "px_private_med", "str_entire_pct",
+                       "str_cap_pers_med", "act_reserv_taux", "act_revenu_med"),
+                     ncol_wrap = 3)
+```
+
+<div class="figure-source">Source : Inside Airbnb, juin 2025 · Médiane par groupe continental</div>
+
+### Tableau détaillé par ville
+
+```{r}
+#| label: srpt02-rt-villes-detail
+#| cache: false
+
+p2_ville_df <- kpi |>
+  dplyr::select(city_fr, continent, country_code,
+                px_entire_med, px_private_med, str_entire_pct,
+                str_cap_pers_med, str_cap_chbr_med, str_minnuits30_pct,
+                act_cal_ouvert_med, act_reserv_taux, act_revenu_med) |>
+  dplyr::arrange(dplyr::desc(px_entire_med))
+
+rt_table(p2_ville_df, cols = list(
+  city_fr            = rt_col_lib(p2_ville_df, "city_fr", "Ville", indent = FALSE),
+  continent          = rt_col_tag("Cont.", w = 65),
+  country_code       = rt_col_tag("Pays", w = 45),
+  px_entire_med      = rt_col_level(p2_ville_df, "px_entire_med", "Prix entier", unit = "€",
+                                     bw = "fill", bh = 16, mw = 120),
+  px_private_med     = rt_col_level(p2_ville_df, "px_private_med", "Prix ch. privée", unit = "€",
+                                     bw = "fill", bh = 16, mw = 120),
+  str_entire_pct     = rt_col_level(p2_ville_df, "str_entire_pct", "% Entiers", unit = "%",
+                                     bw = "fill", bh = 16, mw = 110),
+  str_cap_pers_med   = rt_col_level(p2_ville_df, "str_cap_pers_med", "Capacité", unit = "pers",
+                                     bw = "fill", bh = 16, mw = 110),
+  str_cap_chbr_med   = rt_col_level(p2_ville_df, "str_cap_chbr_med", "Chambres", unit = "n",
+                                     bw = "fill", bh = 16, mw = 100),
+  str_minnuits30_pct = rt_col_level(p2_ville_df, "str_minnuits30_pct", "% Long séj.", unit = "%",
+                                     bw = "fill", bh = 16, mw = 110),
+  act_cal_ouvert_med = rt_col_level(p2_ville_df, "act_cal_ouvert_med", "Calendrier", unit = "j",
+                                     bw = "fill", bh = 16, mw = 110),
+  act_reserv_taux    = rt_col_level(p2_ville_df, "act_reserv_taux", "Tx occup.", unit = "%",
+                                     bw = "fill", bh = 16, mw = 110),
+  act_revenu_med     = rt_col_level(p2_ville_df, "act_revenu_med", "Revenu/an", unit = "€",
+                                     bw = "fill", bh = 16, mw = 130)
+), sticky_cols = 1, height = 420, full_width = TRUE, searchable = FALSE,
+   footnote = "Inside Airbnb, juin 2025 · Tri par prix médian décroissant")
+
+log_table_auto("rt_p2_villes_detail", p2_ville_df)
+```
+
+:::
+
+### 2.1 Prix : une carte étrangère à celle des volumes
+
+::: {.float-section}
+
+::: {.graph-droite-65}
+
+```{r}
+#| label: srpt02-rt-topbot-prix
+#| cache: false
+
+srpt02_prix <- kpi |> dplyr::select(city_fr, cd, country_code, px_entire_med, px_private_med)
+rt_topbot_ville(
+  srpt02_prix,
+  vars = c("px_entire_med", "px_private_med"),
+  sort_col = "px_entire_med",
+  title = "Prix par ville — les 8 plus chers et 8 plus accessibles",
+  labels = c("Prix logement entier", "Prix chambre privée"),
+  units = c("€/nuit", "€/nuit"),
+  digits = c(0, 0),
+  footnote = "Pastille = sous-continent · barre Prix logement entier = écart à la moyenne du pool (rose ▲ / bleu ▼) · footer = médiane Monde."
+)
+```
+
+:::
+
+Le prix médian du logement entier oppose deux blocs continentaux : l'Europe du Sud-Est plafonne autour de 80 €/nuit quand l'Amérique du Nord dépasse 150 €. L'arc premium `r aa$t_top_prix`-Édimbourg-Boston franchit 200 € la nuit, tandis que les marchés accessibles — `r aa$t_bot_prix`, Thessalonique, Riga — restent sous 60 €. Paris (`r aa$v_paris_prix` €) se positionne au-dessus de la médiane européenne (`r aa$v_avg_eur_prix` €), sans atteindre les sommets anglo-saxons.
+
+La chambre privée suit la même hiérarchie un cran plus bas : partout elle se loue entre 40 et 60 % du prix d'un logement entier. Surtout, prix et volume dessinent deux géographies indépendantes — une mégalopole peut être bon marché, une ville moyenne peut être chère. Le classement par ville le donne à voir *(ci-contre)* : les huit marchés les plus chers ne sont pas les plus gros.
+
+:::
+
+### 2.2 Structure : le logement entier a effacé le partage
+
+::: {.float-section}
+
+::: {.graph-droite-65}
+
+```{r}
+#| label: srpt02-rt-topbot-struct
+#| cache: false
+
+srpt02_struct <- kpi |> dplyr::select(city_fr, cd, country_code, str_entire_pct, str_cap_pers_med, str_cap_chbr_med)
+rt_topbot_ville(
+  srpt02_struct,
+  vars = c("str_entire_pct", "str_cap_pers_med", "str_cap_chbr_med"),
+  sort_col = "str_entire_pct",
+  title = "Structure par ville — part de logements entiers et capacité",
+  labels = c("% logements entiers", "Capacité (pers.)", "Chambres méd."),
+  units = c("%", "pers", "n"),
+  digits = c(1, 1, 1),
+  footnote = "Pastille = sous-continent · barre % logements entiers = écart à la moyenne du pool (rose ▲ / bleu ▼) · footer = médiane Monde."
+)
+```
+
+:::
+
+Le logement entier domine massivement : près de 8 annonces sur 10 dans le monde, contre 1 à 2 chambres chez l'habitant. Le partage résiste surtout à Hong Kong, où les chambres représentent encore 60 % de l'offre, et à Londres autour de 33 %. À l'inverse, la Méditerranée — Thessalonique, Biarritz, Naples — frôle les 100 % de logements entiers : le marché de l'investissement locatif touristique y a éteint le partage entre particuliers.
+
+La capacité d'accueil prolonge ce constat. La médiane mondiale tourne autour de 3 à 4 personnes et 1 à 2 chambres par annonce, signe d'un parc dominé par studios et petits appartements plutôt que par de grandes maisons familiales. Les villes nord-américaines (San Diego, Austin) se distinguent par des logements plus grands, quand les métropoles européennes denses restent sur des formats compacts.
+
+:::
+
+### 2.3 Revenu : l'occupation, pas le prix, fait la recette
+
+::: {.float-section}
+
+::: {.graph-droite-65}
+
+```{r}
+#| label: srpt02-rt-topbot-revenu
+#| cache: false
+
+srpt02_rev <- kpi |> dplyr::select(city_fr, cd, country_code, act_revenu_med, act_reserv_taux, act_cal_ouvert_med)
+rt_topbot_ville(
+  srpt02_rev,
+  vars = c("act_revenu_med", "act_reserv_taux", "act_cal_ouvert_med"),
+  sort_col = "act_revenu_med",
+  title = "Revenu et activité par ville — le revenu suit l'occupation",
+  labels = c("Revenu estimé", "Taux d'occupation", "Calendrier ouvert"),
+  units = c("€/an", "%", "j/an"),
+  digits = c(0, 1, 0),
+  footnote = "Pastille = sous-continent · barre Revenu estimé = écart à la moyenne du pool (rose ▲ / bleu ▼) · footer = médiane Monde."
+)
+```
+
+:::
+
+Le revenu d'un hôte ne suit pas le prix de la nuit mais l'occupation. `r aa$t_top_rev` génère `r aa$v_top_rev` €/an grâce à un calendrier saturé, quand Amsterdam — pourtant à `r aa$v_top_prix` €/nuit — plafonne sous 8 000 €/an. La différence se joue sur la disponibilité réelle du logement et le taux d'occupation effectif.
+
+La disponibilité médiane atteint `r aa$v_dispo_med` jours par an à l'échelle mondiale, mais cache deux mondes : marchés professionnels quasi permanents (autour de 300 jours, taux d'occupation estimé plafonné à 70 %) contre marchés de particuliers réduits à quelques semaines, souvent sous licence d'usage. La note des annonces, elle, n'éclaire rien : toutes les villes oscillent entre 4,5 et 4,8 sur 5.
+
+:::
+
+**Trois géographies superposées et indépendantes.** L'arc anglo-saxon des prix premium (Amsterdam, Édimbourg, Boston) ne coïncide ni avec les marchés à plus fort revenu hôte (Nashville, Austin), ni avec ceux à plus forte part de logements entiers (Thessalonique, Biarritz). Le prix d'une nuit ne dit rien du revenu réel ni de la nature de l'offre. Reste une question : qui pilote cette offre ? La Partie 3 remonte la pyramide des hôtes, du loueur amateur à l'industrie hôtelière déguisée.

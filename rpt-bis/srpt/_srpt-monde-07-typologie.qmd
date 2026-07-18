@@ -1,0 +1,74 @@
+<!-- _srpt-monde-07-typologie.qmd -->
+<!-- Sous-rapport : Partie 7 — Typologie des marchés (ACP-HCPC, 5 clusters). -->
+<!-- Inclus dans rpt-pbnb-synth-monde.qmd (MAIN), APRÈS le loader snapshot + la brique -->
+<!-- _00-bilanacp.qmd (qui rend l'encadré À retenir, les cartes clusters et les biplots). -->
+<!-- Ce partial ne porte QUE la carte monde des clusters + la lecture géographique. -->
+<!-- v3 — 2026-06-24. Config B finale : 6 actives, prix en sup, k=5 forcé, clusters -->
+<!-- réordonnés par taille (C1 = modal 21 villes … C5 = mégalopoles 3 villes). -->
+<!-- Labels carte construits depuis cluster_names du snapshot → aucun chiffre hardcodé. -->
+
+La typologie se projette aussi sur la carte du monde : trois familles sont fortement ancrées dans une région, deux transcendent les continents.
+
+::: {.column-page}
+
+```{r}
+#| label: srpt07-map-clusters
+#| fig-width: 13
+#| fig-height: 6
+#| cache: false
+
+# Cluster par ville depuis le SNAPSHOT (indiv_df, déjà réordonné) + lat/lon (kpi MAIN).
+.clusters <- indiv_df[, c("individu", "cluster")]
+names(.clusters) <- c("city_fr", "cluster")
+.map_clust <- merge(
+  kpi[, c("city_fr", "lat", "lon", "vol_n_ann", "continent_detail")],
+  .clusters, by = "city_fr")
+.map_clust <- .map_clust[!is.na(.map_clust$lat) & !is.na(.map_clust$lon), ]
+
+# Labels + couleurs construits depuis cluster_names (snapshot) → pas de drift.
+CLUSTER_LABS <- setNames(sprintf("C%s · %s", names(cluster_names), cluster_names),
+                         names(cluster_names))
+.pal5 <- c("#fdbf11", "#1696d2", "#55b748", "#ec008b", "#5c5859")
+CLUSTER_COLS <- setNames(.pal5, unname(CLUSTER_LABS))
+
+.lab <- c("Paris", "Rome", "Madrid", "Los Angeles", "Amsterdam", "Stockholm",
+          "Seattle", "Dallas", "New York", "Singapour")
+
+p_clust <- build_world_map(.map_clust,
+  color_var = "cluster", color_recode = CLUSTER_LABS,
+  color_levels = unname(CLUSTER_LABS), palette = CLUSTER_COLS,
+  title = "Cinq familles de marchés Airbnb, trois ancrées géographiquement",
+  subtitle = "74 villes · couleur = cluster ACP-HCPC, taille = annonces actives — Inside Airbnb juin 2025",
+  label_cities = .lab)
+
+ggiraph::girafe(ggobj = p_clust, width_svg = 13, height_svg = 6,
+  options = list(ggiraph::opts_sizing(rescale = TRUE),
+                 ggiraph::opts_toolbar(saveaspng = FALSE)))
+```
+
+:::
+
+<div class="figure-source">Source : ACP+HCPC config B (74 villes, k=5) · coordonnées city-reference-airbnb · Inside Airbnb juin 2025</div>
+
+::: {.cld-add}
+
+::: {.callout-note appearance="minimal"}
+## Lecture géographique : trois ancrages régionaux, deux clusters transversaux
+
+Trois familles épousent une géographie nette. Le cluster **amateurs Europe Ouest-Nord** est le plus homogène — Amsterdam, Stockholm, Copenhague, Oslo, Zurich, Munich, Lyon, Bordeaux y dominent, soit près des trois quarts de villes ouest- et nord-européennes. Concentration des hôtes la plus basse du panel, peu de superhôtes : un marché où le particulier loue son propre logement, sans bascule vers la gestion professionnelle. Cadres réglementaires précoces (Amsterdam plafonne à 30 nuits depuis 2018) et culture de location occasionnelle se conjuguent.
+
+Le **premium pro Amérique du Nord** est tout aussi marqué — sept villes nord-américaines sur dix : Seattle, Vancouver, Dallas, Denver, Portland, Nashville, San Diego. Taux d'occupation, part de superhôtes et volume d'avis au plus haut : la maturité du marché américain, où Airbnb est né en 2008, a fait émerger une classe d'opérateurs professionnels plus avancée qu'ailleurs.
+
+Le **tourisme dense Europe du Sud**, cluster modal (21 villes), rassemble le cœur touristique du continent — Paris, Rome, Lisbonne, Florence, Venise, Porto, Athènes — mais déborde sur Rio, Melbourne ou Austin. Forte densité d'annonces, grande capacité, peu de longue durée : le profil Airbnb « classique » d'avant la vague réglementaire de 2024.
+
+À l'inverse, les **grandes métropoles à longue durée** (Istanbul, Mexico, Madrid, Los Angeles, Berlin, San Francisco, Sydney) et les **mégalopoles à chambres** (New York, Hong Kong, Singapour) transcendent les continents : ce sont la densité urbaine et le poids de la longue durée ou de la chambre, non la localisation, qui les rassemblent.
+:::
+
+:::
+
+::: {.cld-ctx}
+
+**Qualité de l'analyse** — adéquation factorielle KMO 0,68 (bonne, après projection du prix en variable supplémentaire), variance du plan principal Dim1×Dim2 = 61,3 % et 76,4 % sur trois axes, deux axes au-dessus du seuil de Kaiser. **Qualité de la typologie** — silhouette 0,26 (raisonnable sur données territoriales aux gradients continus), cinq clusters de tailles 21 / 18 / 18 / 14 / 3, sans cluster hégémonique. Le nombre de clusters (k=5) a été fixé à la main : la sélection automatique tendait vers k=3, au prix d'un cluster unique absorbant la moitié du panel.
+
+*Sources : ACP+HCPC, configuration B retenue parmi cinq candidates, prix médian par nuit en variable supplémentaire, transformation log de la densité d'annonces. Notebook : rpt-pbnb-acpnbk-monde.qmd, dictionnaire piloté par ddict-validate-kpi_global_by_city_2506.csv.*
+:::

@@ -1,0 +1,74 @@
+<!-- ════════════════════════════════════════════════════════════════════════
+     _00-bilanacp.qmd — BRIQUE RÉUTILISABLE « Bilan / synthèse ACP » (la VUE).
+     N'EXÉCUTE AUCUN CALCUL ACP : affiche des objets DÉJÀ en scope.
+
+     INTERFACE ATTENDUE (fournie par l'hôte via calc-all OU un snapshot .rds) :
+       pca · hcpc · indiv_df · DDICT · CONFIG · dim_names · dim_comments ·
+       cluster_names · cluster_comments · KPI aa_* (aa_n_ind, aa_n_actives,
+       aa_n_bestk, aa_t_sizes, aa_v_var12, aa_v_var13, aa_n_kaiser, aa_v_dim1,
+       aa_v_dim2, aa_t_dim1, aa_t_dim2, aa_v_sil, aa_t_sil_qual, aa_n_neg, aa_v_neg_pct)
+     Helpers requis : render_cluster_cards, plot_ind_cluster (jcn-dml-*).
+     Inclut _ccom-acp-bilan.md (profil digéré « À retenir ») -> à fournir dans le dossier hôte.
+     ════════════════════════════════════════════════════════════════════════ -->
+
+::: {.encadre-insight}
+[**À retenir**]{.encadre-insight-titre}
+
+{{< include _ccom-acp-bilan.md >}}
+
+- **`r aa_n_ind` individus**, `r aa_n_actives` variables actives, k = **`r aa_n_bestk` clusters** (`r aa_t_sizes`)
+- **ACP** — Variance 1-2 : `r aa_v_var12` %, 1-3 : `r aa_v_var13` %. `r aa_n_kaiser` axes au-dessus du seuil Kaiser
+  - Dim1 (`r aa_v_dim1` %) `r aa_t_dim1`
+  - Dim2 (`r aa_v_dim2` %) `r aa_t_dim2`
+- **HCPC** — Silhouette **`r aa_v_sil`** (`r aa_t_sil_qual`), `r aa_n_neg` mal classés (`r aa_v_neg_pct` %)
+:::
+
+```{r}
+#| label: rt-bilan-cards
+#| echo: false
+#| results: asis
+
+render_cluster_cards(hcpc, indiv_df, ddict = DDICT, actives = rownames(pca$var$coord),
+                     cluster_names = cluster_names, cluster_comments = cluster_comments,
+                     top_n_para = 6)
+```
+
+```{r}
+#| label: intro-axes-synthese
+#| echo: false
+#| results: asis
+
+# Lecture des axes — SANS encadré bleu (texte simple, pas d'encadre-insight).
+cat("**Comment interpréter les axes de la visualisation des clusters ?**\n\n")
+cat("Sur les biplots ci-dessous, **Dim1 = axe horizontal (x)** et **Dim2 = axe vertical (y)** (plan principal) ; le 2ᵉ panneau croise **Dim1 × Dim3**. Un point = un individu, coloré par cluster.\n\n")
+for (.i in seq_along(dim_names))
+  cat(sprintf("- **Dim%d — %s** : %s\n", .i, dim_names[.i], dim_comments[.i]))
+```
+
+```{r}
+#| label: plt-clusters-bilan
+#| echo: false
+#| out-width: "100%"
+#| fig-width: !expr if (isTRUE(CONFIG$cluster_plane_13)) 14 else 7
+#| fig-height: !expr if (isTRUE(CONFIG$cluster_plane_13)) 6 else 6.5
+#| fig-align: center
+
+ind_coords <- pca$ind$coord
+.cen <- apply(ind_coords[, 1:3], 2, function(v) tapply(v, hcpc$data.clust$clust, mean))
+.qx <- quantile(ind_coords[, 1], c(.02, .98)); .qy <- quantile(c(ind_coords[, 2], ind_coords[, 3]), c(.02, .98))
+shared_xlim <- range(c(.qx, .cen[, 1])) * 1.02
+shared_ylim <- range(c(.qy, .cen[, 2], .cen[, 3])) * 1.02
+p12 <- plot_ind_cluster(pca, hcpc, axes = c(1, 2), label_parangons = TRUE, dim_names = dim_names, cluster_names = cluster_names) +
+  coord_cartesian(xlim = shared_xlim, ylim = shared_ylim)
+combo <- if (isTRUE(CONFIG$cluster_plane_13)) {
+  p13 <- plot_ind_cluster(pca, hcpc, axes = c(1, 3), label_parangons = TRUE, dim_names = dim_names, cluster_names = cluster_names) +
+    coord_cartesian(xlim = shared_xlim, ylim = shared_ylim)
+  p12 + p13 + plot_layout(ncol = 2, guides = "collect")
+} else { p12 + plot_layout(guides = "collect") }
+combo +
+  plot_annotation(title = sprintf("Typologie des %d clusters", aa_n_bestk),
+                  theme = theme(plot.title = element_text(face = "bold", size = 15, hjust = 0.5))) &
+  theme(legend.position = "bottom")
+```
+
+[🔍 *cliquer pour zoomer*]{style="display:block;text-align:center;font-size:0.78rem;color:#8a8a8a;font-style:italic;margin-top:-0.4rem;"}
