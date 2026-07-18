@@ -323,7 +323,8 @@ def clean_listings(df):
     snapshots via le mécanisme price_quote d'Inside Airbnb -> filtrer sur le prix fausse le volume.
     Retourne un DataFrame filtré (copie).
     """
-    out = df[(df["availability_365"] > 0) & (df["room_type"] != "Hotel room")].copy()
+    active = (df["availability_365"] > 0) | (df["number_of_reviews_ltm"] > 0)
+    out = df[active & (df["room_type"] != "Hotel room")].copy()
     bad = out["price_eur"].isna() | (out["price_eur"] < 10) | (out["price_eur"] > 2000)
     for _c in ("price", "price_eur"):
         if _c in out.columns:

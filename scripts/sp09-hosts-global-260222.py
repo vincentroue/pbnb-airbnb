@@ -116,7 +116,7 @@ agg = df.groupby(["host_id", "city"]).agg(
     act_cal_ouvert_moy=("availability_365", "mean"),
     pct_yearround=("availability_365", lambda x: round((x > 180).mean() * 100, 1)),
     # Géo
-    n_quartiers=("neighbourhood_cleansed", "nunique"),
+    n_quartiers=("neighbourhood", "nunique"),
     # Profil
     host_since=("host_since", "first"),
     is_superhost=("host_is_superhost", "first"),

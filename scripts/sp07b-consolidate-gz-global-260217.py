@@ -233,7 +233,10 @@ def clean_gz(df, price_invalid=False):
     n'utilise que les prix valides (les NA sont ignorés). price_invalid : prix déjà NA (Zurich/Geneva/BA).
     """
     n_before = len(df)
-    df = df[(df["availability_365"] > 0) & (df["room_type"] != "Hotel room")].copy()
+    # ACTIVITÉ = a des jours dispo OU a été réservée sur 12 mois (rattrape les sold-out : dispo=0
+    # peut vouloir dire RÉSERVÉ, pas seulement bloqué). Défini 2026-07-18 après audit des biais.
+    active = (df["availability_365"] > 0) | (df["number_of_reviews_ltm"] > 0)
+    df = df[active & (df["room_type"] != "Hotel room")].copy()
     if not price_invalid:
         bad = df["price_eur"].isna() | (df["price_eur"] < 10) | (df["price_eur"] > 2000)
         df.loc[bad, ["price", "price_eur"]] = np.nan
