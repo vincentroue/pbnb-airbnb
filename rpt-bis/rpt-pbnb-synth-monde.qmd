@@ -1,6 +1,6 @@
 ---
-title: "Airbnb dans 74 villes : la synthèse en deux pages"
-subtitle: "Tendances clés, points d'étonnement et typologie des marchés — panel Inside Airbnb, juin 2025"
+title: "Airbnb dans 76 villes : la synthèse en deux pages"
+subtitle: "Tendances clés, points d'étonnement et typologie des marchés — panel Inside Airbnb, juin 2026"
 date: today
 categories: ["Synthèse"]
 number-sections: false
@@ -26,7 +26,7 @@ execute:
   echo: true
 ---
 
-<!-- rpt-pbnb-synth-monde.qmd | Type : SYNTHESE | Scope : Monde 74 villes -->
+<!-- rpt-pbnb-synth-monde.qmd | Type : SYNTHESE | Scope : Monde 76 villes -->
 <!-- Synthèse exécutive autonome (modèle classique) : tendances + points d'étonnement + typologie ACP. -->
 <!-- Consomme aa$* (JSON source de vérité) + snapshot ACP (outputs/acp-bilan-snapshot.rds). -->
 
@@ -61,32 +61,54 @@ list2env(readRDS("outputs/acp-bilan-snapshot.rds"), environment())
 #| label: synth2p-kpi
 #| cache: false
 
-# 4 kpi_band uniformes (alignés) · pas de ▲▼ manuels (le helper les ajoute via arrows=TRUE)
+# 5 encadrés E2 par thème (2-3 indicateurs max) · évol 25→26 EN LIGNE quand fiable.
+# ⚠️ PAS d'évol sur prix (bascule base→devis Inside Airbnb 2025, cf intro) — d'où l'absence sur "Prix médian".
+evo <- function(v, unit = "%", ref = "juin 2025", dg = 1) {
+  if (is.null(v) || is.na(v)) return("")
+  up  <- v >= 0
+  arw <- if (up) "▲" else "▼"
+  col <- if (up) "#7a3b47" else "#26506f"   # bordeaux hausse / bleu baisse (cohérent tableaux)
+  sv  <- sub("\\.", ",", sprintf("%+.*f", dg, v))
+  sprintf("<span style='color:%s;font-weight:600;white-space:nowrap'>%s %s %s</span> <span style='color:#9a9a9a;font-size:.82em'>/ %s</span>",
+          col, arw, sv, unit, ref)
+}
+ev_ann    <- as.numeric(kpi_world$vol_n_ann_vevol_2526)      # +2,9 %
+ev_host   <- as.numeric(kpi_world$vol_n_hotes_vevol_2526)    # -0,3 %
+ev_entire <- as.numeric(kpi_world$str_entire_pct_vdifp_2526) # +0,4 pt
+v_cap     <- round(median(kpi$str_cap_pers_med, na.rm = TRUE))
+
 kpi_row(
-  kpi_band("Périmètre du panel",
-    value = aa$n_total_km,
-    subtitle = sprintf("annonces actives · %d villes, %d pays · ~%d %% de l'offre mondiale", aa$n_villes, aa$n_pays, aa$v_couverture_pct),
-    top = sprintf("Europe : %d %% de l'offre", aa$v_eur_pct),
-    bottom = sprintf("Amérique du Nord : %d %%", aa$v_nam_pct),
-    arrows = FALSE),
-  kpi_band("Professionnalisation",
-    value = aa$v_multi, unit = "%",
-    subtitle = "de l'offre gérée par des multi-loueurs",
-    top = "63 % au niveau mondial (Adamiak 2022)",
-    bottom = sprintf("%s %% des hôtes captent 50 %% de l'offre", aa$v_hosts50),
-    arrows = FALSE),
-  kpi_band("Prix médian",
-    value = aa$v_prix_med, unit = "€/nuit",
-    subtitle = "logement entier · panel mondial",
-    top = sprintf("%s : %s €", aa$t_top_prix, aa$v_top_prix),
-    bottom = sprintf("%s : %s € — facteur %s", aa$t_bot_prix, aa$v_bot_prix, aa$v_facteur_prix),
-    arrows = FALSE),
-  kpi_band("Pression résidentielle",
-    value = aa$v_pression_med, unit = "‰",
-    subtitle = "annonces / 1 000 hab. en zone dense",
-    top = sprintf("%s : %s ‰", aa$t_top_pression, aa$v_top_pression),
-    bottom = sprintf("facteur %s entre extrêmes", aa$v_facteur_pression),
-    arrows = FALSE)
+  kpi_e2("Périmètre du panel · juin 2026", list(
+    list(value = aa$n_total_km,
+         label = sprintf("<strong>annonces</strong> actives&nbsp;&nbsp;%s", evo(ev_ann))),
+    list(value = sprintf("%d", aa$n_villes),
+         label = sprintf("villes dans %d pays", aa$n_pays)),
+    list(value = sprintf("%d&nbsp;%%", aa$v_couverture_pct),
+         label = "de l'offre mondiale (~8 M annonces)")
+  )),
+  kpi_e2("Professionnalisation", list(
+    list(value = aa$n_hosts_km,
+         label = sprintf("<strong>hôtes</strong> actifs&nbsp;&nbsp;%s", evo(ev_host))),
+    list(value = sprintf("%d&nbsp;%%", aa$v_multi),
+         label = "de l'offre en multi-loueurs")
+  )),
+  kpi_e2("Structure de l'offre", list(
+    list(value = sprintf("%d&nbsp;%%", aa$v_entire),
+         label = sprintf("<strong>logements entiers</strong>&nbsp;&nbsp;%s", evo(ev_entire, "pt"))),
+    list(value = sprintf("%s&nbsp;pers", v_cap),
+         label = "capacité médiane par logement")
+  )),
+  kpi_e2("Prix médian", list(
+    list(value = sprintf("%s&nbsp;€", aa$v_prix_med),
+         label = "logement entier · par nuit",
+         top    = sprintf("%s %s €", aa$t_top_prix, aa$v_top_prix),
+         bottom = sprintf("%s %s € · facteur %s", aa$t_bot_prix, aa$v_bot_prix, aa$v_facteur_prix))
+  )),
+  kpi_e2("Pression résidentielle", list(
+    list(value = sprintf("%s&nbsp;‰", aa$v_pression_med),
+         label = "annonces / 1 000 hab. en zone dense",
+         top   = sprintf("%s %s ‰", aa$t_top_pression, aa$v_top_pression))
+  ))
 )
 ```
 
@@ -94,13 +116,13 @@ kpi_row(
 
 Le rapport déroule six dimensions, du portrait des volumes à la régulation. Chacune livre un constat tranché.
 
-**1 · Volumes — un marché européen, concentré sur une poignée de métropoles.** Le panel pèse `r aa$n_total_km` annonces, dont `r aa$v_eur_pct` % en Europe et `r aa$v_nam_pct` % en Amérique du Nord. Londres (plus de 60 000 annonces) et Paris (près de 50 000) écrasent le bas du classement — Genève, Riga et Bergame restent sous 2 000. L'Europe du Sud-Est (Florence, Lisbonne, Athènes, Barcelone, Naples) forme le plus gros volume cumulé du panel, devant l'Europe de l'Ouest portée par Londres et Paris.
+**1 · Volumes — un marché européen, concentré sur une poignée de métropoles.** Le panel pèse `r aa$n_total_km` annonces, dont `r aa$v_eur_pct` % en Europe et `r aa$v_nam_pct` % en Amérique du Nord. Londres (près de 70 000 annonces) et Paris (près de 60 000) écrasent le bas du classement — Genève et Bergame restent sous 2 000. L'Europe du Sud-Est (Florence, Lisbonne, Athènes, Barcelone, Naples) forme le plus gros volume cumulé du panel, devant l'Europe de l'Ouest portée par Londres et Paris.
 
-**2 · Prix et structure — une fracture d'un facteur `r aa$v_facteur_prix`, et la fin du partage.** `r aa$t_top_prix` (`r aa$v_top_prix` €/nuit) et `r aa$t_bot_prix` (`r aa$v_bot_prix` €) bornent l'écart de prix du logement entier. Surtout, **`r aa$v_entire` %** de l'offre mondiale est en logement entier — près de 100 % en Méditerranée (Thessalonique, Biarritz, Naples), marché d'investissement touristique pur où le partage entre particuliers s'est éteint. Le parc reste dominé par les studios et petits appartements (3 à 4 personnes, 1 à 2 chambres en médiane).
+**2 · Prix et structure — une fracture d'un facteur `r aa$v_facteur_prix`, et la fin du partage.** `r aa$t_top_prix` (`r aa$v_top_prix` €/nuit) et `r aa$t_bot_prix` (`r aa$v_bot_prix` €) bornent l'écart de prix du logement entier. Surtout, **`r aa$v_entire` %** de l'offre mondiale est en logement entier — au-delà de 90 % dans plusieurs villes d'Europe du Sud-Est (Thessalonique, Athènes, Budapest), marché d'investissement touristique pur où le partage entre particuliers s'est éteint. Le parc reste dominé par les studios et petits appartements (3 à 4 personnes, 1 à 2 chambres en médiane).
 
-**3 · Professionnalisation — l'économie collaborative est devenue une industrie.** `r aa$v_multi` % des annonces sont gérées par des multi-loueurs — Adamiak (2022) mesure 63 % sur 167 pays — et **`r aa$v_hosts50` %** des hôtes captent la moitié de l'offre, une concentration de revenus (Gini de 0,68, Törnberg 2022) comparable aux pays les plus inégalitaires. La gradation du particulier au super-professionnel est un continuum (corrélation de 0,87 entre part de multi-loueurs et part d'opérateurs d'au moins 10 annonces), pas un seuil : Tokyo, Hong Kong et Singapour dépassent 80 % de multi-loueurs quand Copenhague et Oslo restent sous 30 %.
+**3 · Professionnalisation — l'économie collaborative est devenue une industrie.** `r aa$v_multi` % des annonces sont gérées par des multi-loueurs — Adamiak (2022) mesure 63 % sur 167 pays — et **`r aa$v_hosts50` %** des hôtes captent la moitié de l'offre, une concentration de revenus (Gini de 0,68, Törnberg 2022) comparable aux pays les plus inégalitaires. La gradation du particulier au super-professionnel est un continuum (corrélation de 0,88 entre part de multi-loueurs et part d'opérateurs d'au moins 10 annonces), pas un seuil : Tokyo, Hong Kong et Singapour dépassent 80 % de multi-loueurs quand Copenhague et Oslo restent sous 30 %.
 
-**4 · Pression résidentielle — les villes moyennes touristiques en première ligne.** La densité médiane est de `r aa$v_pression_med` annonces pour 1 000 habitants en zone dense, mais Venise, Florence, Lisbonne et le Pays Basque dépassent 40 ‰ — un facteur `r aa$v_facteur_pression` avec le bas du panel. À l'inverse, les mégalopoles asiatiques (Tokyo, Bangkok, Singapour) restent sous 3 ‰ : leur densité de population dilue mécaniquement la pression. L'effet sur les loyers reste mesuré — hausse de 1,3 à 1,7 % par point de densité à Lyon et Marseille, jusqu'à 3 à 7 % à Barcelone et Lisbonne.
+**4 · Pression résidentielle — les villes moyennes touristiques en première ligne.** La densité médiane est de `r aa$v_pression_med` annonces pour 1 000 habitants en zone dense, mais le Pays Basque, Venise et Florence approchent ou dépassent 40 ‰ — un facteur `r aa$v_facteur_pression` avec le bas du panel. À l'inverse, les mégalopoles asiatiques (Tokyo, Bangkok, Singapour) restent sous 3 ‰ : leur densité de population dilue mécaniquement la pression. L'effet sur les loyers reste mesuré — hausse de 1,3 à 1,7 % par point de densité à Lyon et Marseille, jusqu'à 3 à 7 % à Barcelone et Lisbonne.
 
 **5 · Concurrence — Airbnb a rattrapé l'hôtellerie, prix compris.** L'offre de location courte durée (LCD) croît de 9 % par an contre 1 % pour l'hôtellerie — un facteur 9. Le prix moyen par nuit d'Airbnb (166 USD en 2024) atteint la parité avec l'hôtellerie américaine (159 USD) : l'avantage tarifaire historique a disparu pour les voyageurs individuels. À Lisbonne, Florence et Barcelone, Airbnb dépasse déjà l'hôtellerie en nuitées disponibles, et des opérateurs hybrides — Blueground, premier loueur parisien avec 781 annonces — brouillent la frontière entre les deux modèles.
 
@@ -112,11 +134,11 @@ Le rapport déroule six dimensions, du portrait des volumes à la régulation. C
 **Les hiérarchies du marché sont largement indépendantes les unes des autres — c'est le résultat le plus contre-intuitif de l'analyse.** Quatre décorrélations remettent en cause les intuitions courantes sur la location courte durée.
 
 - **Volume et prix ne vont pas de pair** (corrélation quasi nulle). Une mégalopole peut être bon marché, une ville moyenne peut être chère : la taille du marché ne dit rien de son niveau tarifaire.
-- **Pression résidentielle et prix sont découplés** (corrélation faible, r ≈ 0,07). Lisbonne, Bergame ou le Pays Basque sont sous tension avec des prix modérés ; Amsterdam, Édimbourg et Boston affichent des nuits chères sans pression de densité particulière.
-- **Le revenu ne suit pas le prix mais l'occupation.** Édimbourg génère plus de `r aa$v_top_rev` €/an grâce à un calendrier saturé, quand Amsterdam — pourtant à `r aa$v_top_prix` €/nuit — plafonne sous 8 000 €/an. La disponibilité médiane atteint `r aa$v_dispo_med` jours par an, mais cache deux mondes : professionnels quasi permanents contre particuliers réduits à quelques semaines.
+- **Pression résidentielle et prix sont découplés** (corrélation faible, r ≈ 0,11). Lisbonne, Bergame ou le Pays Basque sont sous tension avec des prix modérés ; Amsterdam, Édimbourg et Boston affichent des nuits chères sans pression de densité particulière.
+- **Le revenu ne suit pas le prix mais l'occupation.** Édimbourg génère plus de `r aa$v_top_rev` €/an grâce à un calendrier saturé, quand Amsterdam — pourtant à `r aa$v_top_prix` €/nuit — plafonne sous 10 000 €/an. La disponibilité médiane atteint `r aa$v_dispo_med` jours par an, mais cache deux mondes : professionnels quasi permanents contre particuliers réduits à quelques semaines.
 - **L'avantage prix d'Airbnb sur l'hôtellerie a disparu.** Le prix moyen par nuit mondial d'Airbnb atteint 166 USD en 2024, quasi à parité avec l'hôtellerie américaine (159 USD). Le différentiel qui avait porté la pénétration d'Airbnb ne subsiste plus que pour les groupes et les longs séjours.
 
-*Sources : panel Inside Airbnb juin 2025 (corrélations) ; Airbnb 10-K FY2024 ; CoStar/STR 2024.*
+*Sources : panel Inside Airbnb juin 2026 (corrélations) ; Airbnb 10-K FY2024 ; CoStar/STR 2024.*
 :::
 
 ## Cinq familles de marchés
@@ -154,7 +176,7 @@ render_girafe(p_clu, width_svg = 9, height_svg = 5)
 
 :::
 
-<div class="figure-source">Source : Inside Airbnb juin 2025 · Typologie ACP-HCPC sur `r aa_n_actives` indicateurs actifs (snapshot `rpt-pbnb-acpnbk-monde`) · Projection Robinson.</div>
+<div class="figure-source">Source : Inside Airbnb juin 2026 · Typologie ACP-HCPC sur `r aa_n_actives` indicateurs actifs (snapshot `rpt-pbnb-acpnbk-monde`) · Projection Robinson.</div>
 
 {{< include _00-bilanacp.qmd >}}
 

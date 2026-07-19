@@ -1,0 +1,1352 @@
+---
+title: "EDA Macro — 74 villes Airbnb"
+subtitle: "Analyse exploratoire pré-analytique · KPI agrégés par ville · Inside Airbnb juin 2025"
+date: today
+lang: fr
+format:
+  html:
+    # Theme/toc/grid hérités du _quarto.yml (body-width 950px) — pas d'override local
+    code-fold: true
+number-sections: false
+execute:
+  echo: false
+  warning: false
+  message: false
+  cache: true
+params:
+  # --- Donnees pbnb ---
+  data_path: "C:/Users/vince/hh/pq/PDS/pbnb-airbnb-log-jrr-jpy/data/interim/kpi_global_by_city_2606.csv"
+  data_type: "aggregated"
+  echelon: "Ville"
+  label_col: "city_fr"
+  filter_expr: "scope == 'city'"
+  encoding: "UTF-8"
+  # --- Variables (vars_quanti lu depuis le CSV de validation, col `_eda` — voir chunk setup .cld-add) ---
+  vars_quanti: ""
+  vars_quanti_corr: ""
+  vars_quali: "continent_detail,is_capital"
+  color_var: "continent_detail"
+  # --- Seuils quanti x quanti ---
+  k_blocs: 3
+  seuil_alert: 0.70
+  pairs_filter: "both"
+  cap_pct: 0.99
+  # --- Seuils quali x quanti ---
+  min_eta2: 0.06
+  # --- Crosstab quali x quali ---
+  show_crosstab: false
+  crosstab_target: ""
+  crosstab_v_min: 0.10
+  crosstab_max: 6
+  seuil_resid: 1.96
+  # --- Matrice Cramer V ---
+  show_cramer: true
+  # --- Labels ---
+  ddict_path: "C:/Users/vince/hh/pq/PDS/pbnb-airbnb-log-jrr-jpy/reports/helpers/ddict-airbnb.json"
+  labels_manual: ""
+  # --- Mode hybrid ---
+  vars_select_mode: "manual"
+  scan_ddict_path: ""
+  vars_exclude: ""
+  vars_force_quanti_corr: ""
+  vars_force_quanti_bin: ""
+  vars_force_quali: ""
+  cap_quanti: 50
+  # --- Univarie quali enrichi ---
+  univariate_metric_var: ""
+  univariate_metric_label: ""
+  univariate_metric_unit: ""
+  # --- CLD-ADD : params spécifiques pbnb ---
+  eda_csv_path: "C:/Users/vince/hh/pq/PDS/pbnb-airbnb-log-jrr-jpy/reports/helpers/ddict-validation-airbnb.csv"
+---
+
+```{r}
+#| label: setup
+#| include: false
+#| cache: false
+
+library(dplyr)
+library(tidyr)
+library(psych)
+library(reactable)
+library(htmltools)
+library(ggplot2)
+
+JCN <- "C:/Users/vince/hh/pq/PDS/mutils/jrr"
+source(file.path(JCN, "jcn-setup.R"))
+source(file.path(JCN, "jcn-helpers.R"))
+source(file.path(JCN, "jcn-reactable.R"))
+source(file.path(JCN, "jcn-eda-summary.R"))
+source(file.path(JCN, "jcn-eda-corr.R"))
+source(file.path(JCN, "jcn-eda-univariate-metric.R"))
+source(file.path(JCN, "jcn-ddict.R"))
+source(file.path(JCN, "jcn-claude-log.R"))
+
+# Init logging
+claude_log_init(sprintf("eda-%s", gsub("[^a-z0-9]", "", tolower(params$echelon))))
+
+IS_HYBRID <- identical(params$vars_select_mode, "hybrid")
+
+# Mode manual : parse vars depuis params YAML (retrocompat)
+if (!IS_HYBRID) {
+  VARS_QUANTI  <- trimws(strsplit(params$vars_quanti, ",")[[1]])
+  VARS_QUANTI_CORR <- if (nzchar(params$vars_quanti_corr)) {
+    trimws(strsplit(params$vars_quanti_corr, ",")[[1]])
+  } else VARS_QUANTI
+  VARS_QUALI   <- if (nzchar(params$vars_quali)) trimws(strsplit(params$vars_quali, ",")[[1]]) else character(0)
+}
+# Mode hybrid : VARS_* construites dans chunk routing-hybrid apres load-data
+
+# .cld-add : lecture VARS_QUANTI depuis col `_eda` du CSV validation ddict (pbnb)
+# Source de verite = CSV (col `_eda` = "x"). Fallback YAML params$vars_quanti sinon.
+# check.names=FALSE pour preserver le nom "_eda" (R renomme en "X_eda" par defaut)
+.read_eda_vars_from_csv <- function(csv_path) {
+  if (!file.exists(csv_path)) return(character(0))
+  tryCatch({
+    df <- read.csv(csv_path, encoding = "UTF-8", stringsAsFactors = FALSE,
+                    check.names = FALSE)
+    if (!"_eda" %in% names(df)) return(character(0))
+    df$variable[df[["_eda"]] == "x" & !is.na(df[["_eda"]])]
+  }, error = function(e) character(0))
+}
+.eda_vars <- .read_eda_vars_from_csv(params$eda_csv_path)
+if (length(.eda_vars) > 0) {
+  VARS_QUANTI <- .eda_vars
+  VARS_QUANTI_CORR <- VARS_QUANTI
+  message(sprintf(">>> EDA macro : %d vars chargees depuis CSV _eda", length(.eda_vars)))
+}
+# .cld-add-end
+
+COLOR_VAR    <- if (nzchar(params$color_var)) params$color_var else NULL
+LABEL_COL    <- if (nzchar(params$label_col)) params$label_col else NULL
+K_BLOCS      <- as.integer(params$k_blocs)
+SEUIL_ALERT  <- as.numeric(params$seuil_alert)
+PAIRS_FILTER <- params$pairs_filter
+MIN_ETA2     <- as.numeric(params$min_eta2)
+CAP_PCT      <- if (nzchar(params$cap_pct)) as.numeric(params$cap_pct) else NULL
+SHOW_XTAB    <- as.logical(params$show_crosstab)
+XTAB_TARGET  <- if (nzchar(params$crosstab_target)) params$crosstab_target else NULL
+SEUIL_RESID  <- as.numeric(params$seuil_resid)
+SHOW_CRAMER  <- as.logical(params$show_cramer)
+```
+
+```{r}
+#| label: load-data
+#| include: false
+
+# Chargement
+if (params$data_path == "gapminder") {
+  if (!requireNamespace("gapminder", quietly = TRUE)) install.packages("gapminder")
+  df_raw <- gapminder::gapminder %>% filter(year == 2007) %>% as.data.frame()
+} else if (params$data_path == "mtcars") {
+  df_raw <- mtcars; df_raw$car <- rownames(mtcars); rownames(df_raw) <- NULL
+} else if (params$data_path == "iris") {
+  df_raw <- iris
+} else if (params$data_path == "ames") {
+  if (!requireNamespace("AmesHousing", quietly = TRUE)) install.packages("AmesHousing")
+  df_raw <- as.data.frame(AmesHousing::make_ames())
+} else {
+  enc <- if (params$encoding == "UTF-8-BOM") "UTF-8-BOM" else params$encoding
+  df_raw <- read.csv(params$data_path, stringsAsFactors = FALSE, fileEncoding = enc, check.names = FALSE)
+}
+
+# Filtre
+if (params$filter_expr != "NULL") {
+  df_raw <- df_raw %>% filter(eval(parse(text = params$filter_expr)))
+}
+
+# .cld-add : restreindre VARS_QUANTI aux cols presentes dans df_raw (pbnb)
+# Certaines vars _eda sont France-only (prsf_*) — absentes du CSV monde, on les ignore
+.vars_missing <- setdiff(VARS_QUANTI, names(df_raw))
+if (length(.vars_missing) > 0) {
+  message(sprintf(">>> %d vars _eda absentes du CSV, ignorees : %s",
+                  length(.vars_missing), paste(.vars_missing, collapse = ", ")))
+  VARS_QUANTI <- intersect(VARS_QUANTI, names(df_raw))
+  VARS_QUANTI_CORR <- intersect(VARS_QUANTI_CORR, names(df_raw))
+}
+# .cld-add-end
+
+# Charger ddict JSON si fourni (labels pour scan_dataset et autres tableaux)
+DD_JSON <- NULL
+if (nzchar(params$ddict_path) && file.exists(params$ddict_path) &&
+    grepl("\\.json$", params$ddict_path, ignore.case = TRUE)) {
+  DD_JSON <- load_ddict(params$ddict_path)
+}
+
+# --- Mode hybrid : cascade scan → ddict CSV → YAML override ---
+if (IS_HYBRID) {
+  # Etape A : scan auto
+  scan_rows <- lapply(names(df_raw), function(v) {
+    x <- df_raw[[v]]; x_clean <- x[!is.na(x)]; n_uniq <- length(unique(x_clean))
+    type_sem <- if (n_uniq <= 1) "constant"
+      else if (inherits(x, c("Date", "POSIXct", "POSIXlt"))) "date"
+      else if (is.numeric(x) && n_uniq == 2 && all(x_clean %in% c(0, 1))) "binary_num"
+      else if (n_uniq == 2) "binary_cat"
+      else if (is.numeric(x) && n_uniq >= 3 && n_uniq <= 15 &&
+               all(x_clean == round(x_clean)) && (max(x_clean) - min(x_clean)) <= 20) "ordinal_num"
+      else if (is.numeric(x) && n_uniq > 12) "continuous"
+      else if (n_uniq <= 12) "quali_nominal"
+      else if (n_uniq <= 50) "quali_large"
+      else "text_or_id"
+    if (!type_sem %in% c("constant", "date", "binary_num", "binary_cat") &&
+        length(x_clean) > 0 && max(table(x_clean, useNA = "no")) / length(x_clean) >= 0.95)
+      type_sem <- "quasi_const"
+    tf <- if (type_sem %in% c("constant", "date", "text_or_id")) "exclude"
+      else if (type_sem %in% c("continuous", "ordinal_num")) "quanti_corr"
+      else if (type_sem == "binary_num") "quanti_bin"
+      else if (type_sem == "quasi_const") "auto"
+      else if (type_sem %in% c("binary_cat", "quali_nominal", "quali_large")) "quali"
+      else "auto"
+    data.frame(variable = v, bucket = tf, source = "auto", type_sem = type_sem,
+      label = v, stringsAsFactors = FALSE)
+  })
+  auto_routing <- do.call(rbind, scan_rows)
+
+  # Etape B : ddict CSV override
+  if (nzchar(params$scan_ddict_path) && file.exists(params$scan_ddict_path)) {
+    sdd <- load_scan_ddict(params$scan_ddict_path)
+    for (i in seq_len(nrow(auto_routing))) {
+      v <- auto_routing$variable[i]
+      tf <- tryCatch(sdd$type_force(v), warning = function(w) "auto")
+      if (tf != "auto") {
+        auto_routing$bucket[i] <- tf
+        auto_routing$source[i] <- "ddict"
+      }
+      lbl <- sdd$label(v)
+      if (!is.na(lbl) && lbl != v) auto_routing$label[i] <- lbl
+    }
+  }
+
+  # Etape C : YAML overrides (priorite max)
+  .yaml_split <- function(p) if (nzchar(p)) trimws(strsplit(p, ",")[[1]]) else character(0)
+  yaml_exclude <- .yaml_split(params$vars_exclude)
+  yaml_qc <- .yaml_split(params$vars_force_quanti_corr)
+  yaml_qb <- .yaml_split(params$vars_force_quanti_bin)
+  yaml_ql <- .yaml_split(params$vars_force_quali)
+  .yaml_set <- function(vars, bucket) {
+    for (v in vars) {
+      idx <- which(auto_routing$variable == v)
+      if (length(idx) == 1) { auto_routing$bucket[idx] <<- bucket; auto_routing$source[idx] <<- "yaml" }
+    }
+  }
+  .yaml_set(yaml_exclude, "exclude")
+  .yaml_set(yaml_qc, "quanti_corr")
+  .yaml_set(yaml_qb, "quanti_bin")
+  .yaml_set(yaml_ql, "quali")
+
+  # Construire VARS_*
+  cap <- as.integer(params$cap_quanti)
+  VARS_QUANTI_CORR <- auto_routing$variable[auto_routing$bucket == "quanti_corr"]
+  if (length(VARS_QUANTI_CORR) > cap) {
+    message(sprintf("Cap quanti : %d -> %d", length(VARS_QUANTI_CORR), cap))
+    VARS_QUANTI_CORR <- VARS_QUANTI_CORR[seq_len(cap)]
+  }
+  VARS_QUANTI_BIN  <- auto_routing$variable[auto_routing$bucket == "quanti_bin"]
+  VARS_QUANTI      <- c(VARS_QUANTI_CORR, VARS_QUANTI_BIN)
+  VARS_QUALI       <- auto_routing$variable[auto_routing$bucket == "quali"]
+
+  # Labels depuis routing (base)
+  VAR_LABELS <- setNames(auto_routing$label[match(VARS_QUANTI, auto_routing$variable)], VARS_QUANTI)
+
+} else {
+  # Mode manual
+  auto_routing <- NULL
+  VAR_LABELS <- setNames(VARS_QUANTI, VARS_QUANTI)
+}
+
+# Overlay labels : DD_JSON > CSV routing > raw name
+# DD_JSON prioritaire pour tous les modes (hybrid et manual)
+if (!is.null(DD_JSON)) {
+  for (v in VARS_QUANTI) {
+    lbl <- tryCatch(DD_JSON$label(v), error = function(e) v)
+    if (!is.na(lbl) && lbl != v) VAR_LABELS[v] <- lbl
+  }
+} else if (!IS_HYBRID && nzchar(params$labels_manual)) {
+  pairs <- trimws(strsplit(params$labels_manual, ",")[[1]])
+  for (p in pairs) {
+    kv <- trimws(strsplit(p, "=")[[1]])
+    if (length(kv) == 2 && kv[1] %in% names(VAR_LABELS)) VAR_LABELS[kv[1]] <- kv[2]
+  }
+}
+
+# Quali -> factor + exclure niveaux vides ou uniques
+for (qv in VARS_QUALI) {
+  if (qv %in% names(df_raw)) {
+    df_raw[[qv]] <- factor(df_raw[[qv]])
+    lvls <- levels(df_raw[[qv]])
+    df_raw[[qv]] <- factor(df_raw[[qv]], levels = lvls[nzchar(lvls)])
+  }
+}
+quali_ok <- if (length(VARS_QUALI) > 0) {
+  sapply(VARS_QUALI, function(qv) {
+    if (!qv %in% names(df_raw)) return(FALSE)
+    nlevels(df_raw[[qv]]) >= 2
+  })
+} else logical(0)
+if (any(!quali_ok)) message("Quali exclues (1 seul niveau) : ", paste(VARS_QUALI[!quali_ok], collapse = ", "))
+VARS_QUALI <- VARS_QUALI[quali_ok]
+HAS_QUALI  <- length(VARS_QUALI) > 0
+SHOW_XTAB  <- SHOW_XTAB && HAS_QUALI
+SHOW_CRAMER <- SHOW_CRAMER && HAS_QUALI && length(VARS_QUALI) >= 2
+COLOR_VAR  <- if (!is.null(COLOR_VAR) && COLOR_VAR %in% VARS_QUALI) COLOR_VAR else {
+  if (HAS_QUALI) VARS_QUALI[1] else NULL
+}
+# Cap palette : si trop de niveaux le scatter crash (palette insuffisante)
+if (!is.null(COLOR_VAR) && COLOR_VAR %in% names(df_raw) &&
+    nlevels(df_raw[[COLOR_VAR]]) > 12) COLOR_VAR <- NULL
+
+# Labels quali depuis DD_JSON
+QUALI_LABELS <- setNames(VARS_QUALI, VARS_QUALI)
+if (!is.null(DD_JSON)) {
+  for (v in VARS_QUALI) {
+    lbl <- tryCatch(DD_JSON$label(v), error = function(e) v)
+    if (!is.na(lbl) && lbl != v) QUALI_LABELS[v] <- lbl
+  }
+}
+
+# Renommer quali dans df_raw (propage a df, df_eta_full, cramer)
+for (v in VARS_QUALI) {
+  if (QUALI_LABELS[v] != v && v %in% names(df_raw)) {
+    names(df_raw)[names(df_raw) == v] <- QUALI_LABELS[v]
+  }
+}
+# Mettre a jour les refs
+if (!is.null(COLOR_VAR) && COLOR_VAR %in% names(QUALI_LABELS)) COLOR_VAR <- QUALI_LABELS[COLOR_VAR]
+if (!is.null(XTAB_TARGET) && XTAB_TARGET %in% names(QUALI_LABELS)) XTAB_TARGET <- QUALI_LABELS[XTAB_TARGET]
+VARS_QUALI <- unname(QUALI_LABELS[VARS_QUALI])
+
+# Dataframes
+cols_keep <- intersect(c(LABEL_COL, VARS_QUANTI, VARS_QUALI), names(df_raw))
+df <- df_raw[, cols_keep, drop = FALSE]
+```
+
+```{r}
+#| label: na-diagnostic
+#| include: false
+#| cache: false
+
+na_report <- calc_na_report(df, VARS_QUANTI)
+na_report_quali <- if (HAS_QUALI) calc_na_report(df, VARS_QUALI) else NULL
+
+log_step("POOL", n_raw = nrow(df), n_quanti = length(VARS_QUANTI),
+  n_quali = length(VARS_QUALI), na_pct_lost = na_report$pct_lost)
+log_result("na_report", na_report$per_var, interpret = na_report$summary_text)
+
+# df_num : TOUTES les quanti (continues + binaires), SANS na.omit (describe voit les NA)
+df_num <- df[, intersect(VARS_QUANTI, names(df)), drop = FALSE]
+names(df_num) <- VAR_LABELS[names(df_num)]
+
+# Labels des continues seules (pour distributions uniquement)
+VARS_CORR_LBL <- VAR_LABELS[intersect(VARS_QUANTI_CORR, names(VAR_LABELS))]
+
+# df_num_clean : TOUTES les quanti, na.omit (pour correlations)
+df_num_clean <- df_num %>% na.omit()
+
+df_full_lbl <- if (!is.null(LABEL_COL) && LABEL_COL %in% names(df)) {
+  tmp <- df[, c(LABEL_COL, intersect(VARS_QUANTI, names(df))), drop = FALSE]
+  names(tmp)[match(VARS_QUANTI, names(tmp), nomatch = 0)] <- VAR_LABELS[intersect(VARS_QUANTI, names(tmp))]
+  tmp
+} else NULL
+
+df_eta_full <- df[, intersect(c(VARS_QUANTI, VARS_QUALI), names(df)), drop = FALSE]
+for (v in intersect(VARS_QUANTI, names(df_eta_full))) {
+  if (v %in% names(VAR_LABELS) && VAR_LABELS[v] != v) {
+    names(df_eta_full)[names(df_eta_full) == v] <- VAR_LABELS[v]
+  }
+}
+```
+
+```{r}
+#| label: aa-univarie
+#| include: false
+#| cache: false
+
+summ <- calc_eda_summary(df_num)
+aa_n_obs      <- nrow(df)
+aa_n_quanti   <- ncol(df_num)
+aa_n_quali    <- length(VARS_QUALI)
+aa_n_na_tot   <- sum(is.na(df[, intersect(VARS_QUANTI, names(df)), drop = FALSE]))
+
+aa_n_raw      <- nrow(df)
+aa_n_perdu    <- na_report$n_lost
+aa_pct_perdu  <- na_report$pct_lost
+aa_var_max_na <- ifelse(is.na(na_report$most_costly), "aucune", na_report$most_costly)
+aa_v_max_na   <- max(na_report$per_var$n_na)
+aa_pct_max_na <- max(na_report$per_var$pct_na)
+
+aa_n_skewed   <- sum(abs(summ$skewness) > 2, na.rm = TRUE)
+aa_n_skew_mod <- sum(abs(summ$skewness) > 1 & abs(summ$skewness) <= 2, na.rm = TRUE)
+aa_n_outlier  <- sum(summ$outliers_ratio > 5, na.rm = TRUE)
+aa_n_highcv   <- sum(summ$cv > 2, na.rm = TRUE)
+aa_t_most_skewed <- if (aa_n_skewed > 0) summ$variable[which.max(abs(summ$skewness))] else "aucune"
+aa_v_max_skew <- round(max(abs(summ$skewness), na.rm = TRUE), 2)
+aa_t_outlier_vars <- paste(summ$variable[summ$outliers_ratio > 5], collapse = ", ")
+aa_vars_skewed  <- summ$variable[abs(summ$skewness) > 2]
+aa_vars_outlier <- summ$variable[summ$outliers_ratio > 5]
+aa_bilan_skew   <- if (length(aa_vars_skewed) > 0) paste0("*", paste(aa_vars_skewed, collapse = "*, *"), "*") else "aucune"
+aa_bilan_skew_mod <- if (aa_n_skew_mod > 0) paste0("*", paste(summ$variable[abs(summ$skewness) > 1 & abs(summ$skewness) <= 2], collapse = "*, *"), "*") else ""
+aa_bilan_outl   <- if (length(aa_vars_outlier) > 0) paste0("*", paste(aa_vars_outlier, collapse = "*, *"), "*") else "aucune"
+
+log_result("eda_summary", summ, interpret = sprintf(
+  "%d obs, %d var. %d skewed, %d outlier>5%%, max_skew=%s (%.2f)",
+  aa_n_obs, aa_n_quanti, aa_n_skewed, aa_n_outlier, aa_t_most_skewed, aa_v_max_skew))
+log_result("outliers_detail",
+  summ %>% filter(outliers_ratio > 2) %>% select(variable, outliers_cnt, outliers_ratio, shift_pct),
+  interpret = sprintf("Variables avec outliers >2%% : %s",
+    if (sum(summ$outliers_ratio > 2) > 0) paste(summ$variable[summ$outliers_ratio > 2], collapse = ", ") else "aucune"))
+```
+
+```{r}
+#| label: aa-bivarie
+#| include: false
+#| cache: false
+
+ct <- calc_corr_diag(df_num_clean, k_blocs = min(K_BLOCS, ncol(df_num_clean) - 1))
+emp_corr <- calc_empirical_thresholds(ct$abs_r)
+
+aa_n_crit    <- sum(ct$abs_r >= SEUIL_ALERT)
+aa_n_collin  <- sum(ct$abs_r >= 0.90)
+aa_n_nonlin  <- sum(ct$delta_ps > 0.10, na.rm = TRUE)
+aa_paires_crit <- ct %>%
+  filter(abs_r >= SEUIL_ALERT) %>%
+  mutate(txt = sprintf("**%s** x **%s** (r=%.2f)", var1, var2, r_pearson)) %>%
+  pull(txt)
+aa_paires_crit_short <- ct %>%
+  filter(abs_r >= SEUIL_ALERT) %>%
+  mutate(txt = sprintf("%s x %s", var1, var2)) %>%
+  pull(txt) %>% paste(collapse = ", ")
+aa_paires_collin <- ct %>%
+  filter(abs_r >= 0.90) %>%
+  mutate(txt = sprintf("**%s** x **%s** (r=%.2f)", var1, var2, r_pearson)) %>%
+  pull(txt)
+aa_paires_nonlin <- ct %>%
+  filter(delta_ps > 0.10) %>%
+  mutate(txt = sprintf("%s x %s (delta=%.2f)", var1, var2, delta_ps)) %>%
+  pull(txt)
+aa_paires_nonlin_short <- ct %>%
+  filter(delta_ps > 0.10) %>%
+  mutate(txt = sprintf("%s x %s", var1, var2)) %>%
+  pull(txt) %>% paste(collapse = ", ")
+
+log_step("BIVARIE", n_paires = nrow(ct), n_crit = aa_n_crit,
+  n_collin = aa_n_collin, n_nonlin = aa_n_nonlin)
+
+# Correlations completes (toutes les paires)
+log_result("corr_all", ct %>% select(var1, var2, r_pearson, r_spearman, delta_ps, bloc1, bloc2, same_bloc),
+  interpret = sprintf("%d paires, %d critiques |r|>%.2f, %d non-lin, %d collin |r|>0.90",
+    nrow(ct), aa_n_crit, SEUIL_ALERT, aa_n_nonlin, aa_n_collin))
+
+# Blocs hclust
+bloc_info <- ct %>% distinct(var1, bloc1) %>% rename(variable = var1, bloc = bloc1)
+bloc_info2 <- ct %>% distinct(var2, bloc2) %>% rename(variable = var2, bloc = bloc2)
+blocs_all <- bind_rows(bloc_info, bloc_info2) %>% distinct()
+log_result("blocs_hclust", blocs_all,
+  interpret = sprintf("%d blocs, variables : %s",
+    length(unique(blocs_all$bloc)),
+    paste(sprintf("%s=[%s]", unique(blocs_all$bloc),
+      sapply(unique(blocs_all$bloc), function(b) paste(blocs_all$variable[blocs_all$bloc == b], collapse = ", "))),
+      collapse = " | ")))
+
+if (!is.null(emp_corr)) log_result("empirical_thresholds", emp_corr)
+```
+
+```{r}
+#| label: aa-quali
+#| include: false
+#| cache: false
+
+if (HAS_QUALI) {
+  eta2 <- calc_eta2_table(df_eta_full, VARS_QUALI, names(df_eta_full)[!names(df_eta_full) %in% VARS_QUALI])
+  aa_best_quali <- {
+    moys <- eta2 %>% group_by(quali) %>% summarise(m = mean(eta2, na.rm = TRUE)) %>% arrange(desc(m))
+    sprintf("**%s** (eta2 moyen = %.3f)", moys$quali[1], moys$m[1])
+  }
+
+  # Log matrice eta2 complete
+  log_result("eta2_matrix", eta2,
+    interpret = sprintf("%d quali x %d quanti. Meilleure : %s",
+      length(VARS_QUALI), length(names(df_eta_full)[!names(df_eta_full) %in% VARS_QUALI]),
+      aa_best_quali))
+
+  # Trier VARS_QUALI par eta2 moyen decroissant (v-test top 6 = les plus discriminantes)
+  VARS_QUALI <- moys$quali[moys$quali %in% VARS_QUALI]
+
+  # Log v-test par quali (ecarts significatifs)
+  for (qv in VARS_QUALI) {
+    vt_log <- calc_vtest_table(df_eta_full, qv, names(df_eta_full)[!names(df_eta_full) %in% VARS_QUALI], eta2_tbl = eta2)
+    if (!is.null(vt_log)) {
+      # Extraire les ecarts significatifs
+      vt_cols <- grep("^vtest_", names(vt_log), value = TRUE)
+      ec_cols <- grep("^ecart_", names(vt_log), value = TRUE)
+      mn_cols <- grep("^mean_", names(vt_log), value = TRUE)
+      sig_cells <- lapply(seq_len(nrow(vt_log)), function(i) {
+        lapply(sub("^vtest_", "", vt_cols), function(m) {
+          v <- vt_log[[paste0("vtest_", m)]][i]
+          ec <- vt_log[[paste0("ecart_", m)]][i]
+          mn <- vt_log[[paste0("mean_", m)]][i]
+          if (!is.na(v) && abs(v) >= 1.96)
+            data.frame(variable = vt_log$variable[i], modalite = m,
+              vtest = v, ecart_pct = ec, mean_mod = mn, moy_glob = vt_log$moy_glob[i])
+          else NULL
+        })
+      })
+      sig_df <- do.call(rbind, unlist(sig_cells, recursive = FALSE))
+      if (!is.null(sig_df) && nrow(sig_df) > 0) {
+        sig_df <- sig_df[order(-abs(sig_df$ecart_pct)), ]
+        log_result(paste0("vtest_", qv), sig_df,
+          interpret = sprintf("%s : %d ecarts significatifs, top = %s %s (%+.1f%%)",
+            qv, nrow(sig_df), sig_df$variable[1], sig_df$modalite[1], sig_df$ecart_pct[1]))
+      }
+    }
+  }
+  # Variables aa_ pour diagnostic eta2
+  quali_rank <- moys
+  quanti_rank <- eta2 %>% group_by(quanti) %>%
+    summarise(m = mean(eta2, na.rm = TRUE), mx = max(eta2, na.rm = TRUE), .groups = "drop") %>%
+    arrange(desc(m))
+
+  eta2_grand <- eta2 %>% filter(eta2 >= 0.14)
+  aa_n_eta2_grand <- nrow(eta2_grand)
+  aa_eta2_top_short <- if (aa_n_eta2_grand > 0) {
+    top <- head(eta2_grand %>% arrange(desc(eta2)), 6)
+    paste(sprintf("%s x %s (%.0f%%)", top$quali, top$quanti, top$eta2 * 100), collapse = ", ")
+  } else ""
+  aa_eta2_hub_quali <- quali_rank$quali[1]
+  aa_eta2_hub_pct <- round(quali_rank$m[1] * 100, 0)
+  aa_eta2_top3_quanti <- paste(sprintf("%s (%.0f%%)", head(quanti_rank$quanti, 3),
+    head(quanti_rank$m, 3) * 100), collapse = ", ")
+
+  # Pre-calcul : nb variables CORR passant seuil eta2 par quali (pour conditionner distrib)
+  # Aligner avec VARS_CORR_LBL qui sont les continues passees a plot_eda_distrib_by_group
+  corr_lbl_names <- VAR_LABELS[intersect(VARS_QUANTI_CORR, names(VAR_LABELS))]
+  n_distrib_qualify <- sapply(seq_along(VARS_QUALI), function(i) {
+    if (i > length(VARS_QUALI)) return(0L)
+    sum(eta2$eta2[eta2$quali == VARS_QUALI[i] & eta2$quanti %in% corr_lbl_names] >= MIN_ETA2, na.rm = TRUE)
+  })
+
+} else {
+  eta2 <- NULL
+  aa_best_quali <- ""
+  aa_n_eta2_grand <- 0
+  aa_eta2_top_short <- ""
+  aa_eta2_hub_quali <- ""
+  aa_eta2_hub_pct <- 0
+  aa_eta2_top3_quanti <- ""
+  n_distrib_qualify <- integer(0)
+}
+
+# Pre-calcul Cramer pour diagnostic (avant affichage)
+cramer_mx <- NULL
+aa_n_cramer_fort <- 0; aa_cramer_top_short <- ""
+aa_cramer_hubs <- ""
+if (SHOW_CRAMER) {
+  cramer_mx <- calc_cramer_matrix(df, VARS_QUALI)
+  cdt <- cramer_mx$details
+  aa_n_cramer_fort <- sum(cdt$cramers_v >= 0.25, na.rm = TRUE)
+  if (aa_n_cramer_fort > 0) {
+    top_cr <- head(cdt %>% filter(cramers_v >= 0.25), 5)
+    aa_cramer_top_short <- paste(sprintf("%s x %s (V=%.2f)", top_cr$var1, top_cr$var2, top_cr$cramers_v), collapse = ", ")
+  }
+  # Hubs : V moyen > 0.20
+  v_all <- c(
+    tapply(cdt$cramers_v, cdt$var1, mean, na.rm = TRUE),
+    tapply(cdt$cramers_v, cdt$var2, mean, na.rm = TRUE))
+  v_agg <- sort(tapply(v_all, names(v_all), mean, na.rm = TRUE), decreasing = TRUE)
+  top_hubs <- head(v_agg[v_agg > 0.20], 3)
+  aa_cramer_hubs <- if (length(top_hubs) > 0) {
+    paste(sprintf("%s (V moy=%.2f)", names(top_hubs), top_hubs), collapse = ", ")
+  } else ""
+}
+```
+
+
+## 1 — Bilan diagnostic et préparation
+
+Ce diagnostic identifie **les points d'attention à traiter** avant toute analyse multivariée. Il examine trois familles de relations : les **corrélations** entre indicateurs numériques (redondances, colinéarité), les **associations Cramér V** entre typologies catégorielles (quelles catégories vont ensemble), et les **effets êta²** des typologies sur les indicateurs (qui structure quoi). Les recommandations par usage — ACP, régression, clustering — en découlent directement.
+
+### Diagnostic transversal
+
+```{r}
+#| label: diag-transversal
+#| results: asis
+#| cache: false
+
+# Helper : bullet resume + details depliable si > max_inline
+.diag_bullet <- function(emoji, titre, desc, items, max_inline = 3) {
+  n <- length(items)
+  if (n == 0) return(invisible(NULL))
+  preview <- paste(head(items, max_inline), collapse = " ; ")
+  if (n <= max_inline) {
+    cat(sprintf("- %s **%s** (%s) : %d — %s\n\n", emoji, titre, desc, n, preview))
+  } else {
+    cat(sprintf("- %s **%s** (%s) : **%d** — %s\n\n", emoji, titre, desc, n, preview))
+    cat(sprintf('<details style="margin:-8px 0 8px 24px;font-size:13px"><summary style="cursor:pointer;color:#1696d2">%d paires au total — voir le detail</summary>\n<div style="padding:6px 0;line-height:1.9">\n', n))
+    for (it in items) cat(sprintf("%s<br>\n", it))
+    cat("</div></details>\n\n")
+  }
+}
+
+cat("**Variables quantitatives**\n\n")
+
+# Redondants |r| > 0.90
+if (aa_n_collin > 0) {
+  .diag_bullet("\U0001F534", "Indicateurs redondants",
+    "|r| > 0.90 = mesurent quasi la meme chose", aa_paires_collin)
+}
+
+# Fortement lies
+if (aa_n_crit > 0) {
+  crit_items <- ct %>% filter(abs_r >= SEUIL_ALERT & abs_r < 0.90) %>%
+    mutate(txt = sprintf("**%s** x **%s** (r=%.2f)", var1, var2, r_pearson)) %>% pull(txt)
+  if (length(crit_items) > 0) {
+    .diag_bullet("\U0001F7E0", "Indicateurs fortement lies",
+      sprintf("|r| > %.2f = evoluent ensemble", SEUIL_ALERT), crit_items)
+  }
+} else {
+  cat(sprintf("- \U0001F7E2 Aucune paire fortement liee (|r| > %.2f)\n\n", SEUIL_ALERT))
+}
+
+# Skew
+if (aa_n_skewed > 0) {
+  skew_items <- summ %>% filter(abs(skewness) > 2) %>%
+    mutate(txt = sprintf("**%s** (skew=%.1f)", variable, skewness)) %>% pull(txt)
+  .diag_bullet("\U0001F7E1", "Distributions desequilibrees",
+    "valeurs concentrees d'un cote, skew > 2", skew_items)
+}
+
+# Outliers
+if (aa_n_outlier > 0) {
+  outl_items <- summ %>% filter(outliers_ratio > 5) %>%
+    mutate(txt = sprintf("**%s** (%.1f%% outliers)", variable, outliers_ratio)) %>% pull(txt)
+  .diag_bullet("\U0001F7E2", "Valeurs extremes", ">5% hors norme", outl_items)
+}
+
+# Non-lineaires
+if (aa_n_nonlin > 0) {
+  nl_items <- ct %>% filter(delta_ps > 0.10) %>%
+    mutate(txt = sprintf("**%s** x **%s** (delta=%.2f)", var1, var2, delta_ps)) %>% pull(txt)
+  .diag_bullet("\u2139\ufe0f", "Relations non-lineaires",
+    "la relation existe mais pas en ligne droite", nl_items)
+}
+
+# Quali entre elles
+if (HAS_QUALI || SHOW_CRAMER) {
+  cat("\n**Variables qualitatives entre elles**\n\n")
+  if (aa_n_cramer_fort > 0) {
+    cr_items <- cramer_mx$details %>% filter(cramers_v >= 0.25) %>%
+      mutate(txt = sprintf("**%s** x **%s** (V=%.2f)", var1, var2, cramers_v)) %>% pull(txt)
+    .diag_bullet("\U0001F7E3", "Typologies fortement liees",
+      "V > 0.25 = connaitre l'une aide a deviner l'autre", cr_items)
+  } else if (SHOW_CRAMER) {
+    cat("- \U0001F7E3 Les typologies sont independantes (V < 0.25)\n\n")
+  }
+  if (nzchar(aa_cramer_hubs)) {
+    cat(sprintf("- \u26a0 **Variables hubs** (liees a beaucoup d'autres) : %s\n\n", aa_cramer_hubs))
+  }
+}
+
+# Eta2
+if (HAS_QUALI) {
+  cat("\n**Typologies x Indicateurs**\n\n")
+  if (aa_n_eta2_grand > 0) {
+    eta_items <- eta2 %>% filter(eta2 >= 0.14) %>% arrange(desc(eta2)) %>%
+      mutate(txt = sprintf("**%s** x **%s** (eta2=%.0f%%)", quali, quanti, eta2 * 100)) %>% pull(txt)
+    .diag_bullet("\U0001F535", "Typologies qui structurent fortement",
+      "eta2 > 14% = le groupe predit la valeur", eta_items)
+  } else {
+    cat("- \U0001F535 Aucune typologie ne structure fortement un indicateur (eta2 > 14%)\n\n")
+  }
+  if (aa_eta2_hub_pct > 10) {
+    cat(sprintf("- \u26a0 **Variable structurante** : %s (explique en moy. %.0f%% des indicateurs)\n\n", aa_eta2_hub_quali, aa_eta2_hub_pct))
+  }
+  if (nzchar(aa_eta2_top3_quanti)) {
+    cat(sprintf("- **Indicateurs les plus expliques** : %s\n\n", aa_eta2_top3_quanti))
+  }
+}
+if (nrow(df_num) > 10000) {
+  cat(sprintf("- \u26a0 **p-values saturees** (N=%s) : se fier a |r|, eta2, seuils empiriques\n\n",
+    formatC(nrow(df_num), big.mark = "\u202f")))
+}
+```
+
+### Recommandations par usage
+
+::: {.panel-tabset}
+
+#### Pre-ACP
+
+**Obligatoire**
+
+`r if (aa_n_collin > 0) sprintf("- **Retirer les redondances** (|r| > 0.90) : %d paire(s), dont %s — sinon axes parasites", aa_n_collin, paste(head(aa_paires_collin, 3), collapse = " ; ")) else "- Pas de redondance critique detectee"`
+
+**Recommande**
+
+`r if (aa_n_crit > 0) { crit_only <- ct %>% filter(abs_r >= SEUIL_ALERT & abs_r < 0.90); n_co <- nrow(crit_only); if (n_co > 0) sprintf("- **Passer en variables supplementaires** les %d paires |r| > %.2f, dont %s", n_co, SEUIL_ALERT, paste(head(sprintf("%s x %s", crit_only$var1, crit_only$var2), 3), collapse = ", ")) else "" } else ""`
+`r if (aa_n_skewed > 0) sprintf("- **Log-transformer les variables asymetriques** (skew > 2) : %s — ameliore la stabilite des composantes", aa_bilan_skew) else ""`
+- **Standardiser** (centrer-reduire) — automatique si `FactoMineR::PCA(scale.unit = TRUE)`
+
+**Optionnel**
+
+- **Winsoriser les outliers** si shift > 20% (deforme les axes minoritaires)
+`r if (HAS_QUALI) sprintf("- **Quali en variables supplementaires** pour interpreter les axes : %s", paste(head(VARS_QUALI, 5), collapse = ", ")) else ""`
+
+#### Pre-regression
+
+**Obligatoire**
+
+`r if (aa_n_crit > 0) sprintf("- **Calculer le VIF** — retirer toute variable VIF > 5 parmi les %d paires |r| > %.2f. Au-dela, coefficients instables", aa_n_crit, SEUIL_ALERT) else "- Pas de colinearite bloquante detectee"`
+
+**Recommande**
+
+`r if (aa_n_skewed > 0) sprintf("- **Transformer les variables asymetriques** (log, racine, Box-Cox) pour normaliser les residus : %s", aa_bilan_skew) else ""`
+- **Verifier les residus apres le fit** : normalite (QQ-plot), homoscedasticite (residus vs predits)
+
+**Optionnel**
+
+- **Cook's distance** apres le fit pour identifier les observations influentes (retirer si Di > 4/n)
+`r if (aa_n_nonlin > 0) sprintf("- **Splines ou GAM** pour les non-linearites detectees : %s", aa_paires_nonlin_short) else ""`
+
+#### Pre-clustering
+
+**Obligatoire**
+
+- **Standardiser obligatoirement** (z-score ou robust scale) — sinon une variable d'amplitude 1000 ecrase celles d'amplitude 1
+`r if (aa_n_collin > 0) "- **Retirer les redondances** (|r| > 0.90) — sinon une dimension est sur-ponderee artificiellement" else ""`
+
+**Recommande**
+
+- **Winsoriser les outliers** — deforment les distances euclidiennes (k-means surtout)
+- **Tester plusieurs distances** : euclidienne (defaut), Manhattan (robuste outliers), Gower (mixte quali+quanti)
+
+**Optionnel**
+
+- **Reduction de dimension prealable** (ACP, t-SNE, UMAP) si > 20 variables
+- **Validation du k optimal** via silhouette, gap statistic, ou elbow method
+
+#### Pre-ML supervise
+
+**Obligatoire**
+
+- **Train/test split** au minimum (80/20 ou 70/30), idealement validation croisee k-fold
+- **Scaling** pour SVM/kNN/reseaux (pas necessaire pour arbres)
+
+**Recommande**
+
+- **Lasso/Ridge** gerent les redondances naturellement, **RandomForest** aussi (selection feature interne)
+`r if (aa_n_skewed > 0) "- **Asymetries** : critique pour modeles lineaires, robuste pour arbres" else ""`
+- **Outliers** : critiques pour SVM/kNN, moins pour arbres et boosting
+
+**Optionnel**
+
+- **Feature engineering** : interactions, polynomiales, encoding cible pour categorielles haute cardinalite
+- **Hyperparameter tuning** : grid search ou bayesien selon budget compute
+
+#### Indice synthetique
+
+**Obligatoire**
+
+- **Standardiser obligatoirement** (z-score, rang, ou min-max) — comparabilite des variables
+- **Definir le sens** de chaque variable (un score eleve = bon ou mauvais ?) avant agregation
+
+**Recommande**
+
+`r if (aa_n_outlier > 0) sprintf("- **Winsoriser les outliers** : %s — evite qu'une valeur extreme ecrase l'indice", aa_bilan_outl) else ""`
+- **Coherence interne** : alpha de Cronbach > 0.7 pour verifier que les variables mesurent un construit commun
+
+**Optionnel**
+
+- **Ponderation** : egales (par defaut), expert (avis de domaine), ou ACP (1ere composante)
+- **Redondances tolerables** : renforcent une dimension (a l'inverse de l'ACP)
+- **Validation** : correlation de l'indice avec un proxy externe connu
+
+:::
+
+
+## 2 — Données et contexte
+
+Cette section pose le **cadre du jeu de données** : périmètre couvert, granularité d'observation, variables retenues et exclues. Le scan automatique détecte les types sémantiques (continu, catégoriel, identifiant, constante) et documente les **taux de valeurs manquantes** par variable.
+
+```{r}
+#| label: scan-global
+#| column: page-right
+#| results: asis
+
+cat(sprintf('<details style="margin:8px 0"><summary style="cursor:pointer;font-weight:600;color:#1696d2;font-size:13px">Scan dataset brut — %d variables, %s obs — cliquer pour deplier</summary>\n',
+  ncol(df_raw), formatC(nrow(df_raw), big.mark = "\u202f")))
+scan_dataset(df_raw, ddict = DD_JSON, title = sprintf("Scan dataset brut — %d variables, %s obs",
+  ncol(df_raw), formatC(nrow(df_raw), big.mark = "\u202f")))
+cat('</details>\n')
+```
+
+```{r}
+#| label: routing-hybrid
+#| column: page-right
+#| eval: !expr IS_HYBRID
+#| results: asis
+
+cat(sprintf('<details style="margin:8px 0"><summary style="cursor:pointer;font-weight:600;color:#1696d2;font-size:13px">Routage variables — %d variables — cliquer pour deplier</summary>\n',
+  nrow(auto_routing)))
+make_routing_rt(auto_routing)
+cat('</details>\n')
+```
+
+*EDA `r params$data_type` — **`r params$echelon`** : `r formatC(aa_n_raw, big.mark = " ")` observations brutes, `r length(VARS_QUANTI)` quanti retenues (`r length(VARS_QUANTI_CORR)` continues + `r length(VARS_QUANTI) - length(VARS_QUANTI_CORR)` binaires 0/1) et `r aa_n_quali` qualitatives. Pool apres na.omit : `r formatC(nrow(df_num_clean), big.mark = " ")` obs (`r aa_pct_perdu`% perdues`r if (aa_pct_perdu > 0) sprintf(", variable couteuse : %s", aa_var_max_na) else ""`).*
+
+| | Variables | Role EDA |
+|---|---|---|
+| **Quanti continues** (`r length(VARS_QUANTI_CORR)`) | `r paste(VARS_QUANTI_CORR, collapse = ", ")` | Describe, distributions, correlations, eta2 |
+| **Quanti binaires 0/1** (`r length(VARS_QUANTI) - length(VARS_QUANTI_CORR)`) | `r if (length(setdiff(VARS_QUANTI, VARS_QUANTI_CORR)) > 0) paste(setdiff(VARS_QUANTI, VARS_QUANTI_CORR), collapse = ", ") else "—"` | Eta2/v-test (taux par groupe), correlations phi |
+| **Quali** (`r aa_n_quali`) | `r paste(VARS_QUALI, collapse = ", ")` | Profils, eta2/v-test, crosstabs, Cramer V |
+
+
+## 3 — Analyse univariée — structure des variables
+
+Cette section analyse chaque variable **indépendamment des autres**, en deux temps. D'abord un panorama synthétique : statistiques descriptives des indicateurs numériques et profil des variables catégorielles. Puis un **zoom par variable qualitative** avec masses absolues, concentration et asymétrie.
+
+### Variables quantitatives — profil descriptif
+
+**Statistiques descriptives** des `r length(VARS_QUANTI)` variables numériques retenues : tendance centrale, dispersion, forme de la distribution et valeurs extrêmes. Cliquer sur une ligne pour voir le top/bottom.
+
+```{r}
+#| label: eda-describe
+
+make_eda_describe_rt(df_num, summ, df_full = df_full_lbl, label_col = LABEL_COL,
+  n_top = 5, ddict = DD_JSON)
+```
+
+&nbsp;
+
+### Variables qualitatives — profil synthétique
+
+**Pour chaque typologie**, le tableau ci-dessous donne le nombre de modalités, la modalité la plus fréquente, la concentration (HHI, Top-3 cumulé) et l'équilibre des effectifs entre modalités. Permet de repérer les typologies déséquilibrées (1 modalité majoritaire écrasante) ou hyper-fragmentées (trop de modalités à faible effectif pour servir en analyse multivariée).
+
+```{r}
+#| label: eda-quali-summary
+
+if (HAS_QUALI) make_eda_quali_summary(df, VARS_QUALI)
+```
+
+### Graphiques de distributions
+
+**Les distributions** des variables continues révèlent leur forme — symétrique, asymétrique (skew), unimodale ou bimodale. Une asymétrie marquée (skew > 2) signale qu'une transformation log peut s'imposer avant ACP ou régression. La présence de queues longues (outliers) annonce un travail de winsorisation potentiel.
+
+::: {.callout-tip collapse="true" appearance="minimal"}
+## REPÈRES MÉTHODO : distributions et asymétrie
+
+**Skewness (asymétrie)** : mesure si une distribution est déséquilibrée. |skew| > 2 = valeurs fortement concentrées d'un côté avec une longue queue de l'autre. *Exemple : les montants de marchés publics ont souvent un skew > 5 — beaucoup de petits montants et quelques très gros contrats.* Action : envisager une transformation log avant ACP ou régression.
+
+**Ratio moyenne/médiane** : quand ce ratio dépasse 3, la moyenne est tirée vers le haut par des valeurs extrêmes — la médiane est alors plus représentative. *Exemple : médiane 67 k€ vs moyenne 192 k€ → quelques marchés à plusieurs millions tirent la moyenne.*
+:::
+
+```{r}
+#| label: eda-distributions
+#| column: page-right
+#| fig-width: 12
+#| fig-height: !expr min(18, max(4, ceiling(aa_n_quanti / (if (aa_n_quanti <= 4) 2 else if (aa_n_quanti <= 9) 3 else 4)) * 1.8))
+
+plot_eda_distributions(df_num[, VARS_CORR_LBL, drop = FALSE], cap_pct = CAP_PCT)
+```
+
+```{r}
+#| label: eda-univariate-setup
+#| include: false
+
+UNIV_METRIC <- if (nzchar(params$univariate_metric_var)) params$univariate_metric_var else NULL
+UNIV_LABEL  <- params$univariate_metric_label
+UNIV_UNIT   <- params$univariate_metric_unit
+HAS_UNIV_METRIC <- !is.null(UNIV_METRIC) && HAS_QUALI
+```
+
+`r if (HAS_QUALI) "### Détail enrichi par variable qualitative" else ""`
+
+`r if (HAS_QUALI && HAS_UNIV_METRIC) sprintf("**Pour chaque variable qualitative**, le tableau croise effectifs, masses de %s par modalité, concentration (Top-N, Pareto 80%%) et asymétrie.", UNIV_LABEL) else if (HAS_QUALI) "**Pour chaque variable qualitative**, le tableau détaille effectifs, parts, concentration (Top-N, Pareto 80%) et équilibre de la distribution." else ""`
+
+`r if (HAS_QUALI) '::: {.callout-tip collapse="true" appearance="minimal"}\n## REPÈRES MÉTHODO : concentration catégorielle\n\n**HHI (Herfindahl)** : indice de concentration. HHI > 2 500 = concentration forte (une modalité domine). HHI < 1 500 = dispersé.\n\n**Pareto 80 %** : nombre de modalités pour cumuler 80 % des observations. Moins il en faut, plus c est concentré.\n:::' else ""`
+
+```{r}
+#| label: eda-univ-1
+#| column: page-right
+#| eval: !expr HAS_QUALI && length(VARS_QUALI) >= 1
+
+make_eda_univariate_metric_rt(df, VARS_QUALI[1], metric_var = UNIV_METRIC,
+  metric_label = UNIV_LABEL, metric_unit = UNIV_UNIT, include_hhi = TRUE)
+```
+
+```{r}
+#| label: eda-univ-2
+#| column: page-right
+#| eval: !expr HAS_QUALI && length(VARS_QUALI) >= 2
+
+make_eda_univariate_metric_rt(df, VARS_QUALI[2], metric_var = UNIV_METRIC,
+  metric_label = UNIV_LABEL, metric_unit = UNIV_UNIT, include_hhi = TRUE)
+```
+
+```{r}
+#| label: eda-univ-3
+#| column: page-right
+#| eval: !expr HAS_QUALI && length(VARS_QUALI) >= 3
+
+make_eda_univariate_metric_rt(df, VARS_QUALI[3], metric_var = UNIV_METRIC,
+  metric_label = UNIV_LABEL, metric_unit = UNIV_UNIT, include_hhi = TRUE)
+```
+
+```{r}
+#| label: eda-univ-4
+#| column: page-right
+#| eval: !expr HAS_QUALI && length(VARS_QUALI) >= 4
+
+make_eda_univariate_metric_rt(df, VARS_QUALI[4], metric_var = UNIV_METRIC,
+  metric_label = UNIV_LABEL, metric_unit = UNIV_UNIT, include_hhi = TRUE)
+```
+
+```{r}
+#| label: eda-univ-5
+#| column: page-right
+#| eval: !expr HAS_QUALI && length(VARS_QUALI) >= 5
+
+make_eda_univariate_metric_rt(df, VARS_QUALI[5], metric_var = UNIV_METRIC,
+  metric_label = UNIV_LABEL, metric_unit = UNIV_UNIT, include_hhi = TRUE)
+```
+
+```{r}
+#| label: eda-univ-6
+#| column: page-right
+#| eval: !expr HAS_QUALI && length(VARS_QUALI) >= 6
+
+make_eda_univariate_metric_rt(df, VARS_QUALI[6], metric_var = UNIV_METRIC,
+  metric_label = UNIV_LABEL, metric_unit = UNIV_UNIT, include_hhi = TRUE)
+```
+
+
+## 4 — Analyse bivariée — variables quantitatives liées entre elles ? (corrélations)
+
+Cette section examine les **liens entre indicateurs numériques** pris deux à deux. L'enjeu : repérer les variables redondantes (|r| > 0.90) à écarter avant ACP ou régression, et identifier celles qui mesurent un même phénomène sous-jacent. La matrice Pearson donne la vue d'ensemble, les scatters montrent la forme des relations.
+
+### Matrice de corrélations Pearson
+
+**La matrice de corrélations** mesure la force et le sens des relations linéaires entre les variables quantitatives. Plus |r| est proche de 1, plus la relation est forte.
+
+```{r}
+#| label: cld-corr-insight
+#| results: asis
+#| cache: false
+
+# .cld-add : bandeau encadre-insight - lecture rapide auto-generee depuis aa_*
+.fmt_pair_short <- function(items, n_show = 3) {
+  if (length(items) == 0) return("")
+  s <- paste(head(items, n_show), collapse = " ; ")
+  if (length(items) > n_show) s <- paste0(s, sprintf(" (+ %d autres)", length(items) - n_show))
+  s
+}
+
+.bloc_n_uniques <- length(unique(blocs_all$bloc))
+.top_pair <- if (nrow(ct) > 0) {
+  ct_sorted <- ct[order(-ct$abs_r), ]
+  sprintf("**%s × %s** (r = %.2f)", ct_sorted$var1[1], ct_sorted$var2[1], ct_sorted$r_pearson[1])
+} else ""
+
+.lines <- c()
+if (aa_n_collin > 0) {
+  .lines <- c(.lines, sprintf("- **%d paire(s) quasi-redondante(s)** (|r| > 0.90) : %s. **Action ACP** : retirer une variable de chaque paire ou les passer en variables supplementaires.",
+    aa_n_collin, .fmt_pair_short(aa_paires_collin, 3)))
+}
+if (aa_n_crit > 0 && aa_n_crit > aa_n_collin) {
+  .lines <- c(.lines, sprintf("- **%d paire(s) fortement correlee(s)** (|r| > %.2f) au-dela des redondances. La plus forte : %s.",
+    aa_n_crit - aa_n_collin, SEUIL_ALERT, .top_pair))
+}
+if (aa_n_nonlin > 0) {
+  .lines <- c(.lines, sprintf("- **%d relation(s) non-lineaire(s)** (delta Spearman-Pearson > 0.10) : %s. La relation existe mais pas en ligne droite.",
+    aa_n_nonlin, aa_paires_nonlin_short))
+}
+if (.bloc_n_uniques > 1) {
+  .lines <- c(.lines, sprintf("- **%d blocs hclust** identifies dans la matrice : variables d'un meme bloc tendent a mesurer la meme dimension latente.", .bloc_n_uniques))
+}
+if (length(.lines) == 0) {
+  .lines <- c(sprintf("- Aucune correlation critique (|r| > %.2f) ni redondance ni non-linearite detectee — indicateurs autonomes, ACP directement applicable.", SEUIL_ALERT))
+}
+
+cat('::: {.cld-add}\n')
+cat('::: {.encadre-insight}\n')
+cat('::: {.encadre-insight-titre}\n')
+cat('LECTURE AUTO — ', length(VARS_QUANTI_CORR), ' variables continues, ', nrow(ct), ' paires testees\n', sep = '')
+cat(':::\n\n')
+cat(paste(.lines, collapse = "\n"), "\n\n", sep = "")
+cat(':::\n')
+cat(':::\n')
+```
+
+::: {.callout-tip collapse="true" appearance="minimal"}
+## REPÈRES MÉTHODO : corrélations linéaires
+
+**Pearson (r)** : mesure le lien linéaire entre deux variables numériques. r = 0 → aucun lien. r = 0.80 → fortement liés. r > 0.90 → quasi-redondants. *Exemple : population et nombre de logements sont corrélés à r ≈ 0.95 — garder les deux en ACP créerait un axe artificiel.*
+
+**Spearman (rho)** : variante robuste, détecte aussi les relations non linéaires monotones. Si Spearman >> Pearson → la relation existe mais n'est pas en ligne droite. *Exemple : PIB et espérance de vie — relation forte mais qui plafonne pour les pays riches.*
+
+**Blocs hclust** : regroupement hiérarchique des variables corrélées entre elles, visualisé par couleurs dans la matrice. Les variables d'un même bloc tendent à mesurer la même dimension latente.
+:::
+
+```{r}
+#| label: eda-corrmat
+#| column: page-right
+
+make_corr_matrix_rt(df_num_clean, k = min(K_BLOCS, ncol(df_num_clean) - 1))
+```
+
+```{r}
+#| label: eda-corr-diag
+#| column: page-right
+
+make_corr_diag_rt(ct, seuil_alert = SEUIL_ALERT, min_display = 0.20, empirical = emp_corr)
+```
+
+```{r}
+#| label: eda-scatter
+#| column: page-right
+#| fig-width: 12
+#| fig-height: !expr min(20, max(5, ceiling(sum(ct$abs_r >= 0.50) / 2) * 3))
+#| eval: !expr sum(ct$abs_r >= 0.50) > 0
+#| results: asis
+
+n_scatter <- sum(ct$abs_r >= 0.50)
+cat(sprintf('<details style="margin:8px 0"><summary style="cursor:pointer;font-weight:600;color:#1696d2;font-size:13px">Scatter paires correlees (%d paires |r| >= 0.50) — cliquer pour deplier</summary>\n', n_scatter))
+ct_scatter <- ct %>% filter(abs_r >= 0.50)
+print(plot_eda_scatter_pairs(df_eta_full, ct_scatter, color_var = COLOR_VAR,
+  pairs_filter = "all", ncol = 2, point_size = 1))
+cat('</details>\n')
+```
+
+
+`r if (HAS_QUALI) "## 5 — Analyse bivariée — typologies qui structurent les indicateurs ? (êta², v-test)" else ""`
+
+`r if (HAS_QUALI) "Cette section croise les **typologies avec les indicateurs numériques** pour répondre à une question simple : appartenir à un groupe (continent, capitale ou non) permet-il de prédire la valeur d'un indicateur (prix, densité, concentration) ? La matrice êta² synthétise la force de chaque croisement, puis les v-tests montrent **quelles modalités** tirent vers le haut ou vers le bas." else ""`
+
+`r if (HAS_QUALI) "### Synthèse — Matrice êta²" else ""`
+
+`r if (HAS_QUALI) "**Êta² mesure dans quelle mesure connaître le groupe d'appartenance aide à anticiper la valeur d'un indicateur.** Plus le chiffre est élevé, plus la typologie structure l'indicateur." else ""`
+
+```{r}
+#| label: cld-eta2-insight
+#| results: asis
+#| cache: false
+#| eval: !expr HAS_QUALI
+
+# .cld-add : bandeau encadre-insight - lecture rapide auto-generee depuis aa_*
+.lines <- c()
+if (aa_n_eta2_grand > 0) {
+  .lines <- c(.lines, sprintf("- **%d croisement(s) fort(s)** (eta² > 14 %%) : %s. La typologie predit une part substantielle de la variance.",
+    aa_n_eta2_grand, aa_eta2_top_short))
+} else {
+  .lines <- c(.lines, sprintf("- Aucun croisement fort (eta² > 14 %%) detecte sur les %d quali × %d quanti testes.",
+    length(VARS_QUALI), length(VARS_QUANTI)))
+}
+if (nzchar(aa_eta2_hub_quali)) {
+  .lines <- c(.lines, sprintf("- **Typologie la plus structurante** : `%s` (eta² moyen %.0f %% sur l'ensemble des indicateurs).",
+    aa_eta2_hub_quali, aa_eta2_hub_pct))
+}
+if (nzchar(aa_eta2_top3_quanti)) {
+  .lines <- c(.lines, sprintf("- **Indicateurs les mieux expliques** par les typologies : %s.",
+    aa_eta2_top3_quanti))
+}
+
+cat('::: {.cld-add}\n')
+cat('::: {.encadre-insight}\n')
+cat('::: {.encadre-insight-titre}\n')
+cat('LECTURE AUTO — ', length(VARS_QUALI), ' typologies × ', length(VARS_QUANTI), ' indicateurs\n', sep = '')
+cat(':::\n\n')
+cat(paste(.lines, collapse = "\n"), "\n\n", sep = "")
+cat(':::\n')
+cat(':::\n')
+```
+
+::: {.callout-tip collapse="true" appearance="minimal"}
+## REPÈRES MÉTHODO : êta² et v-test
+
+**Êta² (η²)** : part de variance d'un indicateur numérique expliquée par une variable catégorielle. Concrètement : êta² = 25 % signifie que connaître le groupe permet de prédire un quart des écarts observés. *Exemple : êta² = 25 % pour continent × espérance de vie → l'Afrique, l'Europe et l'Asie ont des espérances de vie structurellement différentes.* Seuils Cohen : < 2 % indépendant, 2–6 % faible, 6–14 % modéré, **> 14 % fort**.
+
+**V-test** : écart standardisé de la moyenne d'un groupe à la moyenne globale. Un |v-test| > 1.96 est statistiquement significatif. Bordeaux = au-dessus de la moyenne, bleu = en-dessous, gras = très significatif (p < 0.01). *Exemple : v-test = +4.2 pour les capitales sur le prix médian → les capitales ont un prix significativement plus élevé que l'ensemble, ce n'est pas un effet du hasard.* *Contre-exemple : v-test = 0.3 → l'écart est faible et non significatif, pas d'interprétation à en tirer.*
+:::
+
+```{r}
+#| label: eda-eta2
+#| column: page-right
+
+if (HAS_QUALI && !is.null(eta2)) rt_eta2_matrix(eta2)
+```
+
+```{r}
+#| label: eda-eta2-comment
+#| cache: false
+
+if (HAS_QUALI && !is.null(eta2)) eta2_auto_comment(eta2)
+```
+
+`r if (HAS_QUALI) "### Détail — Profils par modalité (v-test heatmaps)" else ""`
+
+`r if (HAS_QUALI) "**Pour chaque variable qualitative**, le v-test mesure par modalité l'écart standardisé à la moyenne globale de chaque indicateur. Bordeaux = au-dessus, bleu = en-dessous, gras = écart significatif." else ""`
+
+```{r}
+#| label: eda-vtest-1
+#| cache: false
+#| column: page-right
+#| eval: !expr length(VARS_QUALI) >= 1
+
+vt_1 <- calc_vtest_table(df_eta_full, VARS_QUALI[1], names(df_eta_full)[!names(df_eta_full) %in% VARS_QUALI], eta2_tbl = eta2)
+rt_vtest_heatmap(vt_1, VARS_QUALI[1])
+vtest_auto_comment(vt_1, VARS_QUALI[1])
+```
+
+```{r}
+#| label: eda-vtest-2
+#| cache: false
+#| column: page-right
+#| eval: !expr length(VARS_QUALI) >= 2
+
+vt_2 <- calc_vtest_table(df_eta_full, VARS_QUALI[2], names(df_eta_full)[!names(df_eta_full) %in% VARS_QUALI], eta2_tbl = eta2)
+rt_vtest_heatmap(vt_2, VARS_QUALI[2])
+vtest_auto_comment(vt_2, VARS_QUALI[2])
+```
+
+```{r}
+#| label: eda-vtest-3
+#| cache: false
+#| column: page-right
+#| eval: !expr length(VARS_QUALI) >= 3
+
+vt_3 <- calc_vtest_table(df_eta_full, VARS_QUALI[3], names(df_eta_full)[!names(df_eta_full) %in% VARS_QUALI], eta2_tbl = eta2)
+rt_vtest_heatmap(vt_3, VARS_QUALI[3])
+vtest_auto_comment(vt_3, VARS_QUALI[3])
+```
+
+```{r}
+#| label: eda-vtest-4
+#| cache: false
+#| column: page-right
+#| eval: !expr length(VARS_QUALI) >= 4
+
+vt_4 <- calc_vtest_table(df_eta_full, VARS_QUALI[4], names(df_eta_full)[!names(df_eta_full) %in% VARS_QUALI], eta2_tbl = eta2)
+rt_vtest_heatmap(vt_4, VARS_QUALI[4])
+vtest_auto_comment(vt_4, VARS_QUALI[4])
+```
+
+```{r}
+#| label: eda-vtest-5
+#| cache: false
+#| column: page-right
+#| eval: !expr length(VARS_QUALI) >= 5
+
+vt_5 <- calc_vtest_table(df_eta_full, VARS_QUALI[5], names(df_eta_full)[!names(df_eta_full) %in% VARS_QUALI], eta2_tbl = eta2)
+rt_vtest_heatmap(vt_5, VARS_QUALI[5])
+vtest_auto_comment(vt_5, VARS_QUALI[5])
+```
+
+```{r}
+#| label: eda-vtest-6
+#| cache: false
+#| column: page-right
+#| eval: !expr length(VARS_QUALI) >= 6
+
+vt_6 <- calc_vtest_table(df_eta_full, VARS_QUALI[6], names(df_eta_full)[!names(df_eta_full) %in% VARS_QUALI], eta2_tbl = eta2)
+rt_vtest_heatmap(vt_6, VARS_QUALI[6])
+vtest_auto_comment(vt_6, VARS_QUALI[6])
+```
+
+`r if (HAS_QUALI && length(n_distrib_qualify) > 0 && any(n_distrib_qualify > 0)) "### Distributions par groupe" else ""`
+
+`r if (HAS_QUALI && length(n_distrib_qualify) > 0 && any(n_distrib_qualify > 0)) sprintf("*Comparaison visuelle des distributions par groupe. Seuls les indicateurs pour lesquels la typologie fait une vraie différence (êta² >= %.2f) sont affichés. Le pointillé horizontal marque la moyenne globale — si un violon est clairement au-dessus ou en-dessous, c'est que ce groupe se distingue.*", MIN_ETA2) else ""`
+
+```{r}
+#| label: eda-distrib-1
+#| column: page-right
+#| fig-width: 12
+#| fig-height: !expr if (length(n_distrib_qualify) >= 1 && n_distrib_qualify[1] > 0) min(12, max(3, ceiling(n_distrib_qualify[1] / 3) * 2.0)) else 4
+#| eval: !expr length(VARS_QUALI) >= 1 && length(n_distrib_qualify) >= 1 && n_distrib_qualify[1] > 0
+
+plot_eda_distrib_by_group(df_eta_full, VARS_CORR_LBL, VARS_QUALI[1],
+  eta2_tbl = eta2, min_eta2 = MIN_ETA2, ncol = 3, cap_pct = CAP_PCT)
+```
+
+```{r}
+#| label: eda-distrib-2
+#| column: page-right
+#| fig-width: 12
+#| fig-height: !expr if (length(n_distrib_qualify) >= 2 && n_distrib_qualify[2] > 0) min(12, max(3, ceiling(n_distrib_qualify[2] / 3) * 2.0)) else 4
+#| eval: !expr length(VARS_QUALI) >= 2 && length(n_distrib_qualify) >= 2 && n_distrib_qualify[2] > 0
+
+plot_eda_distrib_by_group(df_eta_full, VARS_CORR_LBL, VARS_QUALI[2],
+  eta2_tbl = eta2, min_eta2 = MIN_ETA2, ncol = 3, cap_pct = CAP_PCT)
+```
+
+```{r}
+#| label: eda-distrib-3
+#| column: page-right
+#| fig-width: 12
+#| fig-height: !expr if (length(n_distrib_qualify) >= 3 && n_distrib_qualify[3] > 0) min(12, max(3, ceiling(n_distrib_qualify[3] / 3) * 2.0)) else 4
+#| eval: !expr length(VARS_QUALI) >= 3 && length(n_distrib_qualify) >= 3 && n_distrib_qualify[3] > 0
+
+plot_eda_distrib_by_group(df_eta_full, VARS_CORR_LBL, VARS_QUALI[3],
+  eta2_tbl = eta2, min_eta2 = MIN_ETA2, ncol = 3, cap_pct = CAP_PCT)
+```
+
+
+`r if (SHOW_CRAMER) "## 6 — Analyse bivariée — typologies associées entre elles ? (Cramér V + crosstabs)" else ""`
+
+`r if (SHOW_CRAMER) "Cette section teste si les **variables catégorielles sont liées entre elles**. Concrètement : connaître le continent d'une ville aide-t-il à deviner si elle est capitale ? La matrice Cramér V résume l'intensité de chaque paire, puis les crosstabs détaillent **où** se concentrent les écarts au profil moyen." else ""`
+
+`r if (SHOW_CRAMER) "### Synthèse — Matrice Cramér V" else ""`
+
+`r if (SHOW_CRAMER) "**Cramér V mesure si deux typologies sont liées entre elles.** V = 0 : indépendantes. V proche de 1 : redondantes." else ""`
+
+```{r}
+#| label: cld-cramer-insight
+#| results: asis
+#| cache: false
+#| eval: !expr SHOW_CRAMER
+
+# .cld-add : bandeau encadre-insight - lecture rapide auto-generee depuis aa_*
+.n_pairs <- if (!is.null(cramer_mx)) nrow(cramer_mx$details) else 0
+.lines <- c()
+if (aa_n_cramer_fort > 0) {
+  .lines <- c(.lines, sprintf("- **%d paire(s) fortement associee(s)** (V > 0.25) : %s. Lien structurel — connaitre l'une reduit l'incertitude sur l'autre.",
+    aa_n_cramer_fort, aa_cramer_top_short))
+} else {
+  .lines <- c(.lines, sprintf("- Typologies **largement independantes** sur les %d paires testees (toutes V < 0.25, seuil Cohen 'fort').",
+    .n_pairs))
+}
+if (nzchar(aa_cramer_hubs)) {
+  .lines <- c(.lines, sprintf("- **Typologies transversales** (liees a plusieurs autres) : %s.", aa_cramer_hubs))
+}
+
+cat('::: {.cld-add}\n')
+cat('::: {.encadre-insight}\n')
+cat('::: {.encadre-insight-titre}\n')
+cat('LECTURE AUTO — ', length(VARS_QUALI), ' typologies, ', .n_pairs, ' paires testees\n', sep = '')
+cat(':::\n\n')
+cat(paste(.lines, collapse = "\n"), "\n\n", sep = "")
+cat(':::\n')
+cat(':::\n')
+```
+
+`r if (SHOW_CRAMER) '::: {.callout-tip collapse="true" appearance="minimal"}\n## REPÈRES MÉTHODO : Cramér V\n\n**Cramér V** : intensité d\'association entre deux variables catégorielles. V = 0 → indépendance totale (connaître l\'une n\'aide pas à deviner l\'autre). V = 1 → redondance parfaite. *Exemple : V = 0.35 entre type de prestation et code CPV → les études sont concentrées dans certains codes, les évaluations dans d\'autres. V = 0.05 entre région et nature → les régions ont des profils de prestation similaires.*\n\n**Seuils Cohen** : < 0.06 négligeable, 0.06–0.15 faible, 0.15–0.25 modéré, **> 0.25 fort**. Au-delà de 0.25, le lien mérite attention en analyse multivariée — risque de redondance dans une ACP ou un modèle.\n:::' else ""`
+
+```{r}
+#| label: eda-cramer-matrix
+#| column: page-right
+#| cache: false
+#| eval: !expr SHOW_CRAMER
+
+# cramer_mx deja calcule dans aa-quali
+if (is.null(cramer_mx)) cramer_mx <- calc_cramer_matrix(df, VARS_QUALI)
+log_result("cramer_matrix", cramer_mx$details)
+rt_cramer_matrix(cramer_mx)
+```
+
+```{r}
+#| label: eda-cramer-comment
+#| cache: false
+#| eval: !expr SHOW_CRAMER
+
+cramer_auto_comment(cramer_mx)
+```
+
+`r if (SHOW_XTAB) "### Détail — Crosstabs résidus Pearson" else ""`
+
+`r if (SHOW_XTAB) "**Pour chaque paire de typologies fortement associée**, le crosstab détaillé montre où se concentrent les écarts au profil moyen. Paires triées par Cramér V décroissant." else ""`
+
+`r if (SHOW_XTAB) '::: {.callout-tip collapse="true" appearance="minimal"}\n## REPÈRES MÉTHODO : crosstabs résidus\n\n**Crosstabs résidus** : chaque cellule montre l\'écart en points entre le taux observé dans ce profil et le taux global. Bordeaux = sur-représentation, bleu = sous-représentation. Le petit % en gris sous chaque écart indique le taux brut du profil.\n\n**Significativité** : un résidu de Pearson > 1.96 en valeur absolue est statistiquement significatif (p < 0.05). *Exemple : +15 pts pour les études en Île-de-France avec résidu = 12.8 → cette sur-représentation n\'est pas due au hasard, elle reflète une spécialisation structurelle de la région.*\n:::' else ""`
+
+```{r}
+#| label: xtab-setup
+#| include: false
+#| eval: !expr SHOW_XTAB
+
+# Toutes les paires quali x quali, triees par V decroissant
+XTAB_V_MIN <- as.numeric(params$crosstab_v_min)
+XTAB_MAX <- min(as.integer(params$crosstab_max), 30)
+
+if (!is.null(cramer_mx)) {
+  cdt <- cramer_mx$details %>% filter(cramers_v >= XTAB_V_MIN) %>% arrange(desc(cramers_v))
+  cdt <- head(cdt, XTAB_MAX)
+  xtab_pairs <- lapply(seq_len(nrow(cdt)), function(i) {
+    xt <- calc_crosstab_quali(df, cdt$var1[i], cdt$var2[i])
+    list(var1 = cdt$var1[i], var2 = cdt$var2[i], v = cdt$cramers_v[i], xt = xt)
+  })
+  XTAB_N <- length(xtab_pairs)
+  XTAB_TRUNCATED <- nrow(cramer_mx$details %>% filter(cramers_v >= XTAB_V_MIN)) > XTAB_MAX
+} else {
+  xtab_pairs <- list()
+  XTAB_N <- 0
+  XTAB_TRUNCATED <- FALSE
+}
+```
+
+```{r}
+#| label: xtab-1
+#| cache: false
+#| column: page-right
+#| eval: !expr SHOW_XTAB && XTAB_N >= 1
+
+rt_crosstab_quali(xtab_pairs[[1]]$xt, seuil_resid = SEUIL_RESID)
+crosstab_auto_comment(xtab_pairs[[1]]$xt, seuil_resid = SEUIL_RESID)
+```
+
+```{r}
+#| label: xtab-2
+#| cache: false
+#| column: page-right
+#| eval: !expr SHOW_XTAB && XTAB_N >= 2
+
+rt_crosstab_quali(xtab_pairs[[2]]$xt, seuil_resid = SEUIL_RESID)
+crosstab_auto_comment(xtab_pairs[[2]]$xt, seuil_resid = SEUIL_RESID)
+```
+
+```{r}
+#| label: xtab-3
+#| cache: false
+#| column: page-right
+#| eval: !expr SHOW_XTAB && XTAB_N >= 3
+
+rt_crosstab_quali(xtab_pairs[[3]]$xt, seuil_resid = SEUIL_RESID)
+crosstab_auto_comment(xtab_pairs[[3]]$xt, seuil_resid = SEUIL_RESID)
+```
+
+```{r}
+#| label: xtab-4
+#| cache: false
+#| column: page-right
+#| eval: !expr SHOW_XTAB && XTAB_N >= 4
+
+rt_crosstab_quali(xtab_pairs[[4]]$xt, seuil_resid = SEUIL_RESID)
+crosstab_auto_comment(xtab_pairs[[4]]$xt, seuil_resid = SEUIL_RESID)
+```
+
+```{r}
+#| label: xtab-5
+#| cache: false
+#| column: page-right
+#| eval: !expr SHOW_XTAB && XTAB_N >= 5
+
+rt_crosstab_quali(xtab_pairs[[5]]$xt, seuil_resid = SEUIL_RESID)
+crosstab_auto_comment(xtab_pairs[[5]]$xt, seuil_resid = SEUIL_RESID)
+```
+
+```{r}
+#| label: xtab-6
+#| cache: false
+#| column: page-right
+#| eval: !expr SHOW_XTAB && XTAB_N >= 6
+
+rt_crosstab_quali(xtab_pairs[[6]]$xt, seuil_resid = SEUIL_RESID)
+crosstab_auto_comment(xtab_pairs[[6]]$xt, seuil_resid = SEUIL_RESID)
+```
+
+`r if (SHOW_XTAB && XTAB_TRUNCATED) sprintf("*... %d paires supplementaires avec V >= %.2f non affichees (max %d).*", nrow(cramer_mx$details %>% filter(cramers_v >= XTAB_V_MIN)) - XTAB_MAX, XTAB_V_MIN, XTAB_MAX) else ""`
+
+
+```{r}
+#| label: log-save
+#| include: false
+#| cache: false
+
+if (!is.null(auto_routing)) log_result("auto_routing", auto_routing)
+claude_log_save()
+```

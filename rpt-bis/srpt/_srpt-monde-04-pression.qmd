@@ -1,0 +1,151 @@
+<!-- _srpt-monde-04-pression.qmd -->
+<!-- Sous-rapport : Partie 4 — Pression résidentielle et tension territoriale. -->
+<!-- Inclus dans rpt-pbnb-synth-monde.qmd (MAIN). Convention chunks : srpt04-* -->
+<!-- v1 — 2026-05-29. Pattern partie standardisé + .cld-ctx Eurostat / Lisbonne / Barcelone / Paris -->
+
+Comparer la pression d'Airbnb entre des villes à morphologies très différentes exige un périmètre comparable. Le rapport utilise la **zone dense GHS-POP** — l'aire urbaine dont la densité dépasse 1 500 hab/km² — comme polygone de référence pour tous les indicateurs de pression. À l'échelle mondiale, le parc hôtelier compte environ **1,5 million d'établissements** traditionnels — moins que les **8 millions d'annonces Airbnb**. Dans plusieurs villes touristiques européennes, le ratio Airbnb / hôtels excède 1,0, signalant une bascule structurelle.
+
+La pression par habitant ne se mesure pas en volumes bruts. En médiane, la pression atteint **`r aa$v_pression_med` annonces pour 1 000 habitants** dans la zone dense. Mais `r aa$t_top_pression` atteint **`r aa$v_top_pression` ‰** quand `r aa$t_bot_pression` reste à **`r aa$v_bot_pression` ‰** — un facteur `r aa$v_facteur_pression`.
+
+```{r}
+#| label: srpt04-kpi-header
+#| cache: false
+
+kpi_row(
+  kpi_band("Densité annonces / 1 000 hab",
+    value = aa$v_pression_med, unit = "‰",
+    subtitle = "médiane zone dense GHS-POP",
+    top = sprintf("%s · %s ‰ ▲", aa$t_top_pression, aa$v_top_pression),
+    bottom = sprintf("%s · %s ‰ ▼", aa$t_bot_pression, aa$v_bot_pression)),
+  kpi_band("Villes > 15 ‰",
+    value = aa$n_prs_above15 %||% sum(kpi$prs_listings_1000hab_dense > 15, na.rm = TRUE),
+    unit = "villes",
+    subtitle = sprintf("sur %d du panel", aa$n_villes),
+    top = "Tension extrême",
+    bottom = "Surreprésentation Europe Sud"),
+  kpi_block(
+    value = "854 M",
+    phrase = "<strong>nuitées LCD UE 2024</strong><br><small>vs 512 M en 2019 — ▲ 67 % en 5 ans</small>",
+    label = "Eurostat tour_ce_omr")
+)
+```
+
+Cette partie examine la densité d'annonces par habitant en **zone dense intra-périmètre** (GHS-POP ≥ 1 500 hab/km²), repère les villes en première ligne, et croise avec les régulations effectives traitées en Partie 6.
+
+::: {.cld-ctx}
+**La densité GHS-POP, étalon comparatif rigoureux.** Le choix du référentiel de population conditionne entièrement la comparabilité internationale. Sans normalisation par la zone dense, Bordeaux présente un biais ×3,2 selon qu'on raisonne à l'échelle commune ou métropole fonctionnelle ; Lisbonne ×5,3 ; Porto ×7,5 ; Bergame ×9,2. La densité médiane d'annonces actives s'établit à **5,8 ‰** habitants dans les zones denses du panel, mais la queue de distribution est très allongée : **Venise, Florence, Lisbonne, le Pays Basque** et certaines parties de Paris dépassent **40 ‰** — concentrations correspondant à des fractions doubles ou triples du parc de résidences principales transférées vers la commercialisation touristique.
+
+**Trois cas emblématiques européens.** *Lisbonne* : environ 21 000 annonces actives pour 545 000 habitants → densité brute de **38 ‰**, professionnalisation à 70 % de multi-hôtes (Schegg-Stangl-Demlehner 2025), gel partiel des nouvelles licences depuis 2023. *Barcelone* : interdiction totale des LCD d'ici **2028** via le décret-loi 9/2024 de Catalogne — la régulation la plus drastique d'Europe, motivée par une hausse de **68 % des loyers** longue durée (2015-2023) dans les quartiers à forte densité Airbnb. *Paris* : **98 046 annonces** en juillet 2024 (pic JO), 90 % de logements entiers (record mondial parmi les grandes villes), trajectoire +240 % sur la décennie malgré un cadre réglementaire ancien (120 nuits dès 2014, enregistrement obligatoire 2019, loi Le Meur 2024 abaissant à 90 nuits).
+
+**L'enjeu de fond : substitution ou superposition ?** La DGE Thémas n°11 quantifie **+1,65 %** de loyers à Lyon et **+1,29 %** à Marseille par point de densité Airbnb professionnelle — effet réel mais modéré. Les estimations pour Barcelone et Lisbonne montent à **3-7 %** selon les études. La limite méthodologique principale reste qu'il n'existe pas de mesure directe de la substitution résidence principale → logement touristique.
+
+*Sources : Eurostat tour_ce_omr ; APUR 2025 ; Barcelone décret 9/2024 ; loi Le Meur (FR, nov. 2024) ; DGE Thémas n°11 (juin 2023) ; GHS-POP référentiel.*
+:::
+
+::: {.panel-tabset}
+
+### Tableau par continent
+
+```{r}
+#| label: srpt04-gt-cd-lignezsc
+#| cache: false
+
+srpt04_panel <- make_cd_panel_agg(c("prs_listings_1000hab_dense",
+                                     "prs_density_l_km2_dense",
+                                     "prs_pct_listings_dense"))
+gt_cd_panel_zscore(srpt04_panel,
+                    title = "Pression résidentielle par groupe continental — zones denses GHS-POP",
+                    sort_geo_by = "prs_listings_1000hab_dense")
+log_table_auto("srpt04_gt_cd_lignezsc", srpt04_panel)
+```
+
+<div class="figure-source">Source : Inside Airbnb + GHS-POP, juin 2026 · Afrique masquée · Coloration z-score par ligne (rose = au-dessus de la moyenne mondiale, bleu = en-dessous).</div>
+
+### Graphique par continent
+
+```{r}
+#| label: srpt04-plt-cd-smult
+#| fig-width: 9
+#| fig-height: 2.5
+#| cache: false
+
+plot_cd_bars_ordered(c("prs_listings_1000hab_dense",
+                       "prs_density_l_km2_dense",
+                       "prs_pct_listings_dense"),
+                     ncol_wrap = 3)
+```
+
+<div class="figure-source">Source : Inside Airbnb + GHS-POP, juin 2026 · Médiane par groupe continental</div>
+
+### Tableau détaillé par ville
+
+```{r}
+#| label: srpt04-rt-villes-detail
+#| cache: false
+
+srpt04_d <- kpi |>
+  dplyr::transmute(
+    lib                         = city_fr,
+    continent                   = continent,
+    country_code                = country_code,
+    prs_listings_1000hab_dense  = round(prs_listings_1000hab_dense, 1),
+    prs_density_l_km2_dense     = round(prs_density_l_km2_dense, 1),
+    prs_pct_listings_dense      = round(prs_pct_listings_dense, 1))
+
+rt_table(
+  srpt04_d,
+  cols = list(
+    lib                        = rt_col_lib(srpt04_d, "lib", "Ville", indent = FALSE, mw = 150),
+    continent                  = rt_col_tag("Cont.", w = 75),
+    country_code               = rt_col_tag("Pays", w = 50),
+    prs_listings_1000hab_dense = rt_col_level(srpt04_d, "prs_listings_1000hab_dense",
+                                               "Ann./1 000 hab. zone dense", unit = "‰",
+                                               bw = "fill", bh = 16, mw = 150),
+    prs_density_l_km2_dense    = rt_col_level(srpt04_d, "prs_density_l_km2_dense",
+                                               "Densité ann./km²", unit = "",
+                                               bw = "fill", bh = 16, mw = 140),
+    prs_pct_listings_dense     = rt_col_level(srpt04_d, "prs_pct_listings_dense",
+                                               "% ann. en zone dense", unit = "%",
+                                               bw = "fill", bh = 16, mw = 140)
+  ),
+  sticky_cols = 1,
+  searchable = FALSE,
+  height = 400,
+  full_width = TRUE,
+  footnote = "Inside Airbnb + GHS-POP 2025 · Zone dense = polygones ≥ 1 500 hab/km²"
+)
+```
+
+:::
+
+::: {.float-section}
+
+::: {.graph-droite-65}
+
+```{r}
+#| label: srpt04-rt-topbot
+#| cache: false
+
+srpt04_topbot <- kpi |> dplyr::select(city_fr, cd, country_code, prs_listings_1000hab_dense,
+                                       prs_density_l_km2_dense, prs_pct_listings_dense)
+rt_topbot_ville(
+  srpt04_topbot,
+  vars = c("prs_listings_1000hab_dense", "prs_density_l_km2_dense", "prs_pct_listings_dense"),
+  sort_col = "prs_listings_1000hab_dense",
+  title = "Pression résidentielle par ville — les territoires les plus et moins tendus",
+  labels = c("Ann./1 000 hab.", "Densité/km²", "% en zone dense"),
+  units = c("‰", "", "%"),
+  digits = c(1, 1, 1),
+  footnote = "Pastille = sous-continent · barre Ann./1 000 hab. = écart à la moyenne du pool (rose ▲ / bleu ▼) · footer = médiane Monde."
+)
+```
+
+:::
+
+**La pression résidentielle et le prix médian sont indépendants.** Le scatter densité × prix donne une corrélation quasi nulle (r = 0,11, R² = 0,01, p = 0,35) sur les villes du panel — résultat contre-intuitif qui dément l'idée naïve d'une équivalence entre tension touristique et niveau tarifaire. Une ville peut être très tendue résidentiellement avec des prix médians modérés (Lisbonne, Bergame, le Pays Basque), une autre afficher des nuits chères sans pression densité particulière (Amsterdam, Édimbourg, Boston). Les deux dimensions captent des phénomènes différents : la pression rapporte le volume Airbnb au parc résidentiel local, le prix reflète la solvabilité touristique du marché.
+
+La densité spatiale complète le tableau. Les villes touristiques moyennes — **le Pays Basque, Venise et Florence** — concentrent les pressions extrêmes, supérieures à 35 ‰, soit un facteur 5 à 8 par rapport à la médiane mondiale de `r aa$v_pression_med` ‰. À l'inverse, les mégalopoles asiatiques (Tokyo, Bangkok, Singapour) restent sous 3 ‰ malgré leurs volumes absolus significatifs : la population dense atténue mécaniquement la pression rapportée.
+
+`r aa$n_prs_above15 %||% sum(kpi$prs_listings_1000hab_dense > 15, na.rm = TRUE)` villes du panel dépassent 15 annonces pour 1 000 habitants en zone dense — toutes en Europe ou en Amérique latine. Quatre villes se distinguent comme outliers du scatter pression × prix : **Amsterdam, Édimbourg, Boston** combinent prix élevés et pression modérée (régulation efficace, marché institutionnel), **Buenos Aires** affiche une pression forte avec des prix bas (offre émergente non régulée), tandis que **San Diego** mêle pression modérée et prix élevés sous l'effet du climat et de la demande californienne. Cette concentration est-elle soutenable face à l'hôtellerie traditionnelle ? La Partie 5 examine la concurrence directe.
+
+:::

@@ -1,0 +1,201 @@
+<!-- _srpt-monde-01-portrait.qmd -->
+<!-- Sous-rapport : Partie 1 — Portrait mondial de l'activité. -->
+<!-- Inclus dans rpt-pbnb-synth-monde.qmd (MAIN). Convention chunks : srpt01-* -->
+<!-- v4 — 2026-06-09. Carto remontée après .cld-ctx (+ contours terres + labels top/bot). -->
+<!-- Bloc KPI panel déplacé en tête P2. Smult = TOTAL continental (plot_cd_bars_agg). -->
+
+Le panel rassemble **`r aa$n_total_km` annonces** dans **`r aa$n_villes` villes** réparties sur **`r aa$n_continents` continents** — soit environ **`r aa$v_couverture_pct` %** de l'offre mondiale Airbnb. Cette première partie pose le cadre géographique : où se concentrent les volumes, qui pilote l'offre, comment se distribue l'activité entre Europe, Amériques, Asie-Pacifique et Afrique. Les niveaux de prix, la nature de l'offre et l'activité commerciale sont traités dans la partie suivante.
+
+::: {.cld-ctx}
+**La géographie du panel reflète la hiérarchie LCD européenne documentée par Eurostat.** Paris reste la première destination LCD du continent avec **23,5 millions de nuitées** en 2024, devant Rome (15,7 M), Barcelone (12,5 M), Madrid (11,8 M) et Lisbonne (11,3 M). Au total, **69 villes de l'UE** dépassent désormais le million de nuitées LCD contre 60 en 2023.
+
+À l'échelle Airbnb monde, l'**EMEA domine en volume** (201 M nuits, 41 % du total mondial) mais l'**Amérique du Nord génère 45 % des revenus** grâce à un ADR supérieur (GBV/nuit 240 USD vs 140 USD pour l'EMEA). La dynamique de croissance se déplace vers les marchés émergents non régulés : Lighthouse identifie Buenos Aires (hausse de 88 %), Riyad (hausse de 69 %), Marrakech (27 %), Dubaï (26 %), Rome (23 %), Athènes (22 %) comme les premières croissances mondiales 2024. Les seules villes en déclin sont celles soumises à une régulation effective.
+
+*Sources : Eurostat tour_ce_omr ; Airbnb 10-K FY2024 ; Lighthouse 2025.*
+:::
+
+::: {.column-page}
+
+```{r}
+#| label: srpt01-map-world-europe
+#| fig-width: 13
+#| fig-height: 5.5
+#| cache: false
+
+kpi_map <- kpi |> dplyr::filter(!is.na(lat) & !is.na(lon))
+kpi_map$cd <- CD_RECODE[kpi_map$continent_detail]
+
+# Carte monde : 3 plus grosses villes de chaque sous-continent HORS Europe (Europe lisible sur le zoom)
+EUR_CD <- c("Eur. Ouest-Nord", "Eur. Sud-Est")
+world_labels <- kpi_map |>
+  dplyr::filter(!cd %in% EUR_CD) |>
+  dplyr::group_by(cd) |>
+  dplyr::slice_max(vol_n_ann, n = 3, with_ties = FALSE) |>
+  dplyr::pull(city_fr)
+# Carte Europe : toutes les villes du continent européen
+euro_labels <- kpi_map |>
+  dplyr::filter(continent == "Europe") |>
+  dplyr::pull(city_fr)
+
+p_world <- build_world_map(kpi_map,
+  title = "Volumes Airbnb dans le monde",
+  subtitle = sprintf("%d villes · couleur = sous-continent, taille = annonces actives", nrow(kpi_map)),
+  label_cities = world_labels)
+p_euro <- build_europe_map(kpi_map,
+  title = "Zoom Europe",
+  subtitle = sprintf("%d villes — toutes labellisées", length(euro_labels)),
+  label_cities = euro_labels)
+
+p_combined <- patchwork::wrap_plots(p_world, p_euro,
+  widths = c(1.4, 1), guides = "collect") &
+  ggplot2::theme(legend.position = "bottom")
+ggiraph::girafe(ggobj = p_combined, width_svg = 13, height_svg = 5.5,
+                options = list(ggiraph::opts_sizing(rescale = TRUE),
+                                ggiraph::opts_toolbar(saveaspng = FALSE)))
+
+log_map_auto("srpt01_map_world_volumes", "vol_n_ann", kpi_map, "city_fr")
+```
+
+:::
+
+<div class="figure-source">Source : Inside Airbnb, juin 2026 · Coordonnées city-reference-airbnb-260222 · Projection Robinson (monde) / Plate-Carrée (Europe) · Labels carte monde : 3 plus grandes villes de chaque sous-continent hors Europe · Carte Europe : toutes les villes</div>
+
+```{r}
+#| label: srpt01-calc-cd-vars
+#| include: false
+
+# Variables narratives continent_detail (source kpi_cd_agg)
+cd_agg_val <- function(v, cd_fr) {
+  cd_en <- names(CD_RECODE)[CD_RECODE == cd_fr]
+  if (length(cd_en) == 0 || !(v %in% names(kpi_cd_agg))) return(NA_real_)
+  row <- kpi_cd_agg[kpi_cd_agg$continent_detail == cd_en, ]
+  if (nrow(row) == 0) return(NA_real_)
+  as.numeric(row[[v]][1])
+}
+aa$v_volume_eurON <- .fk(cd_agg_val("vol_n_ann", "Eur. Ouest-Nord"))
+aa$v_volume_eurSE <- .fk(cd_agg_val("vol_n_ann", "Eur. Sud-Est"))
+aa$v_volume_amN   <- .fk(cd_agg_val("vol_n_ann", "Am. du Nord"))
+aa$v_volume_asia  <- .fk(cd_agg_val("vol_n_ann", "Asie"))
+
+# Dataset partagé P1 — 76 villes, vars principales du portrait
+srpt01_d <- kpi |>
+  dplyr::transmute(
+    lib                = city_fr,
+    continent          = continent,
+    country_code       = country_code,
+    vol_n_ann          = vol_n_ann,
+    vol_n_hotes        = vol_n_hotes,
+    str_ratio_ann_hote = round(str_ratio_ann_hote, 2))
+
+# Ligne référence Monde pour footer rt_topbot_view (totaux panel)
+srpt01_monde_row <- list(
+  .rank              = "Réf.",
+  lib                = "Monde (panel)",
+  continent          = "",
+  country_code       = "",
+  vol_n_ann          = as.numeric(kpi_world$vol_n_ann),
+  vol_n_hotes        = as.numeric(kpi_world$vol_n_hotes),
+  str_ratio_ann_hote = round(as.numeric(kpi_world$vol_n_ann) / as.numeric(kpi_world$vol_n_hotes), 2))
+```
+
+Le panel Inside Airbnb de juin 2026 retient `r aa$n_total_km` annonces actives sur `r aa$n_villes` villes mondiales — `r aa$n_villes_eur` en Europe (`r aa$v_eur_pct` % de l'offre du panel), le reste sur les Amériques, l'Asie-Pacifique et Le Cap. Les volumes se concentrent sur quelques métropoles : Londres approche 70 000 annonces et Paris près de 60 000, quand le bas du panel — Genève et Bergame — reste sous 2 000 annonces. La carte rend lisible cette double densité : un arc atlantique et méditerranéen saturé en Europe, des côtes nord-américaines bien pourvues, une présence asiatique plus diffuse où la régulation a tôt restreint l'informel.
+
+La répartition continentale reflète à la fois les choix de couverture Inside Airbnb et la profondeur des marchés locaux. L'**Europe Sud-Est** (Florence, Lisbonne, Athènes, Barcelone, Naples) totalise `r aa$v_volume_eurSE` annonces — le plus gros volume cumulé du panel. L'**Europe Ouest-Nord** suit avec `r aa$v_volume_eurON` annonces, portée par Londres et Paris. L'**Amérique du Nord** rassemble `r aa$v_volume_amN` annonces (New York, Los Angeles, Toronto, métropoles US secondaires), tandis que l'**Asie** ne pèse que `r aa$v_volume_asia` annonces malgré ses mégalopoles — héritage d'une régulation précoce sur l'informel touristique.
+
+::: {.panel-tabset}
+
+### Tableau par continent
+
+```{r}
+#| label: srpt01-gt-cd-lignezsc
+#| cache: false
+
+# P1 conserve les lignes contexte (Nb villes / Nb pays) — composition du panel posée une fois.
+# Les autres parties (P2+) utilisent make_cd_panel_agg (sans contexte) pour éviter le doublon.
+srpt01_panel <- make_cd_panel_with_ctx(c("vol_n_ann", "vol_n_hotes", "str_ratio_ann_hote"))
+gt_cd_panel_zscore(srpt01_panel,
+                    title = "Volumes par groupe continental",
+                    skip_rows = 1:2)
+log_table_auto("srpt01_gt_cd_lignezsc", srpt01_panel)
+```
+
+<div class="figure-source">Source : Inside Airbnb, juin 2026 · Afrique masquée (n &lt; 2 villes) · Lignes Nb villes / Nb pays exclues de la coloration z-score.</div>
+
+### Graphique par continent
+
+```{r}
+#| label: srpt01-plt-cd-smult
+#| fig-width: 9
+#| fig-height: 2.5
+#| cache: false
+
+# plot_cd_bars_agg : TOTAL continental (somme annonces, somme hôtes), ratio = somme/somme
+plot_cd_bars_agg(c("vol_n_ann", "vol_n_hotes", "str_ratio_ann_hote"),
+                 ncol_wrap = 3)
+```
+
+<div class="figure-source">Source : Inside Airbnb, juin 2026 · Total par groupe continental (annonces, hôtes) · Ratio = annonces / hôtes · Afrique exclue (n &lt; 2 villes)</div>
+
+### Tableau détaillé par ville
+
+```{r}
+#| label: srpt01-rt-2h-fill
+#| cache: false
+
+rt_table(
+  srpt01_d,
+  cols = list(
+    lib                = rt_col_lib(srpt01_d, "lib", label = "Ville",
+                                     indent = FALSE, mw = 150),
+    continent          = rt_col_tag("Cont.", w = 80),
+    country_code       = rt_col_tag("Pays", w = 50),
+    vol_n_ann          = rt_col_level(srpt01_d, "vol_n_ann",
+                                       label = "Annonces actives", unit = "",
+                                       bw = "fill", bh = 16, mw = 160,
+                                       light = TRUE),
+    vol_n_hotes        = rt_col_level(srpt01_d, "vol_n_hotes",
+                                       label = "Hôtes uniques", unit = "",
+                                       bw = "fill", bh = 16, mw = 160,
+                                       light = TRUE),
+    str_ratio_ann_hote = rt_col_level(srpt01_d, "str_ratio_ann_hote",
+                                       label = "Ann. / hôte", unit = "",
+                                       bw = "fill", bh = 16, mw = 160)
+  ),
+  sticky_cols = 1,
+  searchable = FALSE,
+  height = 400,
+  full_width = TRUE,
+  footnote = "Inside Airbnb, juin 2026 · 76 villes · barres élastiques bw='fill' · volumes en gris (light), ratio coloré"
+)
+```
+
+:::
+
+::: {.float-section}
+
+::: {.graph-droite-65}
+
+```{r}
+#| label: srpt01-rt-2h-fill-topbot
+#| cache: false
+
+srpt01_topbot <- kpi |> dplyr::select(city_fr, cd, country_code,
+  vol_n_ann, vol_n_ann_vevol_2526, vol_n_hotes, vol_n_hotes_vevol_2526)
+rt_topbot_ville(
+  srpt01_topbot,
+  vars = c("vol_n_ann", "vol_n_ann_vevol_2526", "vol_n_hotes", "vol_n_hotes_vevol_2526"),
+  sort_col = "vol_n_ann",
+  title = "Volumes et dynamique par ville — les 8 plus gros et 8 plus petits marchés du panel",
+  digits = c(0, 1, 0, 1),
+  group_pairs = TRUE, footer2 = TRUE, agg_row = kpi_world,
+  footnote = "Pastille = sous-continent · volumes en gris, évolution 2025→2026 en bordeaux (hausse) / bleu (baisse) · footer : médiane des villes puis Monde total (agrégat pondéré)."
+)
+```
+
+:::
+
+Les 8 premières villes par volume — **Londres**, **Paris**, **Rio de Janeiro**, **Rome**, **Tokyo** en tête — concentrent une part majeure des annonces du panel. À l'autre extrême, **Genève** et **Bergame** ferment le classement sous 2 000 annonces — des marchés où Airbnb existe sans peser.
+
+Le ratio annonces par hôte hiérarchise différemment : il atteint son maximum dans les marchés à forte concentration (Hong Kong, Singapour, Lisbonne) et reste près de 1 dans les marchés de particuliers (Copenhague, Oslo). Ce ratio préfigure la dimension de professionnalisation traitée en Partie 3.
+
+:::

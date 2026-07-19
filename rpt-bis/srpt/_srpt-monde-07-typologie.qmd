@@ -38,7 +38,7 @@ p_clust <- build_world_map(.map_clust,
   color_var = "cluster", color_recode = CLUSTER_LABS,
   color_levels = unname(CLUSTER_LABS), palette = CLUSTER_COLS,
   title = "Cinq familles de marchés Airbnb, trois ancrées géographiquement",
-  subtitle = "74 villes · couleur = cluster ACP-HCPC, taille = annonces actives — Inside Airbnb juin 2025",
+  subtitle = "76 villes · couleur = cluster ACP-HCPC, taille = annonces actives — Inside Airbnb juin 2026",
   label_cities = .lab)
 
 ggiraph::girafe(ggobj = p_clust, width_svg = 13, height_svg = 6,
@@ -48,7 +48,7 @@ ggiraph::girafe(ggobj = p_clust, width_svg = 13, height_svg = 6,
 
 :::
 
-<div class="figure-source">Source : ACP+HCPC config B (74 villes, k=5) · coordonnées city-reference-airbnb · Inside Airbnb juin 2025</div>
+<div class="figure-source">Source : ACP+HCPC config B (76 villes, k=5) · coordonnées city-reference-airbnb · Inside Airbnb juin 2026</div>
 
 ::: {.cld-add}
 

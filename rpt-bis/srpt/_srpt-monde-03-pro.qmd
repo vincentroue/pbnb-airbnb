@@ -1,0 +1,151 @@
+<!-- _srpt-monde-03-pro.qmd -->
+<!-- Sous-rapport : Partie 3 — Professionnalisation : la pyramide des hôtes. -->
+<!-- Inclus dans rpt-pbnb-synth-monde.qmd (MAIN). Convention chunks : srpt03-* -->
+<!-- v1 — 2026-05-29. Pattern partie standardisé (intro + KPI + écarts continent + tabset 3 onglets + .cld-ctx Adamiak/Törnberg + float topbot) -->
+
+Adamiak (2018, 2022) a documenté le premier une transformation profonde du modèle Airbnb originel. À l'échelle de 167 pays étudiés en 2022, **63 %** des annonces sont gérées par des hôtes multi-actifs (≥ 2 annonces), et plus d'un tiers de l'offre revient à des opérateurs professionnels gérant 10 annonces et plus. Cette professionnalisation redéfinit l'économie collaborative en industrie hôtelière déguisée — un sujet politique central depuis 2018.
+
+Dans notre panel de `r aa$n_villes` villes, en médiane **`r aa$v_multi` %** de l'offre est détenue par des hôtes gérant plus d'une annonce. Mais l'écart est extrême : `r aa$t_top_multi` affiche `r aa$v_top_multi` %, `r aa$t_bot_multi` seulement `r aa$v_bot_multi` %.
+
+```{r}
+#| label: srpt03-kpi-header
+#| cache: false
+
+kpi_row(
+  kpi_band("Multi-hôtes (≥2 ann.)",
+    value = aa$v_multi, unit = "%",
+    subtitle = "médiane offre panel",
+    top = sprintf("%s · %s %% ▲", aa$t_top_multi, aa$v_top_multi),
+    bottom = sprintf("%s · %s %% ▼", aa$t_bot_multi, aa$v_bot_multi)),
+  kpi_band("Super-pro (≥10 ann.)",
+    value = aa$v_offre10_med, unit = "%",
+    subtitle = "médiane offre panel",
+    top = "Hong Kong / Singapour · > 50 % ▲",
+    bottom = "Copenhague / Oslo · < 5 % ▼"),
+  kpi_pareto_h("Concentration extrême",
+    left_value  = round(median(kpi$cr_hosts_offre50_pct, na.rm=TRUE), 0), left_unit = "%",
+    left_label  = "des hôtes<br>contrôlent",
+    right_value = "50", right_unit = "%",
+    right_label = "de l'offre<br>(médiane panel)")
+)
+```
+
+Cette partie examine trois dimensions de la professionnalisation : le **ratio annonces par hôte** (proxy de gestion multi-biens), la **part des super-professionnels** (≥ 10 annonces, opérateurs commerciaux purs) et la **concentration au sommet** (CR10, part des 10 premiers hôtes par ville).
+
+::: {.cld-ctx}
+**La fin de l'économie collaborative — taxonomie Adamiak (2022).** L'étude de référence sur 167 pays établit en 2019 une répartition en 4 profils croisant type de logement (chambre / logement entier) et statut (mono- / multi-hôtes) : **multi-homes 41,5 %** (logements entiers gérés par multi-hôtes), **single-homes 33,2 %**, **multi-rooms 17,5 %**, **single-rooms 7,9 %** — le concept originel d'Airbnb réduit à moins d'une annonce sur 12. Dynamique 2018-2019 : hausse de **22,6 %** des annonces mondiales, portée à 30,5 % pour les multi-homes — l'accélération est continue.
+
+**La professionnalisation s'est amplifiée en Europe depuis 2019.** Schegg-Stangl-Demlehner (2025) mesurent **70 % de multi-hôtes à Lisbonne**, Colomb (2025, Parlement européen) **74 % à Prague**. Kirchner & Pohl (2024) confirment sur un panel longitudinal de 45 villes que **40 à 60 % de la valeur de marché** est captée par les opérateurs professionnels. Paris suit la même trajectoire malgré une régulation engagée dès 2014 : multi-loueurs passent de 21 % (2020) à 31 % (août 2024), les très gros loueurs (≥10 annonces) doublent leur part (8 % → 16 %).
+
+**Concentration des revenus comparable aux pays les plus inégalitaires.** Törnberg (2022, échantillon 834 K annonces / 97 marchés) mesure un coefficient de **Gini 0,68** sur les revenus entre hôtes — inégalité comparable à l'Afrique du Sud (0,63 sur les ménages). Quattrone et al. (2022) établissent un Gini médian de **0,79 au niveau hôte** sur les mêmes 97 villes, stable 2013-2019 — structure d'inégalité constitutive du modèle, pas conjoncturelle.
+
+*Sources : Adamiak 2022 (Current Issues in Tourism) ; Schegg-Stangl-Demlehner 2025 ; Colomb 2025 (PE) ; Kirchner & Pohl 2024 ; Törnberg 2022 (PLoS ONE) ; Quattrone et al. 2022 (EPJ Data Science) ; APUR 2025.*
+:::
+
+::: {.panel-tabset}
+
+### Tableau par continent
+
+```{r}
+#| label: srpt03-gt-cd-lignezsc
+#| cache: false
+
+srpt03_panel <- make_cd_panel_agg(c("cr_offre_1plus", "cr_offre_5plus",
+                                     "cr_offre_10plus", "cr_hosts_offre50_pct",
+                                     "cr_offre_top10host_pct"))
+gt_cd_panel_zscore(srpt03_panel,
+                    title = "Concentration et professionnalisation par groupe continental",
+                    sort_geo_by = "cr_offre_1plus")
+log_table_auto("srpt03_gt_cd_lignezsc", srpt03_panel)
+```
+
+<div class="figure-source">Source : Inside Airbnb, juin 2026 · Afrique masquée (n &lt; 2 villes) · Coloration z-score par ligne (rose = au-dessus de la moyenne mondiale, bleu = en-dessous).</div>
+
+### Graphique par continent
+
+```{r}
+#| label: srpt03-plt-cd-smult
+#| fig-width: 9
+#| fig-height: 3.2
+#| cache: false
+
+plot_cd_bars_ordered(c("cr_offre_1plus", "cr_offre_10plus",
+                       "cr_hosts_offre50_pct", "cr_offre_top10host_pct"),
+                     ncol_wrap = 2)
+```
+
+<div class="figure-source">Source : Inside Airbnb, juin 2026 · Médiane par groupe continental</div>
+
+### Tableau détaillé par ville
+
+```{r}
+#| label: srpt03-rt-villes-detail
+#| cache: false
+
+srpt03_d <- kpi |>
+  dplyr::transmute(
+    lib                     = city_fr,
+    continent               = continent,
+    country_code            = country_code,
+    cr_offre_1plus          = round(cr_offre_1plus, 1),
+    cr_offre_10plus         = round(cr_offre_10plus, 1),
+    cr_hosts_offre50_pct    = round(cr_hosts_offre50_pct, 1),
+    cr_offre_top10host_pct  = round(cr_offre_top10host_pct, 1))
+
+rt_table(
+  srpt03_d,
+  cols = list(
+    lib                    = rt_col_lib(srpt03_d, "lib", "Ville", indent = FALSE, mw = 150),
+    continent              = rt_col_tag("Cont.", w = 75),
+    country_code           = rt_col_tag("Pays", w = 50),
+    cr_offre_1plus         = rt_col_level(srpt03_d, "cr_offre_1plus", "Offre multi-hôtes ≥2", unit = "%",
+                                           bw = "fill", bh = 16, mw = 140),
+    cr_offre_10plus        = rt_col_level(srpt03_d, "cr_offre_10plus", "Offre super-pro ≥10", unit = "%",
+                                           bw = "fill", bh = 16, mw = 140),
+    cr_hosts_offre50_pct   = rt_col_level(srpt03_d, "cr_hosts_offre50_pct", "% hôtes = 50% offre", unit = "%",
+                                           bw = "fill", bh = 16, mw = 140),
+    cr_offre_top10host_pct = rt_col_level(srpt03_d, "cr_offre_top10host_pct", "CR10", unit = "%",
+                                           bw = "fill", bh = 16, mw = 130)
+  ),
+  sticky_cols = 1,
+  searchable = FALSE,
+  height = 400,
+  full_width = TRUE,
+  footnote = "Inside Airbnb, juin 2026 · CR10 = part des 10 premiers hôtes par ville"
+)
+```
+
+:::
+
+::: {.float-section}
+
+::: {.graph-droite-65}
+
+```{r}
+#| label: srpt03-rt-topbot
+#| cache: false
+
+srpt03_topbot <- kpi |> dplyr::select(city_fr, cd, country_code, cr_offre_1plus,
+                                       cr_host_pro_pct, cr_host_pro_pct_vdifp_2526)
+rt_topbot_ville(
+  srpt03_topbot,
+  vars = c("cr_offre_1plus", "cr_host_pro_pct", "cr_host_pro_pct_vdifp_2526"),
+  sort_col = "cr_offre_1plus",
+  title = "Concentration par ville — du marché de particuliers à l'industrie hôtelière",
+  digits = c(1, 1, 1),
+  group_pairs = TRUE, footer2 = TRUE, agg_row = kpi_world,
+  footnote = "Pastille = sous-continent · valeur rouge = au-dessus de la médiane, bleu = en-dessous · évolution 2025→2026 des hôtes professionnels · footer : médiane des villes puis Monde (agrégat)."
+)
+```
+
+:::
+
+**Multi-loueurs et super-professionnels avancent ensemble.** La corrélation entre la part de multi-hôtes (≥ 2 annonces) et celle de super-professionnels (≥ 10 annonces) atteint **r = 0,87** (R² = 0,748, p &lt; 10⁻²²) — l'une des relations les plus fortes du panel. Pour chaque hausse de 10 points de multi-hôtes, on observe une progression d'environ 7 points de super-professionnels. La gradation des particuliers vers l'industrie hôtelière déguisée n'est pas un seuil mais un continuum.
+
+Trois zones se dessinent à partir des quadrants du scatter. Le **modèle corporate** domine en Asie-Pacifique (**27 villes** en haut à droite) : Tokyo, Taipei, Singapour, Hong Kong dépassent 80 % de multi-loueurs et 50 % de super-professionnels — Airbnb fonctionne comme un canal hôtelier alternatif. Le **modèle de particuliers** subsiste dans **29 villes** (bas à gauche) : Copenhague, Oslo, Amsterdam sous 30 % de multi-hôtes et 10 % de super-pro. Le reste du panel (18 villes) relève d'un **modèle hybride** où coexistent professionnels et particuliers.
+
+**Hong Kong, Naples et Bergame sortent du modèle** — ce sont les principaux résidus du scatter. Hong Kong cumule des taux records sur les deux axes (corporate pur), tandis que Naples et Bergame dépassent la prédiction sur la super-professionnalisation rapportée à leur part de multi-hôtes : signe d'une concentration accélérée par quelques opérateurs locaux dominants.
+
+La concentration extrême se lit dans le CR10 — la part de marché des 10 premiers hôtes par ville. À Singapour, ce chiffre atteint 35 % ; à Hong Kong, **un seul opérateur capte près du quart de l'offre**. Cette concentration pèse-t-elle sur le tissu résidentiel ? La Partie 4 examine la pression résidentielle qui en résulte.
+
+:::

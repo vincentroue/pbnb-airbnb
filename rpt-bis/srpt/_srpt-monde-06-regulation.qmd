@@ -1,0 +1,147 @@
+<!-- _srpt-monde-06-regulation.qmd -->
+<!-- Sous-rapport : Partie 6 — Régulation et trajectoires. -->
+<!-- Inclus dans rpt-pbnb-synth-monde.qmd (MAIN). Convention chunks : srpt06-* -->
+<!-- v1 — 2026-05-29. Pattern partie standardisé + .cld-ctx NY LL18 / Amsterdam / Barcelone / Règlement UE 2024/1028 / loi Le Meur -->
+
+**2024-2025 marque un tournant régulatoire majeur.** Le Règlement européen **2024/1028** harmonise les obligations d'enregistrement des hôtes pour les 27 États membres (entrée en vigueur 2026). Aux États-Unis, la **Local Law 18** de New York (sept. 2023) a réduit les annonces courtes de **−90 %**. **Barcelone** interdira la location courte durée à partir de juillet 2028. Cette vague s'inscrit dans un mouvement plus large : Adamiak 2022 notait déjà que le profil « multi-home » — pro avec plusieurs logements entiers — concentre l'attention des régulateurs car directement responsable du retrait de logements du parc résidentiel.
+
+La longue durée (médiane `r aa$v_longterm` % à l'échelle mondiale) fonctionne comme un signal de la contrainte réglementaire : `r aa$t_top_lt` affiche `r aa$v_top_lt` % sous l'effet de la Local Law 18. Les Amériques (médiane `r aa$v_am_med_longterm` %) se distinguent nettement de l'Europe (`r aa$v_eur_med_longterm` %).
+
+```{r}
+#| label: srpt06-kpi-header
+#| cache: false
+
+kpi_row(
+  kpi_band("% Longue durée (≥ 30 j)",
+    value = aa$v_longterm, unit = "%",
+    subtitle = "médiane panel — proxy régulation",
+    top = sprintf("%s · %s %% ▲", aa$t_top_lt, aa$v_top_lt),
+    bottom = sprintf("%s · %s %% ▼", aa$t_bot_lt, aa$v_bot_lt)),
+  kpi_band("Villes > 30 % long séj.",
+    value = aa$n_longterm_30plus %||% sum(kpi$str_minnuits30_pct > 30, na.rm = TRUE),
+    unit = "villes",
+    subtitle = "sous contrainte réglementaire effective",
+    top = "Métropoles US LL18-like ▲",
+    bottom = "Europe Sud Méditerranée ▼"),
+  kpi_block(
+    value = "2026",
+    phrase = "<strong>Règlement UE 2024/1028</strong><br><small>enregistrement harmonisé 27 États · sanctions 4 % CA mondial</small>",
+    label = "Cadre européen")
+)
+```
+
+Cette partie examine les régulations en place (cas emblématiques), utilise la **part `min_nights ≥ 30`** comme proxy de contrainte régulatoire, et anticipe les horizons 2030.
+
+::: {.cld-ctx}
+**Trois cas internationaux : efficacité réelle, contournements documentés.** *New York (LL18, sept. 2023)* — inventaire LCD réduit d'environ **90 %** par enregistrement obligatoire + présence hôte + 30 nuits max sans hôte. Chute spectaculaire mais effet de substitution : les annonces se déplacent vers les séjours **≥ 30 jours** (non couverts par la loi) — NY affiche désormais 74 à 82 % d'annonces en location longue durée dans le panel Inside Airbnb 2024-2025. *Amsterdam (cap 30 nuits, 2018)* — inventaire contracté de **54 %**, part de multi-loueurs tombée à **18 %** — la plus faible parmi les grandes villes européennes. Modèle de référence pour contrôler sans interdire. *Barcelone (décret 9/2024)* — suppression progressive d'ici **2028**, gel des nouvelles licences, non-renouvellement des existantes. Mesure la plus radicale d'Europe occidentale.
+
+**Cadre européen 2024/1028 — la rupture de la transparence.** Le Règlement (UE) **2024/1028 du 11 avril 2024**, applicable en **mai 2026**, instaure le premier cadre continental pour la LCD. Il oblige les plateformes (Airbnb, Booking, Vrbo) à transmettre **mensuellement** aux autorités nationales les données au niveau de l'annonce (identité hôte, adresse, nuitées, revenus, numéro d'enregistrement) pour les 27 États membres. Sanctions : jusqu'à **4 % du chiffre d'affaires mondial**. Le règlement créera dès 2026 une base multi-plateformes sans précédent pour chercheurs et régulateurs.
+
+**France : loi Le Meur (nov. 2024).** Plafond résidence principale abaissé de **120 à 90 nuits/an**, renforcement des obligations d'enregistrement local. Applicable dès janvier 2025 pour les communes qui délibèrent. Paradoxe : la France est le **premier marché LCD européen** en volume (192 M nuitées) et dispose d'une réglementation ancienne — mais Paris reste en hausse de **240 %** sur la décennie. Le portail **PANDA** lancé par Airbnb (nov. 2024) ouvre des données agrégées gratuites pour 29 000 communes — geste de transparence partielle, limité à Airbnb sans Booking ni Abritel.
+
+**Trois trajectoires 2030.** (i) *Consolidation hôtelière déguisée* dans les marchés mûrs (Europe occidentale, Amérique du Nord), basculement vers opérateurs hybrides régulés (Blueground, Sonder) opérant en mode hôtelier sous étiquette LCD. (ii) *Expansion accélérée* dans les marchés émergents peu régulés (Amérique latine, Moyen-Orient, Asie du Sud-Est), tirée par plateformes locales (OYO, Mercado Libre) en plus d'Airbnb. (iii) *Durcissement réglementaire continu* dans les « villes-musées » européennes (Barcelone, Florence, Venise, Amsterdam, Lisbonne, Paris) — convergence vers « interdiction sauf résidence principale » et contrôles renforcés via le règlement UE 2024/1028.
+
+*Sources : NY Local Law 18 (sept. 2023) ; Amsterdam cap 30 nuits ; Décret 9/2024 Catalogne ; Règlement UE 2024/1028 ; loi Le Meur (FR, 19 nov. 2024) ; APUR 2025.*
+:::
+
+::: {.panel-tabset}
+
+### Tableau par continent
+
+```{r}
+#| label: srpt06-gt-cd-lignezsc
+#| cache: false
+
+srpt06_panel <- make_cd_panel_agg(c("str_minnuits30_pct", "str_minnuits90_pct",
+                                     "cr_offre_1plus", "prs_listings_1000hab_dense"))
+gt_cd_panel_zscore(srpt06_panel,
+                    title = "Régulation effective par groupe continental — proxy min_nights et concentration",
+                    sort_geo_by = "str_minnuits30_pct")
+log_table_auto("srpt06_gt_cd_lignezsc", srpt06_panel)
+```
+
+<div class="figure-source">Source : Inside Airbnb, juin 2026 · Afrique masquée · Coloration z-score par ligne (rose = au-dessus de la moyenne mondiale, bleu = en-dessous).</div>
+
+### Graphique par continent
+
+```{r}
+#| label: srpt06-plt-cd-smult
+#| fig-width: 9
+#| fig-height: 3.2
+#| cache: false
+
+plot_cd_bars_ordered(c("str_minnuits30_pct", "str_minnuits90_pct",
+                       "cr_offre_1plus", "prs_listings_1000hab_dense"),
+                     ncol_wrap = 2)
+```
+
+<div class="figure-source">Source : Inside Airbnb, juin 2026 · Médiane par groupe continental</div>
+
+### Tableau détaillé par ville
+
+```{r}
+#| label: srpt06-rt-villes-detail
+#| cache: false
+
+srpt06_d <- kpi |>
+  dplyr::transmute(
+    lib                        = city_fr,
+    continent                  = continent,
+    country_code               = country_code,
+    str_minnuits30_pct         = round(str_minnuits30_pct, 1),
+    str_minnuits90_pct         = round(str_minnuits90_pct, 1),
+    cr_offre_1plus             = round(cr_offre_1plus, 1),
+    prs_listings_1000hab_dense = round(prs_listings_1000hab_dense, 1))
+
+rt_table(
+  srpt06_d,
+  cols = list(
+    lib                        = rt_col_lib(srpt06_d, "lib", "Ville", indent = FALSE, mw = 150),
+    continent                  = rt_col_tag("Cont.", w = 75),
+    country_code               = rt_col_tag("Pays", w = 50),
+    str_minnuits30_pct         = rt_col_level(srpt06_d, "str_minnuits30_pct", "% ≥ 30 nuits", unit = "%",
+                                               bw = "fill", bh = 16, mw = 130),
+    str_minnuits90_pct         = rt_col_level(srpt06_d, "str_minnuits90_pct", "% ≥ 90 nuits", unit = "%",
+                                               bw = "fill", bh = 16, mw = 130),
+    cr_offre_1plus             = rt_col_level(srpt06_d, "cr_offre_1plus", "Multi-hôtes ≥ 2", unit = "%",
+                                               bw = "fill", bh = 16, mw = 130),
+    prs_listings_1000hab_dense = rt_col_level(srpt06_d, "prs_listings_1000hab_dense",
+                                               "Ann./1 000 hab. zone dense", unit = "‰",
+                                               bw = "fill", bh = 16, mw = 140)
+  ),
+  sticky_cols = 1,
+  searchable = FALSE,
+  height = 400,
+  full_width = TRUE,
+  footnote = "Inside Airbnb, juin 2026 · % long séj. = proxy contrainte réglementaire"
+)
+```
+
+:::
+
+::: {.float-section}
+
+::: {.graph-droite-65}
+
+```{r}
+#| label: srpt06-rt-topbot
+#| cache: false
+
+srpt06_topbot <- kpi |> dplyr::select(city_fr, cd, country_code, str_minnuits30_pct,
+                                       str_minnuits30_pct_vdifp_2526, str_minnuits90_pct)
+rt_topbot_ville(
+  srpt06_topbot,
+  vars = c("str_minnuits30_pct", "str_minnuits30_pct_vdifp_2526", "str_minnuits90_pct"),
+  sort_col = "str_minnuits30_pct",
+  title = "Proxy régulation par ville — la contrainte de durée minimale révèle l'encadrement",
+  digits = c(1, 1, 1),
+  group_pairs = TRUE, footer2 = TRUE, agg_row = kpi_world,
+  footnote = "Pastille = sous-continent · évolution 2025→2026 de la part ≥ 30 nuits (proxy régulation) · footer : médiane des villes puis Monde."
+)
+```
+
+:::
+
+Les villes en tête du classement long séjour — **New York, Los Angeles, San Francisco** — sont précisément celles soumises aux régulations les plus actives ; le proxy `min_nights ≥ 30` capture efficacement l'effet de contournement vers le bail mobilité. À l'inverse, l'Europe du Sud (médiane `r aa$v_eur_med_longterm` %) reste massivement orientée court séjour touristique, signe d'un encadrement réglementaire encore en construction — à l'exception de Barcelone, qui anticipe l'interdiction 2028. La synthèse continentale qui clôt le rapport propose une typologie reposant sur ces six dimensions et leurs croisements.
+
+:::

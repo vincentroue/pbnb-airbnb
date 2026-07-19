@@ -1,0 +1,101 @@
+---
+title: "Airbnb dans 76 villes : analyse comparée des marchés de location de courte durée"
+subtitle: "Offre, professionnalisation et pression résidentielle · 31 pays (Europe, Amériques, Asie-Pacifique) · plus de 800 000 annonces actives — juin 2026"
+date: today
+categories: ["Rapport"]
+number-sections: false
+toc: true
+toc-depth: 3
+toc-expand: true
+code-fold: true
+code-tools: true
+execute:
+  echo: true
+---
+
+<!-- Fichier : rpt-pbnb-synth-monde.qmd | Type : RAPPORT | Scope : Monde 76 villes -->
+<!-- Convention : full R, variables inline aa_, log_*_auto(), pas de codes variable dans le texte -->
+
+```{r}
+#| label: setup
+#| include: false
+#| cache: false
+
+source("_setup-common.R")
+source("_data-load.R")
+source("_helpers-monde-srpt.R")
+
+claude_log_init("rapport-monde-v2")
+log_aa_vars(aa)  # Dump aa$* dans le JSON — source unique pour Pass 2 narration
+```
+
+{{< include srpt/_srpt-monde-00-intro.qmd >}}
+
+# Partie 3 — Analyse comparée
+
+## 1. Portrait mondial de l'activité
+
+{{< include srpt/_srpt-monde-01-portrait.qmd >}}
+
+## 2. Marché, structure et activité
+
+{{< include srpt/_srpt-monde-02-prix-structure.qmd >}}
+
+## 3. Professionnalisation : la pyramide des hôtes
+
+{{< include srpt/_srpt-monde-03-pro.qmd >}}
+
+## 4. Pression territoriale : densité et tension résidentielle
+
+{{< include srpt/_srpt-monde-04-pression.qmd >}}
+
+## 5. Concurrence : Airbnb face à l'hôtellerie
+
+{{< include srpt/_srpt-monde-05-concurrence.qmd >}}
+
+## 6. Régulation et trajectoires : signaux et horizons
+
+{{< include srpt/_srpt-monde-06-regulation.qmd >}}
+
+## 7. Typologie : 5 familles de marchés Airbnb
+
+```{r}
+#| label: load-acp-bilan
+#| include: false
+#| cache: false
+
+# Bilan ACP DÉCOUPLÉ : on charge le snapshot produit par rpt-pbnb-acpnbk-monde.qmd
+# (pca, hcpc, indiv_df, dim_names, cluster_names, aa_*…) — zéro recompute ACP ici.
+JCN <- "C:/Users/vince/hh/pq/PDS/mutils/jrr"
+source(file.path(JCN, "jcn-all.R"))
+source(file.path(JCN, "jcn-dml-acp-plots.R"))
+source(file.path(JCN, "jcn-dml-hcpc-typo.R"))
+list2env(readRDS("outputs/acp-bilan-snapshot.rds"), environment())
+```
+
+{{< include _00-bilanacp.qmd >}}
+
+{{< include srpt/_srpt-monde-07-typologie.qmd >}}
+
+# Partie 4 — Annexes
+
+## Glossaire des indicateurs
+
+Le dictionnaire complet des 82 indicateurs (sept familles thématiques : volumes, structure, prix, concentration, pression, activité, contexte) est disponible dans le [glossaire dédié](_glossaire-indicateurs.html). Les trois indicateurs phares — part de logements entiers, part de longue durée (proxy régulation), pression résidentielle en zone dense — sont détaillés dans la Partie 2 (encadré FOCUS).
+
+## Méthodologie détaillée
+
+La note méthodologique complète — protocole de nettoyage, calcul de la zone dense GHS-POP, modèle d'estimation d'occupation, conversions monétaires — est présentée dans la [note méthodologique](rpt-pbnb-methnbk-methode-260430.html). Les hypothèses structurantes (H1–H8) et les questions évaluatives par axe figurent dans le référentiel `gdmeth-indic-airbnb-260109.md`.
+
+## Sources et références
+
+**Données panel** — Inside Airbnb (insideairbnb.com), snapshot juin 2026, 76 villes / 31 pays. Coordonnées géographiques : city-reference-airbnb-260222. Population et superficie zones denses : référentiel GHS-POP 2025.
+
+**Sources externes mobilisées** (blocs contexte en bleu pâle) — Airbnb 10-K FY2024 (SEC EDGAR) ; Eurostat tour_ce_omr ; Adamiak (2022, *Current Issues in Tourism*) ; Schegg-Stangl-Demlehner (2025) ; Colomb (2025, Parlement européen) ; Törnberg (2022, *PLoS ONE*) ; Quattrone et al. (2022, *EPJ Data Science*) ; Lighthouse (2025, Global STR Outlook) ; CBRE Hotels (2024) ; CoStar/STR (2024) ; APUR (2025) ; NY Local Law 18 ; Règlement UE 2024/1028 ; loi Le Meur (2024).
+
+```{r}
+#| label: log-save
+#| include: false
+
+claude_log_save()
+```

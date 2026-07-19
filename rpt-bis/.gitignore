@@ -1,0 +1,13 @@
+/.quarto/
+**/*.quarto_ipynb
+
+# Sorties régénérables (render Quarto)
+/_freeze/
+/_output/
+/site_libs/
+**/*_files/
+**/*_cache/
+
+# Dev / temp
+/dev/
+/ytest/

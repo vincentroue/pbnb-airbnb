@@ -1,0 +1,175 @@
+<!-- _srpt-monde-00-intro.qmd -->
+<!-- Sous-rapport : Synthèse executive + Cadrage (Contexte + Méthodologie + FOCUS indicateurs). -->
+<!-- Inclus dans rpt-pbnb-synth-monde.qmd (MAIN). Convention chunks : srpt00-* -->
+<!-- v1 — 2026-05-27. Extrait depuis MAIN lignes 24-192. -->
+
+# Partie 1 — Synthèse
+
+{{< include srpt/_srpt-monde-synthese.qmd >}}
+
+```{r}
+#| label: srpt00-kpi-syn-header
+#| cache: false
+
+kpi_row(
+  kpi_e2("Périmètre",
+    list(
+      list(value = sprintf("%d", aa$n_villes), label = "villes"),
+      list(value = sprintf("%d", aa$n_pays), label = "pays"),
+      list(value = sprintf("%d", aa$n_continents), label = "continents"),
+      list(value = aa$n_total_km, label = "annonces actives"),
+      list(value = aa$n_hosts_km, label = "hôtes actifs")
+    )),
+  kpi_band("Pression",
+    value = aa$v_pression_med,
+    unit = "‰",
+    subtitle = "ann./1 000 hab. médiane",
+    top = sprintf("%s %s ▲", aa$t_top_pression, aa$v_top_pression),
+    bottom = sprintf("%s %s ▼", aa$t_bot_pression, aa$v_bot_pression)),
+  kpi_band("Professionnalisation",
+    value = aa$v_multi,
+    unit = "%",
+    subtitle = "annonces multi-loueurs (panel)",
+    top = "Adamiak 2022 : 59 % monde ▲",
+    bottom = sprintf("Tokyo > 85 %% · Copenhague %s %% ▼", aa$v_bot_multi))
+)
+```
+
+# Partie 2 — Cadrage et méthode
+
+## Contexte : un marché en recomposition ?
+
+Le marché mondial d'Airbnb a connu une croissance quasi ininterrompue depuis sa création : passant de **140 millions de nuitées** en 2016 à **491 millions** en 2024 (Airbnb SEC filings), soit un quasi-triplement en huit ans.
+
+<!-- ==&td== vv à reprendre pour rapport France/Europe (trop tourné Europe ici, à retirer ou requalifier en focus européen)
+En parallèle, les plateformes de **location courte durée** (LCD) ont totalisé **854 millions de nuitées** dans l'Union européenne en 2024 (Eurostat), Airbnb représentant la part dominante de ce marché — environ 28 % de l'hébergement touristique européen total.
+==&td== -->
+
+```{r}
+#| label: srpt00-kpi-cadrage
+#| cache: false
+
+# Bandeau pleine largeur : kpi_e2 marché mondial + kpi_pareto_h concentration
+kpi_row(
+  kpi_e2("Marché mondial Airbnb",
+    list(
+      list(value = "8 M ann.",
+           label = "actives monde 2024 (<strong>▲ 43&nbsp;%</strong> en 5 ans)",
+           top = "Airbnb 10-K FY2024"),
+      list(value = "491 M",
+           label = "nuitées Airbnb 2024 (<strong>▲ 50&nbsp;%</strong> vs 2019)",
+           top = "Airbnb SEC filings"),
+      list(value = "59 %",
+           label = "annonces gérées par multi-loueurs (<strong>Adamiak 2022</strong>, 167 pays)",
+           top = "référence académique")
+    )),
+  kpi_pareto_h("Concentration de l'offre",
+    left_value = "15",  left_unit = "%",
+    left_label = "des hôtes<br>contrôlent",
+    right_value = "50", right_unit = "%",
+    right_label = "des annonces<br>(panel mondial)")
+)
+```
+
+::: {.float-section}
+
+::: {.graph-droite-50}
+
+```{r}
+#| label: srpt00-plt-bar-context
+#| fig-width: 5
+#| fig-height: 3.2
+
+ctx <- read.csv(file.path(DATA_EXTERNAL, "kpi-serie-context-airbnb-260308.csv"))
+ctx_ab <- ctx[!is.na(ctx$airbnb_nights_world_M), ]
+ctx_ab$highlight <- ifelse(ctx_ab$year == max(ctx_ab$year), "last", "other")
+
+ggplot(ctx_ab, aes(x = factor(year), y = airbnb_nights_world_M, fill = highlight)) +
+  geom_col(width = 0.7, show.legend = FALSE) +
+  geom_text(aes(label = round(airbnb_nights_world_M, 0)),
+            vjust = -0.5, size = 2.6, color = "#555") +
+  scale_fill_manual(values = c("last" = col_cyan, "other" = col_spacegray)) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.15))) +
+  labs(title = "Nuit\u00e9es Airbnb monde (millions)",
+       subtitle = "Airbnb SEC filings \u00b7 2016-2024",
+       x = NULL, y = NULL) +
+  theme(axis.text.y = element_blank(), axis.ticks.y = element_blank(),
+        panel.grid.major.y = element_blank(),
+        plot.title = element_text(size = 10),
+        plot.subtitle = element_text(size = 8),
+        axis.text.x = element_text(size = 8))
+```
+
+:::
+
+Le creux de 2020 (193 millions de nuitées, recul de 41 %) a été effacé dès 2022 (394 millions), et la croissance se poursuit à un rythme soutenu (hausse de 10 % en 2024). Cette pression touristique n'est pas un phénomène statique mais un processus en accélération, qui redistribue les cartes entre villes régulées et villes permissives. La professionnalisation l'accompagne : **59 %** des annonces gérées par des multi-loueurs selon Adamiak (2022) à l'échelle de 167 pays — un ratio que notre panel de `r aa$n_villes` villes confirme largement (médiane `r aa$v_multi` %).
+
+:::
+
+::: {.cld-ctx}
+**La location courte durée bascule structurellement face à l'hôtellerie.** En 2024, l'inventaire LCD mondial croît à **9 % par an** contre **1 %** pour le parc hôtelier ; Lighthouse mesure une hausse de **88 % à Buenos Aires** et **69 % à Riyad** (Vision 2030 saoudienne). À l'échelle européenne, Eurostat recense **854 millions de nuitées LCD** dans l'UE en 2024 — soit **28 %** des nuitées touristiques européennes, contre 16 % en 2019. Le différentiel tarifaire historique qui avait permis la pénétration d'Airbnb a disparu pour les voyageurs individuels : l'ADR Airbnb mondial atteint **166 USD** en 2024, quasi à parité avec l'ADR hôtelier américain (159 USD selon CoStar/STR). L'avantage Airbnb ne subsiste plus que pour les groupes et les longs séjours.
+
+*Sources : Airbnb 10-K FY2024 ; Eurostat tour_ce_omr ; Lighthouse 2025 ; CoStar/STR.*
+:::
+
+## Méthodologie, données et axes d'analyse
+
+Le rapport s'appuie sur le snapshot Inside Airbnb de juin 2026 — `r aa$n_total_km` annonces actives retenues après nettoyage sur `r aa$n_villes` villes de `r aa$n_pays` pays, soit environ 67 % des annonces brutes. Les prix sont convertis en euros au taux mi-2026 pour les 21 devises du panel, et les médianes prix portent exclusivement sur les **logements entiers** pour garantir la comparabilité entre marchés.
+
+L'enjeu central du rapport — rendre les villes comparables malgré des périmètres administratifs hétérogènes (commune pour Paris, comté pour Los Angeles, province pour Istanbul) — est résolu par le calcul des ratios sur la **zone dense intra-périmètre Inside Airbnb** : polygones de densité supérieure ou égale à 1 500 habitants/km² (référentiel GHS-POP 2025). Numérateur et dénominateur portent ainsi sur le même polygone urbain, neutralisant le biais de découpage.
+
+L'analyse est guidée par des hypothèses structurantes (méthodologie complète ci-dessous) et organisée en sept parties analytiques, chacune répondant à une famille de questions évaluatives :
+
+- **Portrait mondial** — où se concentrent les annonces et les hôtes ? Comment l'activité se distribue-t-elle entre Europe, Amériques, Asie-Pacifique et Afrique ?
+- **Prix, structure et activité** — quels niveaux tarifaires et quelle dispersion entre villes ? Quelle nature d'offre (logements entiers, chambres, durée minimum de séjour, capacité) ? Quel revenu hôte et quelle activité commerciale réelle ?
+- **Professionnalisation** — quel ratio annonces par hôte, quelle part de multi-loueurs et de super-professionnels (≥ 10 annonces) ? Quelle concentration au sommet du marché (CR10, top 10 % des hôtes) ?
+- **Pression résidentielle** — quelle densité d'annonces par habitant en zone dense (GHS-POP ≥ 1 500 hab/km²) ? Où la tension entre usage touristique et logement long terme est-elle maximale ?
+- **Concurrence Airbnb et hôtellerie** — comment Airbnb se positionne face à l'offre hôtelière traditionnelle en prix, capacité et géographie ?
+- **Régulation et trajectoires** — quelles villes ont mis en place des contraintes effectives ? Quels signaux dans les durées minimum de séjour, et quels horizons à 2030 (Règlement UE 2024/1028, Local Law 18, interdictions ciblées) ?
+- **Typologie** — quelles familles de marchés émergent du croisement de ces dimensions (analyse en composantes principales et classification) ?
+
+::: {.encadre}
+[FOCUS · 3 indicateurs phares et glossaire complémentaire]{.encadre-titre}
+
+Trois ratios structurent la lecture comparative tout au long du rapport :
+
+- **Part de logements entiers** (`str_entire_pct`) — transformation de l'usage résidentiel. Plus elle est élevée, plus le patrimoine est retiré du marché de long terme.
+- **Part de longue durée** (`str_minnuits30_pct`, ≥ 30 nuits) — proxy de régulation locale en l'absence de données juridiques harmonisées.
+- **Pression résidentielle en zone dense** (`prs_listings_1000hab_dense`) — indicateur clé du projet pour comparaisons inter-villes mondiales (zone GHS-POP ≥ 1 500 hab/km²).
+
+Ces trois ratios sont mobilisés conjointement avec le prix médian, le revenu estimé et la concentration des hôtes.
+
+::: {.callout-tip collapse="true" appearance="minimal"}
+## Voir les 8 indicateurs complémentaires + définitions
+
+Indicateurs structurants additionnels — dictionnaire complet (82 indicateurs, sept familles) dans le [glossaire dédié](_glossaire-indicateurs.html).
+
+- **% Hosts multi-host (≥ 2 ann.)** *(% multi-host)* — Part des hôtes gérant au moins 2 annonces. *Sens* : taux global de professionnalisation. À l'échelle mondiale, ≈ 26 % des hôtes sont multi-host mais détiennent ≈ 63 % des annonces.
+- **% Hosts pro et superpro (≥ 5 ann.)** *(% host pro & sup)* — Part des hôtes gérant au moins 5 annonces. *Sens* : professionnalisation effective. À l'échelle mondiale, ≈ 6,5 % des hôtes contrôlent ≈ 40 % des annonces.
+- **% Hosts superpro (≥ 10 ann.)** *(% host superpro)* — Opérateurs commerciaux purs (conciergeries, gestionnaires multi-biens). 2,4 % des hôtes mondiaux concentrent ≈ 29 % de l'offre. Indicateur fort de la pression réglementaire.
+- **CR10 — Part des 10 premiers hôtes par ville** *(cr_offre_top10host_pct)* — Concentration extrême au sommet. Médiane mondiale ≈ 7 % ; Singapour, Hong Kong dépassent 35 %.
+- **Prix médian logement entier** *(px_entire_med)* — Niveau tarifaire de référence (€/nuit). Mesure exclusivement sur les logements entiers pour garantir la comparabilité.
+- **Revenu annuel estimé médian** *(act_revenu_med)* — Estimation Inside Airbnb (modèle San Francisco, cappé à 70 %). Sous-estime systématiquement les revenus réels — valeur en comparaison relative entre villes.
+- **Disponibilité** *(act_cal_ouvert_med)* — Jours ouverts à la réservation sur le calendrier public. Donnée observée mais imparfaite : on ne distingue pas blocage volontaire et nuits déjà réservées.
+- **Capacité moyenne par annonce** *(str_cap_pers_med)* — Nombre de personnes accueillables par logement. Signal *familial / groupe* (4-6 pers, US, vacation rental) vs *backpacker / couple* (2 pers, métropoles européennes).
+:::
+:::
+
+::: {.callout-note collapse="true" appearance="minimal"}
+## Méthodologie et données — sources, nettoyage, périmètres
+
+**Source** — Inside Airbnb (insideairbnb.com), projet indépendant de collecte des annonces publiques. Airbnb uniquement, hors Booking, Vrbo et plateformes locales. Snapshot juin 2026, complété d'une évolution sur un an (juin 2025 → juin 2026) pour les volumes, la structure et la concentration ; l'évolution des prix et des revenus n'est pas exploitable en raison d'un changement d'affichage tarifaire d'Inside Airbnb en 2025 (bascule prix de base → prix total).
+
+**Périmètre** — `r aa$n_villes` villes dans `r aa$n_pays` pays sur quatre continents : Europe `r aa$n_villes_eur` villes (`r aa$v_eur_pct` % de l'offre), Amériques `r nrow(kpi_am)`, Asie-Pacifique `r nrow(kpi_ap)`, Afrique = Le Cap uniquement.
+
+**Nettoyage** — prix strictement positif, disponibilité > 0, exclusion des hôtels, fourchette de prix retenue entre 10 et 2 000 €/nuit (rétention environ 67 % des annonces brutes). Les annonces longue durée (`min_nights ≥ 30`) sont conservées et signalées comme proxy de contrainte réglementaire.
+
+**Prix** — convertis en euros au taux de mi-2026 pour 21 devises. Les prix médians communiqués portent exclusivement sur les **logements entiers**, pour garantir la comparabilité entre marchés (mélanger chambres privées à 30 € et appartements à 800 € fausserait l'analyse).
+
+**Pression territoriale** — l'indicateur `annonces / 1 000 habitants` est calculé sur la **zone dense intra-périmètre Inside Airbnb** : polygones avec densité supérieure ou égale à 1 500 habitants/km² (référentiel GHS-POP 2025). Numérateur et dénominateur portent sur le même polygone urbain, ce qui élimine le biais de découpage administratif (commune stricte pour Paris vs province pour Istanbul).
+
+**Activité commerciale** — l'occupation et les revenus sont des estimations Inside Airbnb (modèle « San Francisco » : `reviews × 2 × durée séjour`, plafonné à 70 %). Ces estimations sous-estiment systématiquement les revenus réels et ne sont pas comparables aux données fiscales ou hôtelières — leur valeur réside dans la **comparaison relative** entre villes, le biais étant homogène.
+
+**Multi-hôtes et super-professionnels** — les multi-hôtes désignent les hôtes gérant au moins 2 annonces ; les super-professionnels au moins 10 (seuil cohérent avec Adamiak 2022).
+:::
+

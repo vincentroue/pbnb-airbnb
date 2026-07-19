@@ -1,0 +1,152 @@
+<!-- _srpt-monde-05-concurrence.qmd -->
+<!-- Sous-rapport : Partie 5 — Concurrence Airbnb face à l'hôtellerie. -->
+<!-- Inclus dans rpt-pbnb-synth-monde.qmd (MAIN). Convention chunks : srpt05-* -->
+<!-- v1 — 2026-05-29. Pattern partie standardisé + .cld-ctx Lighthouse / CBRE / STR / Skift -->
+
+En quinze ans, Airbnb est passé du complément économique au concurrent direct de l'hôtellerie traditionnelle. Sur la période 2019-2024, le secteur de la location courte durée (LCD) a connu une croissance de **9 %** par an, contre **1 %** pour l'hôtellerie mondiale post-COVID — un facteur 9 d'écart de rythme. Le prix moyen Airbnb (médiane mondiale `r round(median(kpi$px_entire_med, na.rm = TRUE), 0)` €/nuit pour le logement entier) reste inférieur au prix hôtelier équivalent, mais l'écart se réduit rapidement.
+
+```{r}
+#| label: srpt05-calc
+#| include: false
+
+aa$v_ratio_ann_hote_med <- round(median(kpi$str_ratio_ann_hote, na.rm = TRUE), 1)
+aa$t_top_ratio <- kpi$city_fr[which.max(kpi$str_ratio_ann_hote)]
+aa$v_top_ratio <- round(max(kpi$str_ratio_ann_hote, na.rm = TRUE), 1)
+aa$v_cap_med <- round(median(kpi$str_cap_pers_med, na.rm = TRUE), 0)
+```
+
+```{r}
+#| label: srpt05-kpi-header
+#| cache: false
+
+kpi_row(
+  kpi_band("Capacité médiane",
+    value = aa$v_cap_med, unit = "pers",
+    subtitle = "logement entier médian panel",
+    top = "Vacation rental US · ≥ 6 pers ▲",
+    bottom = "Métropoles EU · 2-3 pers ▼"),
+  kpi_band("Ratio annonces/hôte",
+    value = aa$v_ratio_ann_hote_med, unit = "",
+    subtitle = "médiane panel",
+    top = sprintf("%s · %s ▲", aa$t_top_ratio, aa$v_top_ratio),
+    bottom = "Marchés particuliers · ~1,0 ▼"),
+  kpi_block(
+    value = "9 vs 1",
+    phrase = "<strong>Croissance LCD / hôtel</strong><br><small>%/an monde 2024 — Lighthouse + CBRE</small>",
+    label = "Rapport de forces"),
+  kpi_block(
+    value = "166 USD",
+    phrase = "<strong>ADR Airbnb monde 2024</strong><br><small>vs 159 USD ADR hôtelier US (CoStar/STR)</small>",
+    label = "Convergence prix")
+)
+```
+
+Cette partie compare Airbnb et hôtellerie sur trois dimensions : **capacité** (logements entiers à grande capacité vs chambres d'hôtel standard), **prix** (ADR comparé), et **dynamique de croissance** (gain de part de marché).
+
+::: {.cld-ctx}
+**Différentiel de dynamique : ratio 9 pour 1.** L'offre mondiale LCD a progressé de **9 % en 2024** selon Lighthouse, contre environ **1 %** pour l'offre hôtelière (CBRE Hotels) — un facteur 9 d'écart qui se traduit mécaniquement par un gain de part de marché continu. Le ratio annonces Airbnb / chambres d'hôtel mondiales est désormais d'environ **1 pour 2,2** (8 M annonces vs 17,5 M chambres d'hôtel CBRE).
+
+**Bascules locales : Lisbonne, Florence, Barcelone.** À l'échelle ville, le rapport annonces Airbnb / chambres d'hôtel dépasse **1,0** à Lisbonne, Florence et Barcelone d'après les recoupements panel + CBRE — la LCD est devenue le mode d'hébergement dominant à l'échelle d'une nuitée disponible. Lighthouse identifie les premières croissances 2024 : **Buenos Aires (+88 %), Riyad (+69 %), Marrakech (+27 %), Dubaï (+26 %), Rome (+23 %), Athènes (+22 %)** — marchés émergents non régulés ou en stratégie d'expansion (Vision 2030 saoudienne).
+
+**Convergence des prix : la fin d'une époque.** L'ADR Airbnb mondial atteint **166 USD** en 2024 (Airbnb 10-K), quasi à parité avec l'ADR hôtelier US **159 USD** (CoStar/STR). Le différentiel historique qui avait permis la pénétration d'Airbnb dans les années 2010 a disparu pour les voyageurs individuels. L'avantage Airbnb ne subsiste plus que pour **les groupes et longs séjours**, où le logement entier 4-6 personnes reste structurellement compétitif vs 2-3 chambres d'hôtel équivalentes. *Point de contradiction* : l'ADR LCD pour une 1-bedroom est estimé à **114 USD** (Skift/CoStar mars 2024), inférieur à l'ADR hôtelier de 140 USD — la comparaison rigoureuse doit distinguer par segment de produit.
+
+**Opérateurs hybrides : Sonder, Mint House, Blueground.** La frontière LCD / hôtellerie s'efface avec des acteurs exploitant des immeubles entiers en mode hôtelier sous étiquette LCD. **Blueground est le premier loueur parisien avec 781 annonces** (APUR 2025), opérant essentiellement sur le segment corporate des séjours longs. Cette hybridation brouille les catégories réglementaires et pose des questions de fiscalité non résolues dans la plupart des pays européens.
+
+*Sources : Lighthouse 2025 (Global STR Outlook) ; CBRE Hotels 2024 ; CoStar/STR 2024 ; Skift mars 2024 ; Airbnb 10-K FY2024 ; APUR 2025.*
+:::
+
+::: {.panel-tabset}
+
+### Tableau par continent
+
+```{r}
+#| label: srpt05-gt-cd-lignezsc
+#| cache: false
+
+srpt05_panel <- make_cd_panel_agg(c("str_cap_pers_med", "str_ratio_ann_hote", "px_entire_med"))
+gt_cd_panel_zscore(srpt05_panel,
+                    title = "Capacité, ratio annonces/hôte et prix par groupe continental",
+                    sort_geo_by = "px_entire_med")
+log_table_auto("srpt05_gt_cd_lignezsc", srpt05_panel)
+```
+
+<div class="figure-source">Source : Inside Airbnb, juin 2026 · Afrique masquée · Coloration z-score par ligne (rose = au-dessus de la moyenne mondiale, bleu = en-dessous).</div>
+
+### Graphique par continent
+
+```{r}
+#| label: srpt05-plt-cd-smult
+#| fig-width: 9
+#| fig-height: 2.5
+#| cache: false
+
+plot_cd_bars_ordered(c("str_cap_pers_med", "str_ratio_ann_hote", "px_entire_med"),
+                     ncol_wrap = 3)
+```
+
+<div class="figure-source">Source : Inside Airbnb, juin 2026 · Médiane par groupe continental</div>
+
+### Tableau détaillé par ville
+
+```{r}
+#| label: srpt05-rt-villes-detail
+#| cache: false
+
+srpt05_d <- kpi |>
+  dplyr::transmute(
+    lib                = city_fr,
+    continent          = continent,
+    country_code       = country_code,
+    str_cap_pers_med   = round(str_cap_pers_med, 1),
+    str_ratio_ann_hote = round(str_ratio_ann_hote, 1),
+    px_entire_med      = round(px_entire_med, 0))
+
+rt_table(
+  srpt05_d,
+  cols = list(
+    lib                = rt_col_lib(srpt05_d, "lib", "Ville", indent = FALSE, mw = 150),
+    continent          = rt_col_tag("Cont.", w = 75),
+    country_code       = rt_col_tag("Pays", w = 50),
+    str_cap_pers_med   = rt_col_level(srpt05_d, "str_cap_pers_med", "Capacité méd.", unit = "pers",
+                                       bw = "fill", bh = 16, mw = 140),
+    str_ratio_ann_hote = rt_col_level(srpt05_d, "str_ratio_ann_hote", "Ann./hôte", unit = "",
+                                       bw = "fill", bh = 16, mw = 140),
+    px_entire_med      = rt_col_level(srpt05_d, "px_entire_med", "Prix entier", unit = "€",
+                                       bw = "fill", bh = 16, mw = 140)
+  ),
+  sticky_cols = 1,
+  searchable = FALSE,
+  height = 400,
+  full_width = TRUE,
+  footnote = "Inside Airbnb, juin 2026 · Capacité = personnes par logement médian"
+)
+```
+
+:::
+
+::: {.float-section}
+
+::: {.graph-droite-65}
+
+```{r}
+#| label: srpt05-rt-topbot
+#| cache: false
+
+srpt05_topbot <- kpi |> dplyr::select(city_fr, cd, country_code, px_entire_med,
+                                       str_ratio_ann_hote, str_ratio_ann_hote_vevol_2526)
+rt_topbot_ville(
+  srpt05_topbot,
+  vars = c("px_entire_med", "str_ratio_ann_hote", "str_ratio_ann_hote_vevol_2526"),
+  sort_col = "px_entire_med",
+  title = "Prix, capacité et ratio annonces/hôte par ville",
+  digits = c(0, 1, 1),
+  group_pairs = TRUE, footer2 = TRUE, agg_row = kpi_world,
+  footnote = "Pastille = sous-continent · prix sans évolution (caveat Inside Airbnb base→devis) · évolution 2025→2026 du ratio annonces/hôte · footer : médiane des villes puis Monde."
+)
+```
+
+:::
+
+Le ratio annonces par hôte (`r aa$v_ratio_ann_hote_med` en médiane mondiale) culmine à `r aa$v_top_ratio` à `r aa$t_top_ratio`. La capacité moyenne par logement (`r aa$v_cap_med` personnes) distingue clairement les marchés US familiaux des métropoles européennes 2-pers — un signal structurel sur le segment client desservi. Comment les régulateurs ont-ils réagi à cette bascule structurelle ? La Partie 6 examine les cadres en place et leurs effets.
+
+:::
