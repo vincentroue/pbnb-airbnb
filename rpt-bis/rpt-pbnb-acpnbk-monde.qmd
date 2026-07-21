@@ -1,7 +1,7 @@
 ---
 ukp: "Template ACP+HCPC v4. DRY via prepare_pca_hcpc + compute_acp_metrics (jcn-dml-grid-acp.R). CONFIG+DDICT, biplot_dual_height auto, coord_cartesian clusters, Mahalanobis actives, protections >5000 ind., notes de lecture."
 dcr: 26-04-15_1900
-dup: 26-06-17_0955
+dup: 26-06-18
 tags:
   - fd
   - fd/DML
@@ -9,8 +9,8 @@ tags:
   - fj/jRR
   - zfd/quarto-template-acp-hcpc
 tl: "tpl-nbk-acp-hcpc-dml-jRR-jquarto-fd"
-title: "ACP-HCPC — Pbnb 74 villes monde"
-subtitle: "74 villes Airbnb · KPI agrégés Inside Airbnb juin 2025"
+title: "ACP-HCPC — Pbnb 76 villes monde"
+subtitle: "76 villes Airbnb · KPI juin 2026 · évolution 2025→2026 en supplémentaires"
 categories: ["Notebook"]
 date: today
 lang: fr
@@ -30,7 +30,7 @@ execute:
 #| label: config
 #| code-fold: true
 #| cache: false
-#| message: true
+#| message: false
 
 # ============================================================
 # CONFIG — MODIFIER UNIQUEMENT CE BLOC
@@ -77,9 +77,15 @@ CONFIG <- list(
   threshold_drop = 1.0,
   force_keep     = NULL,
 
+  # --- Ordre des clusters ---
+  # cluster_order : "size" = relabel par taille décroissante (C1 = modal) — stable
+  #                 et lisible ; NULL = ordre natif FactoMineR (position Dim1).
+  cluster_order = "size",
+
   # --- Biplots clusters (§6) ---
   # cluster_plane_13 : TRUE = afficher les 2 plans (1-2 ET 1-3) côte à côte ;
-  #                    FALSE = n'afficher que le plan principal 1-2.
+  #                    FALSE = n'afficher que le plan 1-2. AUTO : forcé à FALSE si
+  #                    < 3 axes retenus (Kaiser) — voir chunk calc-all.
   cluster_plane_13 = TRUE
 )
 
@@ -116,20 +122,6 @@ if (!is.null(.p_ddict) && file.exists(.p_ddict)) {
                                 fileEncoding = "UTF-8-BOM"),
     error = function(e) tryCatch(read.csv(.p_ddict, stringsAsFactors = FALSE, check.names = FALSE),
                                  error = function(e2) NULL))
-  # &cld Le CSV ddict-validate n'a que short/long → on récupère le label MEDIUM
-  # depuis le JSON ddict (source des labels) pour que le pivot affiche le medium.
-  .json_dd <- "C:/Users/vince/hh/pq/PDS/pbnb-airbnb-log-jrr-jpy/reports/helpers/ddict-airbnb.json"
-  if (!is.null(DDICT_DF) && "variable" %in% names(DDICT_DF) &&
-      file.exists(.json_dd) && requireNamespace("jsonlite", quietly = TRUE)) {
-    .jind <- jsonlite::fromJSON(.json_dd, simplifyVector = FALSE)$indicators
-    .med <- vapply(DDICT_DF$variable, function(v) {
-      m <- .jind[[v]]$medium
-      if (is.null(m) || !nzchar(m)) NA_character_ else m
-    }, character(1))
-    DDICT_DF$medium <- ifelse(is.na(.med),
-                              if ("short" %in% names(DDICT_DF)) DDICT_DF$short else NA_character_,
-                              .med)
-  }
   GRID_CONFIGS <- load_grid_from_ddict(.p_ddict, method = "acp")
 
   sel_target <- if (!is.null(.p_sel)) .p_sel else GRID_CONFIGS[[1]]$id
@@ -304,9 +296,9 @@ if (nzchar(.ddict_path_safe) && file.exists(.ddict_path_safe) &&
         DDICT[[.new_names[i]]] <- paste0(DDICT[[.orig_names[i]]], suffix_lbl)
       }
     }
-    # &cld MAJ DDICT_DF (pivot rôles) : 1 ligne par variante transformée X_log,
-    # copiée de la base X (medium/short/long suffixés " (log)", theme/unit conservés)
-    # → le pivot affiche le label medium + le thème au lieu du nom brut + "?".
+    # MAJ DDICT_DF (pivot des rôles) : 1 ligne par variante transformée X_log,
+    # copiée de la base X (short/medium/long suffixés " (log)") → le pivot affiche
+    # le label au lieu du nom brut pour les variables transformées.
     if (exists("DDICT_DF") && is.data.frame(DDICT_DF) && "variable" %in% names(DDICT_DF)) {
       for (i in seq_along(.new_names)) {
         if (.new_names[i] %in% DDICT_DF$variable) next
@@ -355,34 +347,35 @@ if (file.exists(.cache_file)) {
 list2env(acp, environment())  # expose pca, hcpc, df_pca, grid
 # &e
 
-# &s &CLD_REORDER_CLUSTERS - relabel clusters par TAILLE décroissante (ajout pbnb)
-# FactoMineR numérote par position Dim1 → le petit cluster (mégalopoles, n=3)
-# sortait en C1. On relabelle par taille décroissante (tie-break = ancien numéro)
-# pour que le cluster modal soit C1 et le petit en dernier. Tous les slots nommés
-# par cluster sont réordonnés (facteur + desc.var/axes/ind) pour rester cohérents.
-# → candidat à promouvoir en CONFIG$cluster_order = "size" dans le tplj.
-.reorder_hcpc_by_size <- function(hcpc) {
-  tab <- table(hcpc$data.clust$clust)
-  ord <- names(tab)[order(-as.integer(tab), as.integer(names(tab)))]  # old labels, new order
-  map <- setNames(as.character(seq_along(ord)), ord)                  # old -> new
-  cl  <- as.character(hcpc$data.clust$clust)
-  hcpc$data.clust$clust <- factor(map[cl], levels = as.character(seq_along(ord)))
-  .relist <- function(lst) {
-    if (is.null(lst) || length(lst) == 0) return(lst)
-    keep <- ord[ord %in% names(lst)]
-    out <- lst[keep]; names(out) <- unname(map[keep]); out
+# &s &REORDER_CLUSTERS - relabel clusters par TAILLE décroissante (opt-in)
+# CONFIG$cluster_order = "size" → C1 = cluster modal … Cn = le plus petit.
+# FactoMineR numérote par position sur Dim1 ; cette option rend l'ordre stable
+# et lisible. Réordonne le facteur ET tous les slots nommés (desc.var/axes/ind)
+# pour rester cohérent (v-test, parangons). Défaut (NULL) = ordre FactoMineR natif.
+if (identical(CONFIG$cluster_order %||% "", "size")) {
+  .reorder_hcpc_by_size <- function(hcpc) {
+    tab <- table(hcpc$data.clust$clust)
+    ord <- names(tab)[order(-as.integer(tab), as.integer(names(tab)))]  # old labels, new order
+    map <- setNames(as.character(seq_along(ord)), ord)
+    cl  <- as.character(hcpc$data.clust$clust)
+    hcpc$data.clust$clust <- factor(map[cl], levels = as.character(seq_along(ord)))
+    .relist <- function(lst) {
+      if (is.null(lst) || length(lst) == 0) return(lst)
+      keep <- ord[ord %in% names(lst)]
+      out <- lst[keep]; names(out) <- unname(map[keep]); out
+    }
+    for (sl in c("desc.var", "desc.axes")) if (!is.null(hcpc[[sl]])) {
+      hcpc[[sl]]$quanti   <- .relist(hcpc[[sl]]$quanti)
+      hcpc[[sl]]$category <- .relist(hcpc[[sl]]$category)
+    }
+    if (!is.null(hcpc$desc.ind)) {
+      hcpc$desc.ind$para <- .relist(hcpc$desc.ind$para)
+      hcpc$desc.ind$dist <- .relist(hcpc$desc.ind$dist)
+    }
+    hcpc
   }
-  for (sl in c("desc.var", "desc.axes")) if (!is.null(hcpc[[sl]])) {
-    hcpc[[sl]]$quanti   <- .relist(hcpc[[sl]]$quanti)
-    hcpc[[sl]]$category <- .relist(hcpc[[sl]]$category)
-  }
-  if (!is.null(hcpc$desc.ind)) {
-    hcpc$desc.ind$para <- .relist(hcpc$desc.ind$para)
-    hcpc$desc.ind$dist <- .relist(hcpc$desc.ind$dist)
-  }
-  hcpc
+  hcpc <- .reorder_hcpc_by_size(hcpc)
 }
-hcpc <- .reorder_hcpc_by_size(hcpc)
 # &e
 
 # &s &METRICS - aa_* inline + scores + sil_obj + size_vec + inert
@@ -392,6 +385,9 @@ m <- compute_acp_metrics(pca, hcpc, df = df,
   vars_mah  = CONFIG$actives,
   ddict     = DDICT)
 list2env(m, environment())
+# Dim3 AUTO : si < 3 axes retenus (Kaiser), on ne montre pas les plans/cercles 1-3
+# (axe non-signal → incohérent). cluster_plane_13 pilote cercle + biplots + clusters.
+if (isTRUE(aa_n_kaiser < 3)) CONFIG$cluster_plane_13 <- FALSE
 # &e
 
 # &s &LOG_RESULTS - Export JSON pour analyse posterieure (Claude reading)
@@ -497,14 +493,14 @@ claude_log_save()
 
 ## 1 — Cadrage & méthode
 
-Ce notebook d'analyse explore un jeu de **`r aa_n_pool` individus** décrits par **`r aa_n_actives` variables continues**. Deux questions le guident :
+Ce notebook d'analyse explore un jeu de **`r aa_n_pool` individus** décrits par **`r aa_n_actives` variables actives** (indicateurs continus), complétées par des variables **supplémentaires** projetées *a posteriori*. Deux questions le guident :
 
 - ces variables, qui souvent se recoupent, se ramènent-elles à **quelques grandes dimensions de fond** ?
 - peut-on alors regrouper les individus en **clusters aux profils homogènes** ?
 
 Pour répondre aux deux d'un même geste, il mobilise la méthode **HCPC**[^hcpc] (ou Classification Hiérarchique sur Composantes Principales), qui procède en trois temps.
 
-- D'abord **réduire** : l'**ACP** ramène les `r aa_n_actives` variables à une poignée d'axes synthétiques indépendants, qui retiennent ici **`r aa_v_var13` %** de l'information sur trois axes. Ce sont eux qui répondent à la première question.
+- D'abord **réduire** : l'**ACP** ramène les `r aa_n_actives` variables à une poignée d'axes synthétiques indépendants — **`r aa_n_kaiser`** passent le seuil de Kaiser, concentrant **`r aa_v_var12` %** de l'information sur le plan principal. Ce sont eux qui répondent à la première question.
 - Ensuite **regrouper** : sur ces axes, un **arbre de classification ou hierarchique** (CAH classification ascendante hiérarchique) est construit puis coupé là où la séparation entre familles devient la plus nette. Il dessine les clusters et indique combien en retenir, c'est le dendrogramme du §6.
 - Enfin **affiner** : un dernier passage réaffecte les individus à cheval entre deux familles vers la plus proche, ce qui stabilise la partition (consolidation des classes via un partitionnement avec la méthode des k-means).
 
@@ -554,18 +550,8 @@ Au-delà de quelques milliers d'individus, l'arbre complet devient trop coûteux
 
 Ce bilan condense l'analyse en une page : **combien** de profils se dégagent, **comment** les nommer, **où** ils se situent dans le plan factoriel, et **ce qu'il faut en retenir**. Le détail — variables discriminantes, qualité de la partition, validation externe — suit dans les parties 3 à 8.
 
-::: {.encadre-insight}
-
-- **`r aa_n_ind` individus**, `r aa_n_actives` variables actives, k = **`r aa_n_bestk` clusters** (`r aa_t_sizes`)
-- **ACP** — Variance 1-2 : `r aa_v_var12` %, 1-3 : `r aa_v_var13` %. `r aa_n_kaiser` axes au-dessus du seuil Kaiser
-  - Dim1 (`r aa_v_dim1` %) `r aa_t_dim1`
-  - Dim2 (`r aa_v_dim2` %) `r aa_t_dim2`
-- **HCPC** — Silhouette **`r aa_v_sil`** (`r aa_t_sil_qual`), `r aa_n_neg` mal classés (`r aa_v_neg_pct` %)
-
-:::
-
 <!-- Variables dynamiques MÉTIER (dim_names/comments + cluster_names/comments).
-     Chunk silencieux, rendu INVISIBLE ; édité dans _ccom-acp-vardyn.qmd. -->
+     Définit dim_names/cluster_names utilisés par le bilan ET §5/§7 ; édité dans _ccom-acp-vardyn.qmd. -->
 {{< include _ccom-acp-vardyn.qmd >}}
 
 ```{r}
@@ -573,81 +559,18 @@ Ce bilan condense l'analyse en une page : **combien** de profils se dégagent, *
 #| include: false
 #| cache: false
 
-# SNAPSHOT de l'INTERFACE bilan ACP -> réutilisable par rpt-pbnb-synth-monde (découplé,
-# zéro recompute). dim_names (vardyn) + aa_*/indiv_df/pca/hcpc (calc-all) dispo ici.
+# SNAPSHOT de l'INTERFACE bilan -> réutilisable par un rapport de synthèse (découplé,
+# zéro recompute ACP). Sauvé ICI car dim_names (vardyn) + aa_*/indiv_df (calc-all) sont dispo.
 acp_bilan_snapshot <- c(
   list(pca = pca, hcpc = hcpc, indiv_df = indiv_df, DDICT = DDICT, CONFIG = CONFIG,
        dim_names = dim_names, dim_comments = dim_comments,
        cluster_names = cluster_names, cluster_comments = cluster_comments),
   mget(ls(pattern = "^aa_")))
-if (!dir.exists("outputs")) dir.create("outputs", recursive = TRUE)
-saveRDS(acp_bilan_snapshot, "outputs/acp-bilan-snapshot.rds")
+if (!dir.exists("data/rsl")) dir.create("data/rsl", recursive = TRUE)
+saveRDS(acp_bilan_snapshot, "data/rsl/acp-bilan-snapshot.rds")
 ```
 
-```{r}
-#| label: rt-bilan-cards
-#| echo: false
-#| results: asis
-
-# Profils des clusters (cartes 2-up). Nommage + commentaire métier par cluster
-# MAINTENANT dans la bulle (cluster_names + cluster_comments de _ccom-acp-dim).
-render_cluster_cards(hcpc, indiv_df, ddict = DDICT, actives = rownames(pca$var$coord),
-                     cluster_names = cluster_names, cluster_comments = cluster_comments,
-                     top_n_para = 6)
-```
-
-```{r}
-#| label: intro-axes-synthese
-#| echo: false
-#| results: asis
-
-# Bloc DIGÉRÉ d'interprétation des axes (dim_comments de _ccom-acp-vardyn).
-# echo:false = pas de toggle "Afficher le code" sur ce bloc narratif court.
-cat("::: {.encadre-insight}\n")
-cat("[**Comment interpréter les axes de la visualisation des clusters ?**]{.encadre-insight-titre}\n\n")
-cat(sprintf("Sur les biplots ci-dessous, **Dim1 = axe horizontal (x)** et **Dim2 = axe vertical (y)** (plan principal) ; le 2ᵉ panneau croise **Dim1 × Dim3**. Un point = un individu, coloré par cluster.\n\n"))
-for (.i in seq_along(dim_names))
-  cat(sprintf("- **Dim%d — %s** : %s\n", .i, dim_names[.i], dim_comments[.i]))
-cat(":::\n")
-```
-
-```{r}
-#| label: plt-clusters-bilan
-#| echo: false
-#| out-width: "100%"
-#| fig-width: !expr if (isTRUE(CONFIG$cluster_plane_13)) 14 else 7
-#| fig-height: !expr if (isTRUE(CONFIG$cluster_plane_13)) 6 else 6.5
-#| fig-align: center
-
-# Biplot clusters DANS la synthèse (visualisation). Même logique qu'en §7.
-ind_coords <- pca$ind$coord
-.cen <- apply(ind_coords[, 1:3], 2, function(v) tapply(v, hcpc$data.clust$clust, mean))
-.qx <- quantile(ind_coords[, 1], c(.02, .98)); .qy <- quantile(c(ind_coords[, 2], ind_coords[, 3]), c(.02, .98))
-shared_xlim <- range(c(.qx, .cen[, 1])) * 1.02
-shared_ylim <- range(c(.qy, .cen[, 2], .cen[, 3])) * 1.02
-p12 <- plot_ind_cluster(pca, hcpc, axes = c(1, 2), label_parangons = TRUE, dim_names = dim_names, cluster_names = cluster_names) +
-  coord_cartesian(xlim = shared_xlim, ylim = shared_ylim)
-combo <- if (isTRUE(CONFIG$cluster_plane_13)) {
-  p13 <- plot_ind_cluster(pca, hcpc, axes = c(1, 3), label_parangons = TRUE, dim_names = dim_names, cluster_names = cluster_names) +
-    coord_cartesian(xlim = shared_xlim, ylim = shared_ylim)
-  p12 + p13 + plot_layout(ncol = 2, guides = "collect")
-} else { p12 + plot_layout(guides = "collect") }
-combo +
-  plot_annotation(title = sprintf("Typologie des %d clusters", aa_n_bestk),
-                  theme = theme(plot.title = element_text(face = "bold", size = 15, hjust = 0.5))) &
-  theme(legend.position = "bottom")
-```
-
-[🔍 *cliquer pour zoomer*]{style="display:block;text-align:center;font-size:0.78rem;color:#8a8a8a;font-style:italic;margin-top:-0.4rem;"}
-
-<!-- Bilan = UNIQUEMENT la lecture finale digérée (métier). Le détail auto des pôles
-     par dimension est en §5. Présenté en callout-note propre (plus de jaune "à compléter"). -->
-::: {.callout-note appearance="minimal"}
-## À retenir
-::: {.minj}
-{{< include _ccom-acp-bilan.md >}}
-:::
-:::
+{{< include _00-bilanacp.qmd >}}
 
 ## 3 — Données : quel pool, quelles variables ?
 
@@ -741,28 +664,8 @@ ddict_for_pivot <- if (exists("DDICT_DF")) {
 }
 unit_col_auto <- if (!is.null(ddict_for_pivot) && "unit" %in% names(ddict_for_pivot)) "unit" else NULL
 
-# &cld Garantir le label MEDIUM ici (cache:false, dernier) — robuste au cache des
-# chunks amont. Le CSV n'a que short ; medium vient du JSON ddict. Gère les variantes
-# transformées X_log : strip suffixe -> medium de la base -> re-suffixe " (log)".
-if (!is.null(ddict_for_pivot) && "variable" %in% names(ddict_for_pivot)) {
-  .jpath <- "C:/Users/vince/hh/pq/PDS/pbnb-airbnb-log-jrr-jpy/reports/helpers/ddict-airbnb.json"
-  if (file.exists(.jpath) && requireNamespace("jsonlite", quietly = TRUE)) {
-    .ji <- jsonlite::fromJSON(.jpath, simplifyVector = FALSE)$indicators
-    .sfx_re <- "_(log|arcsin|yj|winsor|sqrt)$"
-    ddict_for_pivot$medium <- vapply(seq_len(nrow(ddict_for_pivot)), function(i) {
-      v <- ddict_for_pivot$variable[i]
-      base <- sub(.sfx_re, "", v)
-      m <- .ji[[base]]$medium
-      if (is.null(m) || !nzchar(m))
-        return(if ("short" %in% names(ddict_for_pivot)) ddict_for_pivot$short[i] else v)
-      if (grepl(.sfx_re, v)) paste0(m, " (", sub(paste0(".*", .sfx_re), "\\1", v), ")") else m
-    }, character(1))
-  }
-}
-
-.label_col_auto <- if (!is.null(ddict_for_pivot) && "medium" %in% names(ddict_for_pivot)) "medium" else "short"
 pivot_df <- build_config_pivot(CONFIG$grid_configs, ddict_for_pivot,
-  theme_col = "theme", var_col = "variable", label_col = .label_col_auto,
+  theme_col = "theme", var_col = "variable", label_col = "short",
   unit_col  = unit_col_auto)
 rt_config_pivot(pivot_df, selected = CONFIG$selected,
   show_var = TRUE, unit_col = "unit", legend = TRUE)
@@ -913,13 +816,16 @@ Le **cercle des corrélations** projette les variables seules (sans les individu
 # taille réduite (chacun ~6 de large). Conventions alignées sur plot_biplot_dual :
 # actives = flèches cos², sup quanti = bleu clair #5a9ec4 pointillé italique,
 # sup quali = carré violet.
+# Dim3 (plan 1-3) affiché SEULEMENT si ≥ 3 axes retenus (cluster_plane_13, auto).
+# Sinon (ncp = 2) : cercle 1-2 uniquement — évite l'incohérence d'un axe non retenu.
+.axes_pairs <- if (isTRUE(CONFIG$cluster_plane_13)) list(c(1, 2), c(1, 3)) else list(c(1, 2))
 plot_circle_corr_dual(pca,
-  axes_pairs = list(c(1, 2), c(1, 3)),
+  axes_pairs = .axes_pairs,
   labels = DDICT,
   show_sup = TRUE,
   var_filter = 0.0,
   max_quali_modal = 8,
-  ncol = 2, label_scale = 1.3)
+  ncol = length(.axes_pairs), label_scale = 1.3)
 ```
 
 ### Biplot dual — Axes 1-2 (`r aa_v_var12` % variance)
@@ -1015,6 +921,7 @@ cat("*Cohérence 1-3* : un cluster bien séparé en 1-2 **et** compact en 1-3 = 
 ::: {.column-screen-inset}
 ```{r}
 #| label: plt-biplot-dual-13
+#| eval: !expr isTRUE(CONFIG$cluster_plane_13)
 #| cache: false
 #| fig-width: 16
 #| fig-height: !expr biplot_dual_height(pca, c(1,3))
@@ -1239,7 +1146,8 @@ Le tableau croise les **4 angles** en une grille dense. La colonne **variables d
 
 # Body (pas column:page : min.exe ne rend pas la grille page-width -> tableau coupé).
 # Aligné gauche sur la prose ; reactable scrolle horizontalement si besoin.
-rt_cluster_summary(hcpc, indiv_df, ddict = DDICT, actives = rownames(pca$var$coord))
+rt_cluster_summary(hcpc, indiv_df, ddict = DDICT, actives = rownames(pca$var$coord),
+                   top_n_para = 8)
 ```
 
 ### Profils par cluster
@@ -1254,7 +1162,7 @@ Chaque cluster est caractérisé ci-dessous par une **lecture narrative dynamiqu
 # Cartes 2 par ligne : commentaire métier (cluster_comments) en tête de bulle + détail auto allégé.
 render_cluster_cards(hcpc, indiv_df, ddict = DDICT, actives = rownames(pca$var$coord),
                      cluster_names = cluster_names, cluster_comments = cluster_comments,
-                     top_n_para = 6)
+                     top_n_para = 8)
 ```
 
 ### Où se situent les clusters dans le plan factoriel ?
@@ -1278,9 +1186,9 @@ cat(":::\n")
 ```{r}
 #| label: plt-clusters-dual
 #| echo: false
-#| out-width: "100%"
+#| out-width: !expr if (isTRUE(CONFIG$cluster_plane_13)) "100%" else "72%"
 #| fig-width: !expr if (isTRUE(CONFIG$cluster_plane_13)) 14 else 7
-#| fig-height: !expr if (isTRUE(CONFIG$cluster_plane_13)) 6 else 6.5
+#| fig-height: !expr if (isTRUE(CONFIG$cluster_plane_13)) 6 else 6
 #| fig-align: center
 
 ind_coords <- pca$ind$coord
@@ -1290,11 +1198,11 @@ ind_coords <- pca$ind$coord
 shared_xlim <- range(c(.qx, .cen[, 1])) * 1.02
 shared_ylim <- range(c(.qy, .cen[, 2], .cen[, 3])) * 1.02
 
-p12 <- plot_ind_cluster(pca, hcpc, axes = c(1, 2), label_parangons = TRUE, dim_names = dim_names, cluster_names = cluster_names) +
+p12 <- plot_ind_cluster(pca, hcpc, axes = c(1, 2), label_parangons = TRUE, n_parangons = 6, dim_names = dim_names, cluster_names = cluster_names) +
   coord_cartesian(xlim = shared_xlim, ylim = shared_ylim)
 # Plan 1-3 optionnel : CONFIG$cluster_plane_13 (défaut TRUE = les 2 plans côte à côte).
 combo <- if (isTRUE(CONFIG$cluster_plane_13)) {
-  p13 <- plot_ind_cluster(pca, hcpc, axes = c(1, 3), label_parangons = TRUE, dim_names = dim_names, cluster_names = cluster_names) +
+  p13 <- plot_ind_cluster(pca, hcpc, axes = c(1, 3), label_parangons = TRUE, n_parangons = 6, dim_names = dim_names, cluster_names = cluster_names) +
     coord_cartesian(xlim = shared_xlim, ylim = shared_ylim)
   p12 + p13 + plot_layout(ncol = 2, guides = "collect")
 } else {
