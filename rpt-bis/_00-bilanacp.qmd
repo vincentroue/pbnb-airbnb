@@ -48,9 +48,9 @@ for (.i in seq_along(dim_names))
 ```{r}
 #| label: plt-clusters-bilan
 #| echo: false
-#| out-width: "100%"
+#| out-width: !expr if (isTRUE(CONFIG$cluster_plane_13)) "100%" else "72%"
 #| fig-width: !expr if (isTRUE(CONFIG$cluster_plane_13)) 14 else 7
-#| fig-height: !expr if (isTRUE(CONFIG$cluster_plane_13)) 6 else 6.5
+#| fig-height: !expr if (isTRUE(CONFIG$cluster_plane_13)) 6 else 6
 #| fig-align: center
 
 ind_coords <- pca$ind$coord

@@ -1,11 +1,12 @@
 <!-- ════════════════════════════════════════════════════════════════════════
-     COMMENTAIRE MÉTIER — fichier UNIQUE (survit au re-copy du template).
-     4 vecteurs nommés = tout le métier digéré, injecté partout (titres graphes,
-     légendes, cartes, bulles cluster, intro biplot, lecture, synthèse).
-     ──> remplace les anciens _ccom-acp-axe12/axe3/cluster/dim.
-     Config C finale (260721) : 6 actives (densité log, % entiers, ≥30 nuits,
-     concentration ≥5, superhost, avis/mois). k=5 — sizes 26/25/14/8/3, sil 0.38.
-     Noms/prose alignés sur les v-test réels du snapshot config C.
+     COMMENTAIRE MÉTIER — SCOPE EUROPE (fichier séparé du monde depuis 260722).
+     Inclus PAR rpt-pbnb-acpnbk-europe.qmd UNIQUEMENT. Le monde a son propre
+     _ccom-acp-vardyn.qmd — éditer l'un n'impacte plus l'autre.
+     ⚠️ TODO EUROPE : les noms/prose ci-dessous sont HÉRITÉS du monde (config C,
+        5 clusters) — À REFAIRE sur les v-test réels d'europe (config B, k=3,
+        40 villes). Seuls les clusters 1-3 sont utilisés côté europe.
+        Procédure : re-render europe → lire le snapshot europe → nommer les 3
+        clusters ici (même méthode que le monde) → re-render.
      ════════════════════════════════════════════════════════════════════════ -->
 
 ```{r}
@@ -16,14 +17,14 @@
 # ── DIMENSIONS ─────────────────────────────────────────────────────────────
 # Noms COURTS (axes + titres de graphes — garder concis) :
 dim_names <- c(
-  "intensité touristique court-terme",     # Dim1 (40 %) : % entiers domine (contrib 29,7), puis densité/avis
-  "concentration et professionnalisation", # Dim2 (26 %) : concentration domine (contrib 27,8), puis superhôtes
-  "concentration vs régulation"            # Dim3 (14 %, sous Kaiser — non affiché)
+  "intensité touristique court-terme",   # Dim1 (40 %) : entiers/denses/actifs vs longue durée/concentrés
+  "professionnalisation de l'offre",     # Dim2 (26 %) : superhôtes/pros vs densité/entiers
+  "concentration vs régulation"          # Dim3 (14 %, sous Kaiser — non affiché)
 )
 # Phrases CLÉS (1 par axe — injectées en intro/lecture des biplots) :
 dim_comments <- c(
-  "Portée d'abord par la part de logements entiers (contribution 29,7), puis par la densité et l'activité (avis) : oppose, à droite, les marchés de location courte durée intensive — entiers, denses, très commentés — aux marchés de longue durée à gauche, plus résidentiels ou régulés (la part d'annonces ≥ 30 nuits tire vers la gauche).",
-  "Portée d'abord par la concentration de l'offre (contribution 27,8), puis par les superhôtes : sépare les marchés professionnalisés et concentrés — où la longue durée va de pair avec des professionnels installés — des marchés denses mais diffus, aux mains d'hôtes occasionnels.",
+  "Oppose, à droite, les marchés de location courte durée intensive — logements entiers, denses, très commentés (avis fréquents) — aux marchés de longue durée et d'offre concentrée à gauche, plus résidentiels ou régulés (la part d'annonces ≥ 30 nuits et la concentration sur des professionnels tirent vers la gauche).",
+  "Sépare, à intensité touristique comparable, les marchés professionnalisés — superhôtes nombreux, offre concentrée sur des hôtes gérant plusieurs annonces — des marchés diffus, denses en logements entiers mais portés par des hôtes occasionnels.",
   "Axe secondaire (sous le seuil de Kaiser, non retenu) : oppose la concentration de l'offre sur des hôtes professionnels à la part de longue durée."
 )
 
@@ -37,7 +38,7 @@ cluster_names <- c(
   "2" = "tourisme patrimonial court-terme",
   "3" = "grandes métropoles régulées",
   "4" = "amateurs Europe Ouest-Nord",
-  "5" = "mégalopoles à offre contrainte"
+  "5" = "mégalopoles villes-monde"
 )
 # Phrases CLÉS métier (1 par cluster — injectées en tête de chaque bulle) :
 cluster_comments <- c(
@@ -45,7 +46,7 @@ cluster_comments <- c(
   "2" = "Grandes destinations touristiques patrimoniales — proximité de sites classés, offre orientée courte durée, professionnalisation seulement moyenne. Le cœur des métropoles touristiques mondiales établies (Paris, Londres, Rome, Milan, Lisbonne, Vienne, Sydney).",
   "3" = "Grandes métropoles à forte part de longue durée et offre concentrée sur des professionnels, mais faible densité Airbnb et peu de logements entiers — signature des marchés sous régulation (Barcelone, Berlin, San Francisco, Boston, Madrid, Istanbul, Los Angeles).",
   "4" = "Marchés d'hôtes occasionnels — offre peu concentrée, peu de superhôtes, peu d'avis. Cœur amateur d'Europe de l'Ouest et du Nord (Amsterdam, Copenhague, Oslo, Stockholm, Munich, Genève).",
-  "5" = "Mégalopoles verticales à offre contrainte — très denses en population et riches, mais très peu de logements entiers et faible densité Airbnb par habitant ; la chambre prime (New York, Hong Kong, Singapour)."
+  "5" = "Villes-monde verticales — très denses en population et riches, mais très peu de logements entiers et faible densité Airbnb par habitant ; la chambre prime (New York, Hong Kong, Singapour)."
 )
 
 # ── VARIABLES (optionnel) ──────────────────────────────────────────────────
