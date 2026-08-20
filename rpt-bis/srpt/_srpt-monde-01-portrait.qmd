@@ -4,22 +4,15 @@
 <!-- v4 — 2026-06-09. Carto remontée après .cld-ctx (+ contours terres + labels top/bot). -->
 <!-- Bloc KPI panel déplacé en tête P2. Smult = TOTAL continental (plot_cd_bars_agg). -->
 
-Le panel rassemble **`r aa$n_total_km` annonces** dans **`r aa$n_villes` villes** réparties sur **`r aa$n_continents` continents** — soit environ **`r aa$v_couverture_pct` %** de l'offre mondiale Airbnb. Cette première partie pose le cadre géographique : où se concentrent les volumes, qui pilote l'offre, comment se distribue l'activité entre Europe, Amériques, Asie-Pacifique et Afrique. Les niveaux de prix, la nature de l'offre et l'activité commerciale sont traités dans la partie suivante.
+Le panel rassemble **`r aa$n_total_km` annonces** dans **`r aa$n_villes` villes** réparties sur **`r aa$n_continents` continents** — soit environ **`r aa$v_couverture_pct` %** de l'offre mondiale Airbnb. Cet échantillon, centré sur les grandes métropoles occidentales, sur-représente l'Europe et l'Océanie et couvre plus marginalement l'Amérique latine, l'Asie et l'Afrique — un biais assumé, détaillé en méthodologie. Cette première partie pose le cadre géographique : où se concentrent les volumes, qui pilote l'offre, comment se distribue l'activité entre Europe, Amériques, Asie-Pacifique et Afrique. Les niveaux de prix, la nature de l'offre et l'activité commerciale sont traités dans la partie suivante.
 
-::: {.cld-ctx}
-**La géographie du panel reflète la hiérarchie LCD européenne documentée par Eurostat.** Paris reste la première destination LCD du continent avec **23,5 millions de nuitées** en 2024, devant Rome (15,7 M), Barcelone (12,5 M), Madrid (11,8 M) et Lisbonne (11,3 M). Au total, **69 villes de l'UE** dépassent désormais le million de nuitées LCD contre 60 en 2023.
-
-À l'échelle Airbnb monde, l'**EMEA domine en volume** (201 M nuits, 41 % du total mondial) mais l'**Amérique du Nord génère 45 % des revenus** grâce à un ADR supérieur (GBV/nuit 240 USD vs 140 USD pour l'EMEA). La dynamique de croissance se déplace vers les marchés émergents non régulés : Lighthouse identifie Buenos Aires (hausse de 88 %), Riyad (hausse de 69 %), Marrakech (27 %), Dubaï (26 %), Rome (23 %), Athènes (22 %) comme les premières croissances mondiales 2024. Les seules villes en déclin sont celles soumises à une régulation effective.
-
-*Sources : Eurostat tour_ce_omr ; Airbnb 10-K FY2024 ; Lighthouse 2025.*
-:::
-
-::: {.column-page}
+<!-- Bloc .cld-ctx « hiérarchie LCD européenne » RETIRÉ 260820 (demande user) : contexte hors panel
+     qui doublonnait le cadrage et retardait l'entrée dans l'analyse. -->
 
 ```{r}
-#| label: srpt01-map-world-europe
-#| fig-width: 13
-#| fig-height: 5.5
+#| label: srpt01-map-world-europe-v2
+#| fig-width: 9.5
+#| fig-height: 4.6
 #| cache: false
 
 kpi_map <- kpi |> dplyr::filter(!is.na(lat) & !is.na(lon))
@@ -37,26 +30,24 @@ euro_labels <- kpi_map |>
   dplyr::filter(continent == "Europe") |>
   dplyr::pull(city_fr)
 
+EUR_BOX <- c(-12, 35, 32, 62)   # = bbox de build_europe_map -> encadre sur la carte monde
 p_world <- build_world_map(kpi_map,
   title = "Volumes Airbnb dans le monde",
   subtitle = sprintf("%d villes · couleur = sous-continent, taille = annonces actives", nrow(kpi_map)),
-  label_cities = world_labels)
+  label_cities = world_labels, zoom_box = EUR_BOX, legend_nrow = 2)
 p_euro <- build_europe_map(kpi_map,
   title = "Zoom Europe",
   subtitle = sprintf("%d villes — toutes labellisées", length(euro_labels)),
-  label_cities = euro_labels)
+  label_cities = euro_labels, legend_nrow = 2)   # MÊME spec que p_world, sinon patchwork
+                                                 # (guides="collect") affiche DEUX légendes
 
 p_combined <- patchwork::wrap_plots(p_world, p_euro,
   widths = c(1.4, 1), guides = "collect") &
   ggplot2::theme(legend.position = "bottom")
-ggiraph::girafe(ggobj = p_combined, width_svg = 13, height_svg = 5.5,
-                options = list(ggiraph::opts_sizing(rescale = TRUE),
-                                ggiraph::opts_toolbar(saveaspng = FALSE)))
-
 log_map_auto("srpt01_map_world_volumes", "vol_n_ann", kpi_map, "city_fr")
+# render_girafe (et non girafe brut) : CSS tooltip Inter + prune des polices (conv projet).
+render_girafe(p_combined, width_svg = 9.5, height_svg = 4.6)
 ```
-
-:::
 
 <div class="figure-source">Source : Inside Airbnb, juin 2026 · Coordonnées city-reference-airbnb-260222 · Projection Robinson (monde) / Plate-Carrée (Europe) · Labels carte monde : 3 plus grandes villes de chaque sous-continent hors Europe · Carte Europe : toutes les villes</div>
 
@@ -104,6 +95,32 @@ La répartition continentale reflète à la fois les choix de couverture Inside 
 
 ::: {.panel-tabset}
 
+### Graphique par continent
+
+```{r}
+#| label: srpt01-plt-cd-smult-v2
+#| fig-width: 9
+#| fig-height: 2.2
+#| cache: false
+
+# plot_cd_bars_agg : TOTAL continental (somme annonces, somme hôtes), ratio = somme/somme.
+# Format aligné sur la databar de la synthèse (260820) : palette CD_COLS_SYNTH, alpha, pas de
+# grille verticale, évolution 25→26 sous chaque valeur, réf « monde » pointillée sur le ratio
+# (les 2 totaux n'ont pas de moyenne mondiale qui ait un sens).
+plot_cd_bars_agg(c("vol_n_ann", "vol_n_hotes", "str_ratio_ann_hote"),
+                 ncol_wrap = 3,
+                 palette = CD_COLS_SYNTH,
+                 evol = c("vol_n_ann_vevol_2526", "vol_n_hotes_vevol_2526",
+                          "str_ratio_ann_hote_vevol_2526"),
+                 world_ref = c(vol_n_ann = NA, vol_n_hotes = NA,
+                               str_ratio_ann_hote = as.numeric(kpi_world$str_ratio_ann_hote)),
+                 strip_labels = c("Annonces actives", "Hôtes uniques", "Annonces par hôte"),
+                 evol_below = TRUE, bar_width = 0.55, grid_x = FALSE, alpha = 0.82,
+                 strip_size = 10.5, lab_size = 2.8, dec = c(0, 0, 1))
+```
+
+<div class="figure-source">Source : Inside Airbnb, juin 2026 · Total par groupe continental (annonces, hôtes) · Ratio = annonces / hôtes · Évolution 2025→2026 : <span style='color:#7a3b47;font-weight:600'>bordeaux = hausse</span>, <span style='color:#26506f;font-weight:600'>bleu = baisse</span> · Afrique exclue (n &lt; 2 villes)</div>
+
 ### Tableau par continent
 
 ```{r}
@@ -120,21 +137,6 @@ log_table_auto("srpt01_gt_cd_lignezsc", srpt01_panel)
 ```
 
 <div class="figure-source">Source : Inside Airbnb, juin 2026 · Afrique masquée (n &lt; 2 villes) · Lignes Nb villes / Nb pays exclues de la coloration z-score.</div>
-
-### Graphique par continent
-
-```{r}
-#| label: srpt01-plt-cd-smult
-#| fig-width: 9
-#| fig-height: 2.5
-#| cache: false
-
-# plot_cd_bars_agg : TOTAL continental (somme annonces, somme hôtes), ratio = somme/somme
-plot_cd_bars_agg(c("vol_n_ann", "vol_n_hotes", "str_ratio_ann_hote"),
-                 ncol_wrap = 3)
-```
-
-<div class="figure-source">Source : Inside Airbnb, juin 2026 · Total par groupe continental (annonces, hôtes) · Ratio = annonces / hôtes · Afrique exclue (n &lt; 2 villes)</div>
 
 ### Tableau détaillé par ville
 

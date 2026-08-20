@@ -1,0 +1,40 @@
+<!-- _srpt-monde-messages.qmd -->
+<!-- Les 8 messages de la synthese executive — bloc PARTAGE synthese autonome + RAPPORT.
+     Exclut volontairement la carte des clusters (le rapport la porte deja en partie Typologie)
+     et le bloc « Ce qu il faut retenir » (cloture propre a la synthese 2 pages).
+     Depend du snapshot ACP (aa_n_actives, aa_n_bestk, aa_v_sil) -> charge en setup du MAIN. -->
+<!-- v1 — 2026-08-20. Extrait de rpt-pbnb-synth-monde.qmd lignes 61-93. -->
+
+Le panel — **`r aa$n_total_km` annonces actives** dans `r aa$n_villes` villes de `r aa$n_pays` pays — dessine un marché devenu **européen, professionnalisé et concentré** : l'Europe capte `r aa$v_eur_pct` % de l'offre du panel, l'Amérique du Nord `r aa$v_nam_pct` %. Huit messages en résument la lecture, du portrait des volumes à la typologie.
+
+[**Un marché d'abord européen, concentré sur une poignée de métropoles**]{.insight}
+
+Londres approche 70 000 annonces et Paris 60 000, quand le bas du panel — Genève, Bergame — reste sous 2 000. L'Europe du Sud-Est (Florence, Lisbonne, Athènes, Barcelone) forme le plus gros volume cumulé, devant une Europe de l'Ouest portée par les deux capitales. Le panel a gagné **`r .fp(aa$v_ann_evol, 1)` %** d'annonces en un an, une croissance concentrée sur les grandes métropoles.
+
+[**Le logement entier a supplanté le partage entre particuliers**]{.insight}
+
+**`r aa$v_entire` %** de l'offre mondiale est en logement entier — au-delà de 90 % à Thessalonique, Athènes ou Budapest, où le patrimoine bascule vers l'investissement touristique pur. Le parc reste dominé par les studios et petits appartements : 3 à 4 personnes, 1 à 2 chambres en médiane.
+
+[**L'économie collaborative est devenue une industrie**]{.insight}
+
+**`r aa$v_multi` %** des annonces sont gérées par des multi-loueurs et **`r aa$v_hosts50` %** des hôtes captent la moitié de l'offre — une concentration comparable aux pays les plus inégalitaires. Tokyo, Hong Kong et Singapour dépassent 80 % de multi-loueurs quand Copenhague et Oslo restent sous 30 %. Le revenu se joue moins sur le prix que sur l'occupation : `r aa$t_top_rev` dépasse **`r aa$v_top_rev` €/an** grâce à un calendrier saturé.
+
+[**La pression résidentielle frappe les villes moyennes touristiques**]{.insight}
+
+La densité médiane atteint **`r aa$v_pression_med` annonces pour 1 000 habitants** en zone dense, mais le Pays Basque, Venise et Florence approchent ou dépassent 40 ‰ — un facteur `r aa$v_facteur_pression` avec le bas du panel. Les mégalopoles asiatiques (Tokyo, Bangkok, Singapour) restent sous 3 ‰ : leur densité de population dilue la pression rapportée aux habitants.
+
+[**Airbnb a rejoint l'hôtellerie, en volume comme en prix**]{.insight}
+
+Le prix médian d'un logement entier s'établit à **`r aa$v_prix_med` €/nuit**, désormais proche du tarif d'une chambre d'hôtel : l'avantage tarifaire historique s'est effacé (prix moyen Airbnb 166 USD contre 159 USD pour l'hôtellerie américaine en 2024). L'offre de location courte durée croît dix fois plus vite que le parc hôtelier, et des opérateurs hybrides — Blueground, Sonder — brouillent la frontière entre les deux modèles.
+
+[**La régulation 2024-2025 rebat les cartes**]{.insight}
+
+New York a effacé 90 % de ses annonces, Amsterdam a réduit son parc de 54 %, Barcelone vise l'interdiction totale en 2028 et le Règlement européen 2024/1028 impose la transparence dès 2026. Mais l'offre se déplace plus qu'elle ne disparaît : bascule vers les séjours longs à New York, expansion continue dans les marchés émergents peu encadrés (Buenos Aires, Riyad).
+
+[**La note des voyageurs ne départage plus les marchés — sauf là où l'offre s'est concentrée**]{.insight}
+
+`r sum(kpi$actrv_note_glb > 4.8, na.rm = TRUE)` des `r aa$n_villes` villes dépassent **4,8 sur 5**, et seulement **0,24 point** sépare la mieux notée de la moins bien notée. Cette compression vers le haut prive la note de tout pouvoir discriminant pour le voyageur. Un signal résiste pourtant : les villes où les gros opérateurs captent l'essentiel de l'offre notent systématiquement plus bas, tandis que la satisfaction sur le rapport qualité-prix suit la présence de superhôtes. La professionnalisation gagne en volume ce qu'elle concède en jugement.
+
+[**Cinq familles de marchés se dégagent de la typologie**]{.insight}
+
+La classification (`r aa_n_actives` variables actives, `r aa_n_bestk` clusters, silhouette `r .fp(aa_v_sil, 2)`) répartit les `r aa$n_villes` villes en cinq familles : trois épousent la géographie continentale — l'**Europe du Sud** touristique et dense, l'**Europe de l'Ouest** des loueurs amateurs, l'**Amérique du Nord** des opérateurs premium — tandis que deux la traversent : les **grandes métropoles** tournées vers la longue durée (Madrid, Berlin, Los Angeles) et les **mégalopoles verticales** où domine la chambre (New York, Hong Kong, Singapour). La fracture majeure n'est ni nord-sud ni est-ouest : elle oppose un modèle amateur à un modèle professionnel d'opérateurs maximisant l'occupation.

@@ -27,7 +27,7 @@ execute:
 
 <!-- rpt-pbnb-synth-monde.qmd | Type : SYNTHESE | Scope : Monde 76 villes -->
 <!-- Synthèse exécutive autonome (modèle classique) : tendances + points d'étonnement + typologie ACP. -->
-<!-- Consomme aa$* (JSON source de vérité) + snapshot ACP (outputs/acp-bilan-snapshot.rds). -->
+<!-- Consomme aa$* (JSON source de vérité) + snapshot ACP (data/rsl/acp-bilan-snapshot.rds — écrit par acpnbk-monde). -->
 
 ```{r}
 #| label: setup
@@ -49,171 +49,21 @@ source("_helpers-monde-srpt.R")
 JCN <- "C:/Users/vince/hh/pq/PDS/mutils/jrr"
 source(file.path(JCN, "jcn-dml-acp-plots.R"))
 source(file.path(JCN, "jcn-dml-hcpc-typo.R"))
-list2env(readRDS("outputs/acp-bilan-snapshot.rds"), environment())
+list2env(readRDS("data/rsl/acp-bilan-snapshot.rds"), environment())
 ```
 
 {{< include srpt/_srpt-monde-synthese.qmd >}}
 
-## Synthèse exécutive
+# Synthèse exécutive
+
+{{< include srpt/_srpt-monde-kpi-synth.qmd >}}
+
+{{< include srpt/_srpt-monde-messages.qmd >}}
 
 ```{r}
-#| label: synth2p-kpi
-#| cache: false
-
-# Blueprint KPI v4 (260719) : titre court, sous-titre prix viré, +densité monde 10k hab (CSV pays),
-# revenu = moyenne monde estimée, tooltips ville ET pays (bouton "détail"). formatC = pas de backslash.
-cty <- tryCatch(read.csv(file.path(DATA_EXTERNAL, "bnb-inside-study-full-country.csv"),
-                         encoding = "UTF-8", stringsAsFactors = FALSE), error = function(e) NULL)
-world_10k <- if (!is.null(cty)) {
-  cd <- cty[cty$listings_per_10k_hab > 0, ]; cd$pop <- cd$n_listings / cd$listings_per_10k_hab * 1e4
-  round(sum(cd$n_listings) / sum(cd$pop) * 1e4, 1)
-} else 13.7
-v_priv <- round(median(kpi$px_private_med,   na.rm = TRUE))
-v_pp   <- round(median(kpi$px_entire_pp_med, na.rm = TRUE))
-v_rev  <- round(mean(kpi$act_revenu_med,     na.rm = TRUE))   # moyenne monde estimée
-ev_multi <- round(weighted.mean(kpi$cr_offre_1plus, kpi$vol_n_ann, na.rm = TRUE) -
-                  weighted.mean(kpi$cr_offre_1plus_25, kpi$vol_n_ann, na.rm = TRUE), 1)
-
-evo <- function(v, unit = "%", ref = "juin 2025", dg = 1) {
-  if (is.null(v) || is.na(v)) return("")
-  up <- v >= 0; arw <- if (up) "▲" else "▼"; col <- if (up) "#7a3b47" else "#26506f"
-  sv <- formatC(v, format = "f", digits = dg, decimal.mark = ",", flag = "+")
-  rp <- if (is.null(ref) || !nzchar(ref)) "" else sprintf(" <span style='color:#9a9a9a;font-size:.82em'>/ %s</span>", ref)
-  sprintf("<span style='color:%s;font-weight:600;white-space:nowrap'>%s %s %s</span>%s", col, arw, sv, unit, rp)
-}
-.tiprows <- function(names, vals, mx, pal, u, big, dg = 1) {
-  fmt <- if (big) function(x) format(round(x), big.mark = " ", scientific = FALSE) else function(x) formatC(x, format = "f", digits = dg, decimal.mark = ",")
-  paste(mapply(function(nm, val) sprintf(
-    "<div class='kpi-tip-row'><span class='kpi-tip-city'>%s</span><span class='kpi-tip-bar' style='width:%.0fpx;background:%s'></span><span class='kpi-tip-val'>%s%s</span></div>",
-    nm, 72 * abs(val) / mx, pal, fmt(val), u), names, vals), collapse = "")
-}
-.tipwrap <- function(htop, htop_lbl, hbot, hbot_lbl) sprintf(
-  "<span class='kpi-tip-wrap'><span class='kpi-tip-btn'><i class='bi bi-bar-chart-line-fill'></i></span><span class='kpi-tip'><div class='kpi-tip-h'>%s</div>%s<div class='kpi-tip-h'>%s</div>%s</span></span>",
-  htop_lbl, htop, hbot_lbl, hbot)
-tip <- function(col, u = "%", pal = "#6aa9d6", big = FALSE, dg = 1) {   # tooltip villes du panel
-  d <- kpi[!is.na(kpi[[col]]), c("city_fr", col)]; d <- d[order(-d[[col]]), ]; mx <- max(abs(d[[col]]))
-  .tipwrap(.tiprows(head(d,8)$city_fr, head(d,8)[[col]], mx, pal, u, big, dg), "Top 8 villes",
-           .tiprows(tail(d,8)$city_fr, tail(d,8)[[col]], mx, pal, u, big, dg), "Bottom 8 villes")
-}
-tip_cty <- function(col, u = "", pal = "#ca5800") {             # tooltip pays (CSV monde)
-  if (is.null(cty)) return("")
-  d <- cd[!is.na(cd[[col]]), c("country", col)]; d <- d[order(-d[[col]]), ]; mx <- max(abs(d[[col]]))
-  .tipwrap(.tiprows(head(d,8)$country, head(d,8)[[col]], mx, pal, u, FALSE), "Top 8 pays",
-           .tiprows(tail(d,8)$country, tail(d,8)[[col]], mx, pal, u, FALSE), "Bottom 8 pays")
-}
-kcat <- function(icon, title) htmltools::HTML(sprintf(
-  "<i class='bi bi-%s' style='display:block;color:#ca5800;font-size:1.75em;line-height:1;margin-bottom:.2em'></i><span style='font-size:1em;font-weight:600'>%s</span>", icon, title))
-kpi_e3 <- function(category, items) {   # miroir natif de kpi_e2 (classe .kpi-e3, style natif _kpi-v5)
-  itg <- lapply(items, function(it) {
-    ex <- NULL
-    if (!is.null(it$top) || !is.null(it$bottom)) {
-      p <- c(); if (!is.null(it$top)) p <- c(p, paste0("▲ ", it$top)); if (!is.null(it$bottom)) p <- c(p, paste0("▼ ", it$bottom))
-      ex <- htmltools::tags$span(class = "kpi-e3__extremes", sprintf("(%s)", paste(p, collapse = " · ")))
-    }
-    htmltools::tags$div(class = "kpi-e3__item",
-      htmltools::tags$span(class = "kpi-e3__value", htmltools::HTML(it$value)),
-      htmltools::tags$span(class = "kpi-e3__label", htmltools::HTML(it$label), ex))
-  })
-  htmltools::tags$div(class = "kpi-e3",
-    htmltools::tags$span(class = "kpi-e3__category", category),
-    htmltools::tags$div(class = "kpi-e3__list", itg))
-}
-
-kpi_row(
-  kpi_e3(kcat("globe-americas", "Périmètre analyse · 06 2026"), list(
-    list(value = aa$n_total_km, label = sprintf("<strong>annonces</strong> actives&nbsp;&nbsp;%s", evo(aa$v_ann_evol))),
-    list(value = aa$n_hosts_km, label = sprintf("<strong>hôtes</strong> actifs&nbsp;&nbsp;%s", evo(aa$v_host_evol))),
-    list(value = sprintf("%d", aa$n_villes), label = sprintf("villes · %d pays", aa$n_pays)),
-    list(value = sprintf("%d&nbsp;%%", aa$v_couverture_pct), label = "de l'offre mondiale")
-  )),
-  kpi_e3(kcat("buildings", "Professionnalisation"), list(
-    list(value = sprintf("%s&nbsp;%%", aa$v_hosts50), label = sprintf("des hôtes détiennent <strong>50 %%</strong> de l'offre&nbsp;&nbsp;%s", tip("cr_hosts_offre50_pct", "%", "#8c4a5a"))),
-    list(value = sprintf("%d&nbsp;%%", aa$v_multi), label = sprintf("de l'offre en multi-loueurs&nbsp;&nbsp;%s&nbsp;%s", evo(ev_multi, "pt", ref = NULL), tip("cr_offre_1plus", "%", "#1696d2"))),
-    list(value = sprintf("%d&nbsp;%%", aa$v_entire), label = sprintf("logements entiers&nbsp;&nbsp;%s&nbsp;%s", evo(aa$v_entire_evol, "pt", ref = NULL), tip("str_entire_pct", "%", "#55b748")))
-  )),
-  kpi_e3(kcat("currency-euro", "Prix médian / nuit et revenu"), list(
-    list(value = sprintf("%s&nbsp;€", aa$v_prix_med), label = sprintf("logement entier <em style='color:#9a9a9a;font-size:.86em'>· %s €/pers</em>&nbsp;&nbsp;%s", v_pp, tip("px_entire_med", " €", "#8c6a3f", dg = 0))),
-    list(value = sprintf("%s&nbsp;€", v_priv), label = sprintf("chambre privée&nbsp;&nbsp;%s", tip("px_private_med", " €", "#8c6a3f", dg = 0))),
-    list(value = sprintf("%s&nbsp;€", .fn(v_rev)), label = sprintf("revenu estimé / an&nbsp;&nbsp;%s", tip("act_revenu_med", " €", "#8c6a3f", big = TRUE)))
-  )),
-  kpi_e3(kcat("house-door", "Pression résidentielle"), list(
-    list(value = sprintf("%s", aa$v_pression_med),
-         label = sprintf("annonces / 1 000 hab. zone dense&nbsp;&nbsp;%s", tip("prs_listings_1000hab_dense", "‰", "#ca5800"))),
-    list(value = sprintf("%s", formatC(world_10k, format = "f", digits = 1, decimal.mark = ",")),
-         label = sprintf("annonces / 10 000 hab. — monde 224 pays&nbsp;&nbsp;%s", tip_cty("listings_per_10k_hab")))
-  ))
-)
-```
-
-::: {.kpi-fieldset}
-[Métriques clés par région]{.kpi-ft-title}
-
-```{r}
-#| label: synth2p-kpi-databar-ctr
-#| fig-width: 10
-#| fig-height: 2.6
-#| out-width: "100%"
-#| cache: false
-
-# Databar continentale sous les 4 KPI (helper rapport + évol 25->26 + réf monde pointillée)
-SYNTH_CD_COLS <- c("Eur. Sud-Est" = "#f5821f", "Eur. Ouest-Nord" = "#fbc02d",
-                   "Am. du Nord" = "#3aa6d6", "Am. latine" = "#1a6d8f",
-                   "Asie" = "#bdbdbd", "Océanie" = "#6e6a67")
-plot_cd_bars_agg(
-  c("vol_n_ann", "cr_offre_1plus", "str_entire_pct", "prs_listings_1000hab_dense"),
-  ncol_wrap = 4,
-  evol = c("vol_n_ann_vevol_2526", "cr_offre_1plus_vdifp_2526",
-           "str_entire_pct_vdifp_2526", "prs_listings_1000hab_dense_vevol_2526"),
-  palette = SYNTH_CD_COLS,
-  world_ref = c(vol_n_ann = NA,
-                cr_offre_1plus = as.numeric(kpi_world$cr_offre_1plus),
-                str_entire_pct = as.numeric(kpi_world$str_entire_pct),
-                prs_listings_1000hab_dense = as.numeric(kpi_world$prs_listings_1000hab_dense)),
-  strip_labels = c("Annonces actives", "% multi-loueurs", "% logements entiers", "Annonces / 1 000 hab. en zone dense"),
-  strip_wrap = 16, evol_below = TRUE, bar_width = 0.72, grid_x = FALSE, alpha = 0.82,
-  strip_size = 10.5, lab_size = 2.8, dec = c(1, 1, 0, 1))
-```
-
-<div class="figure-source">Par continent (nos données) — évolution 2025→2026 en ▲ vert / ▼ rouge · pointillé « monde » = moyenne mondiale. Source : Inside Airbnb, juin 2026.</div>
-
-:::
-
-Le panel — **`r aa$n_total_km` annonces actives** dans `r aa$n_villes` villes de `r aa$n_pays` pays — dessine un marché devenu **européen, professionnalisé et concentré** : l'Europe capte `r aa$v_eur_pct` % de l'offre du panel, l'Amérique du Nord `r aa$v_nam_pct` %. Sept messages en résument la lecture, du portrait des volumes à la typologie.
-
-[**Un marché d'abord européen, concentré sur une poignée de métropoles**]{.insight}
-
-Londres approche 70 000 annonces et Paris 60 000, quand le bas du panel — Genève, Bergame — reste sous 2 000. L'Europe du Sud-Est (Florence, Lisbonne, Athènes, Barcelone) forme le plus gros volume cumulé, devant une Europe de l'Ouest portée par les deux capitales. Le panel a gagné **`r .fp(aa$v_ann_evol, 1)` %** d'annonces en un an, une croissance concentrée sur les grandes métropoles.
-
-[**Le logement entier a supplanté le partage entre particuliers**]{.insight}
-
-**`r aa$v_entire` %** de l'offre mondiale est en logement entier — au-delà de 90 % à Thessalonique, Athènes ou Budapest, où le patrimoine bascule vers l'investissement touristique pur. Le parc reste dominé par les studios et petits appartements : 3 à 4 personnes, 1 à 2 chambres en médiane.
-
-[**L'économie collaborative est devenue une industrie**]{.insight}
-
-**`r aa$v_multi` %** des annonces sont gérées par des multi-loueurs et **`r aa$v_hosts50` %** des hôtes captent la moitié de l'offre — une concentration comparable aux pays les plus inégalitaires. Tokyo, Hong Kong et Singapour dépassent 80 % de multi-loueurs quand Copenhague et Oslo restent sous 30 %. Le revenu se joue moins sur le prix que sur l'occupation : `r aa$t_top_rev` dépasse **`r aa$v_top_rev` €/an** grâce à un calendrier saturé.
-
-[**La pression résidentielle frappe les villes moyennes touristiques**]{.insight}
-
-La densité médiane atteint **`r aa$v_pression_med` annonces pour 1 000 habitants** en zone dense, mais le Pays Basque, Venise et Florence approchent ou dépassent 40 ‰ — un facteur `r aa$v_facteur_pression` avec le bas du panel. Les mégalopoles asiatiques (Tokyo, Bangkok, Singapour) restent sous 3 ‰ : leur densité de population dilue la pression rapportée aux habitants.
-
-[**Airbnb a rejoint l'hôtellerie, en volume comme en prix**]{.insight}
-
-Le prix médian d'un logement entier s'établit à **`r aa$v_prix_med` €/nuit**, désormais proche du tarif d'une chambre d'hôtel : l'avantage tarifaire historique s'est effacé (prix moyen Airbnb 166 USD contre 159 USD pour l'hôtellerie américaine en 2024). L'offre de location courte durée croît dix fois plus vite que le parc hôtelier, et des opérateurs hybrides — Blueground, Sonder — brouillent la frontière entre les deux modèles.
-
-[**La régulation 2024-2025 rebat les cartes**]{.insight}
-
-New York a effacé 90 % de ses annonces, Amsterdam a réduit son parc de 54 %, Barcelone vise l'interdiction totale en 2028 et le Règlement européen 2024/1028 impose la transparence dès 2026. Mais l'offre se déplace plus qu'elle ne disparaît : bascule vers les séjours longs à New York, expansion continue dans les marchés émergents peu encadrés (Buenos Aires, Riyad).
-
-[**Cinq familles de marchés se dégagent de la typologie**]{.insight}
-
-La classification (`r aa_n_actives` variables actives, `r aa_n_bestk` clusters, silhouette `r .fp(aa_v_sil, 2)`) répartit les `r aa$n_villes` villes en cinq familles : trois épousent la géographie continentale — l'**Europe du Sud** touristique et dense, l'**Europe de l'Ouest** des loueurs amateurs, l'**Amérique du Nord** des opérateurs premium — tandis que deux la traversent : les **grandes métropoles** tournées vers la longue durée (Madrid, Berlin, Los Angeles) et les **mégalopoles verticales** où domine la chambre (New York, Hong Kong, Singapour). La fracture majeure n'est ni nord-sud ni est-ouest : elle oppose un modèle amateur à un modèle professionnel d'opérateurs maximisant l'occupation *(carte ci-dessous)*.
-
-::: {.column-page}
-
-```{r}
-#| label: synth-map-clusters
+#| label: synth-map-clusters-v2
 #| fig-width: 9
-#| fig-height: 5
+#| fig-height: 5.4
 #| cache: false
 
 clu_df <- data.frame(city_fr = indiv_df$individu,
@@ -233,14 +83,13 @@ p_clu <- build_world_map(clu_map,
   size_col = "vol_n_ann",
   color_var = "cluster_name", color_levels = cluster_names, palette = CLU_COLS,
   title = "Cinq familles de marchés Airbnb - partition mondiale",
-  subtitle = sprintf("%d villes - couleur = cluster ACP-HCPC - taille = annonces actives", nrow(clu_map)))
-render_girafe(p_clu, width_svg = 9, height_svg = 5)
+  subtitle = sprintf("%d villes - couleur = cluster ACP-HCPC - taille = annonces actives", nrow(clu_map)),
+  legend_nrow = 2)   # 2 rangs : les 5 noms de clusters sont coupés sur une seule ligne
+render_girafe(p_clu, width_svg = 9, height_svg = 5.4)
 ```
-
-:::
 
 <div class="figure-source">Source : Inside Airbnb juin 2026 - Typologie ACP-HCPC sur `r aa_n_actives` indicateurs actifs (snapshot `rpt-pbnb-acpnbk-monde`) - Projection Robinson.</div>
 
 ## Ce qu'il faut retenir
 
-Airbnb n'est plus une plateforme de partage mais un secteur d'hébergement professionnalisé et concentré, dont le poids local dépend moins du volume brut que de la place qu'il occupe dans le parc résidentiel des destinations touristiques. La régulation 2024-2025 ouvre une période de recomposition : durcissement dans les villes-musées européennes et nord-américaines, expansion continue dans les marchés émergents peu encadrés. Le rapport complet décline ces constats sur sept axes — du portrait des volumes à la typologie finale.
+Airbnb n'est plus une plateforme de partage mais un secteur d'hébergement professionnalisé et concentré, dont le poids local dépend moins du volume brut que de la place qu'il occupe dans le parc résidentiel des destinations touristiques. La régulation 2024-2025 ouvre une période de recomposition : durcissement dans les villes-musées européennes et nord-américaines, expansion continue dans les marchés émergents peu encadrés. Le rapport complet décline ces constats sur huit axes — du portrait des volumes à la typologie finale.

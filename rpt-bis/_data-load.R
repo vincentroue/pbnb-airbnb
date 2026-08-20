@@ -74,8 +74,22 @@ n_countries <- length(unique(kpi$country_code))
 n_continents <- length(unique(kpi$continent))
 w <- kpi$vol_n_ann
 
-# Couverture du panel sur l'offre mondiale Airbnb (10-K FY2024 : ~8 M annonces)
-n_world_listings <- 8e6
+# Couverture & representativite du panel vs marche mondial Inside Airbnb
+# Source: data/external/bnb-inside-study-cont-world.csv (rapport "Threat of STR to Housing", Q4-2025, 224 territoires)
+cov_cw <- tryCatch(
+  read.csv(file.path(DATA_EXTERNAL, "bnb-inside-study-cont-world.csv"),
+           stringsAsFactors = FALSE, fileEncoding = "UTF-8-BOM"),
+  error = function(e) NULL)
+if (!is.null(cov_cw)) {
+  n_world_listings <- cov_cw$n_listings[cov_cw$level == "world"][1]
+  n_world_terr     <- cov_cw$n_pays[cov_cw$level == "world"][1]
+  cov_tbl <- cov_cw[cov_cw$level == "continent_detail",
+                    c("continent_detail", "nos_villes", "part_panel_pct",
+                      "share_global_pct", "ecart_repr_pts", "part_nos_annonces_pct")]
+  cov_tbl <- cov_tbl[order(-cov_tbl$ecart_repr_pts), ]
+} else {
+  n_world_listings <- 8347967; n_world_terr <- 224L; cov_tbl <- NULL
+}
 v_couverture_pct <- round(n_total / n_world_listings * 100, 0)
 
 aa <- list(
@@ -118,6 +132,11 @@ aa <- list(
   v_bot_pression = .fp(bot_pression$prs_listings_1000hab_dense[1], 1),
   v_facteur_pression = round(top_pression$prs_listings_1000hab_dense[1] /
     bot_pression$prs_listings_1000hab_dense[1], 0),
+
+  # Évolution Monde 25->26 (agrégat pondéré kpi_world) — volume/structure fiables (pas prix, cf caveat)
+  v_ann_evol    = round(as.numeric(kpi_world$vol_n_ann_vevol_2526), 1),      # +2,9 %
+  v_host_evol   = round(as.numeric(kpi_world$vol_n_hotes_vevol_2526), 1),    # -0,3 %
+  v_entire_evol = round(as.numeric(kpi_world$str_entire_pct_vdifp_2526), 1), # +0,4 pt
 
   # Top/bottom professionnalisation
   t_top_multi = top_multi$city_fr[1],
@@ -165,6 +184,45 @@ aa <- list(
 message(sprintf(">>> _data-load.R v3 : %d villes (scope city), %d pays, %d variables aa",
   aa$n_villes, aa$n_pays, length(aa)))
 # &e
+
+# Representativite du panel -> aa$cov pour la prose methode + P1.
+# BRUT A BRUT (260820) : le stock mondial Inside Airbnb n'est PAS nettoye -> on lui oppose nos
+# volumes bruts (sp08c-volumes-bruts-panel-260820.py), pas vol_n_ann filtre. Sinon on compare deux
+# definitions et la couverture est sous-estimee (11 % au lieu de 12,5 %). Fallback = ancien calcul.
+.brut_cw <- tryCatch(
+  read.csv(file.path(DATA_INTERIM, "panel-volumes-bruts-2606.csv"),
+           encoding = "UTF-8", fileEncoding = "UTF-8-BOM"),
+  error = function(e) NULL)
+
+if (!is.null(cov_cw)) {
+  .cd <- function(g, col) cov_cw[[col]][cov_cw$level == "continent_detail" & cov_cw$continent_detail == g][1]
+
+  if (!is.null(.brut_cw)) {
+    .b   <- setNames(.brut_cw$n_ann_brut, .brut_cw$continent_detail)
+    .tb  <- sum(.b)
+    .pp  <- function(g) .b[[g]] / .tb * 100                      # part du sous-continent dans le panel BRUT
+    .ec  <- function(g) .pp(g) - .cd(g, "share_global_pct")      # ecart de representation (pts)
+    .cv  <- function(g) .b[[g]] / .cd(g, "n_listings") * 100     # couverture reelle du sous-continent
+    aa$cov <- list(
+      monde_pct  = .fp(.tb / n_world_listings * 100, 1),   # .fp = virgule decimale FR
+      n_terr     = n_world_terr, world_km = .fk(n_world_listings),
+      panel_brut = .fn(.tb),
+      eurse_sur  = .fp(abs(.ec("Europe South & East")), 1),
+      latam_sous = .fp(abs(.ec("Latin America")), 1),
+      asia_cov   = .fp(.cv("Asia"), 1),
+      africa_cov = .fp(.cv("Africa"), 1))
+  } else {
+    aa$cov <- list(
+      monde_pct   = v_couverture_pct,                                          # 11 (% offre mondiale observee)
+      n_terr      = n_world_terr,                                              # 224 territoires
+      world_km    = .fk(n_world_listings),                                     # "8 M"
+      panel_brut  = aa$n_total,
+      eurse_sur   = .fp(abs(.cd("Europe South & East", "ecart_repr_pts")), 1), # "8,2" pts au-dessus part monde
+      latam_sous  = .fp(abs(.cd("Latin America", "ecart_repr_pts")), 1),       # "6,1" pts sous part monde
+      asia_cov    = .fp(.cd("Asia", "part_nos_annonces_pct"), 1),              # "7,8" % couverture Asie
+      africa_cov  = .fp(.cd("Africa", "part_nos_annonces_pct"), 1))            # "7,0" % couverture Afrique
+  }
+}
 
 # &s &KPI_EXT - Chargement indicateurs externes (Airbnb 10-K, Eurostat, Adamiak, S&D, Colomb, Lighthouse)
 # Source: data/external/kpi-ext-pbnb-adamiaknco-260510.csv

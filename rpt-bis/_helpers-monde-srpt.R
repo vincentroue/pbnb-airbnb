@@ -50,6 +50,12 @@ CD_COLS <- c("Eur. Ouest-Nord" = "#1696d2", "Eur. Sud-Est" = "#fdbf11",
              "Am. du Nord" = "#ec008b", "Am. latine" = "#55b748",
              "Asie" = "#5c5859", "Oc\u00e9anie" = "#0a4c6a", "Afrique" = "#ca5800")
 
+# Palette SYNTHESE (260820) : degrade chaud->froid, moins satures que CD_COLS (magenta/vert vifs).
+# Utilisee par la databar de la synthese executive ET les small multiples du rapport (coherence).
+CD_COLS_SYNTH <- c("Eur. Sud-Est" = "#f5821f", "Eur. Ouest-Nord" = "#fbc02d",
+                   "Am. du Nord" = "#3aa6d6", "Am. latine" = "#1a6d8f",
+                   "Asie" = "#bdbdbd", "Oc\u00e9anie" = "#6e6a67", "Afrique" = "#ca5800")
+
 kpi$cd <- CD_RECODE[kpi$continent_detail]
 kpi$cd <- factor(kpi$cd, levels = CD_ORDER)
 
@@ -350,15 +356,41 @@ build_world_map <- function(df, size_col = "vol_n_ann",
                              crs_proj = NULL,
                              label_cities = NULL, label_size = 2.7,
                              color_var = NULL, color_levels = NULL,
-                             color_recode = NULL) {
+                             color_recode = NULL,
+                             ne_scale = NULL, legend_nrow = NULL,
+                             zoom_box = NULL, world_ylim = c(-58, 85)) {
   # color_var : colonne de coloration. NULL (defaut) = sous-continent (retrocompat).
   #   Sinon nom de colonne (ex "cluster") avec palette + color_levels fournis.
   # color_recode : vecteur nomme optionnel pour remapper les valeurs en labels lisibles.
-  world_sf <- rnaturalearth::ne_countries(scale = "medium", returnclass = "sf")
+  # ne_scale    : resolution Natural Earth. NULL (defaut) = AUTO -> "small" (1:110m) pour la vue
+  #   monde, "medium" (1:50m) des qu'on zoome (bbox). A l'echelle mondiale le 1:110m est
+  #   visuellement indiscernable du 1:50m mais bien plus leger (teste 260820).
+  # legend_nrow : force la legende sur N rangs (evite les libelles longs coupes a droite).
+  # zoom_box    : c(lon_min, lat_min, lon_max, lat_max) -> encadre pointille marquant la zone zoomee.
+  # world_ylim  : bornes de latitude de la vue monde — defaut coupe l'Antarctique (vue resserree).
+  if (is.null(ne_scale)) ne_scale <- if (is.null(bbox)) "small" else "medium"
+  world_sf <- rnaturalearth::ne_countries(scale = ne_scale, returnclass = "sf")
   # Contour des TERRES marque (coastline) — pas les frontieres pays (demande user 260609)
-  coast_sf <- tryCatch(rnaturalearth::ne_coastline(scale = "medium", returnclass = "sf"),
+  coast_sf <- tryCatch(rnaturalearth::ne_coastline(scale = ne_scale, returnclass = "sf"),
                        error = function(e) NULL)
   bg_fill <- "#f1efe7"; coast_color <- "#7d7d7d"
+
+  # DECOUPE REELLE des geometries (260820). Avant : coord_sf zoomait l'affichage mais gardait TOUT
+  # le monde dans le SVG -> le panneau Europe embarquait 1 620 polygones dont ~95 % invisibles
+  # (~3,4 Mo de poids mort). st_crop decoupe la geometrie en amont : meme rendu, HTML bien plus leger.
+  .crop_geo <- function(g, b) {
+    if (is.null(g)) return(NULL)
+    suppressWarnings(tryCatch(
+      sf::st_crop(sf::st_make_valid(g), xmin = b[1], ymin = b[2], xmax = b[3], ymax = b[4]),
+      error = function(e) g))
+  }
+  # ⚠️ UNIQUEMENT quand bbox est fourni (zoom). Un st_crop sur le monde ENTIER degenere
+  # (242 polygones -> 2, continents aplatis : teste 260820) car la bbox couvre presque tout le
+  # globe. La vue monde garde donc toutes ses geometries et se resserre via coord_sf(ylim) plus bas.
+  if (!is.null(bbox)) {
+    world_sf <- .crop_geo(world_sf, bbox)
+    coast_sf <- .crop_geo(coast_sf, bbox)
+  }
 
   if (is.null(color_var)) {
     df$.cd <- factor(CD_RECODE[df$continent_detail], levels = CD_ORDER)
@@ -378,6 +410,13 @@ build_world_map <- function(df, size_col = "vol_n_ann",
   # Coastline marquee par-dessus (contour terre/mer uniquement)
   if (!is.null(coast_sf))
     p <- p + ggplot2::geom_sf(data = coast_sf, color = coast_color, linewidth = 0.32)
+  # Encadre pointille = zone reprise en zoom sur la carte voisine (lecture du patchwork monde/Europe)
+  if (!is.null(zoom_box)) {
+    zb <- sf::st_as_sfc(sf::st_bbox(c(xmin = zoom_box[1], ymin = zoom_box[2],
+                                      xmax = zoom_box[3], ymax = zoom_box[4]), crs = 4326))
+    p <- p + ggplot2::geom_sf(data = zb, fill = NA, color = "#c2513a",
+                              linewidth = 0.55, linetype = "22")
+  }
   p <- p +
     ggiraph::geom_point_interactive(data = df,
       ggplot2::aes(x = lon, y = lat,
@@ -395,6 +434,12 @@ build_world_map <- function(df, size_col = "vol_n_ann",
       legend.position = "bottom",
       legend.text = ggplot2::element_text(size = 8),
       legend.key.size = ggplot2::unit(0.45, "cm"))
+
+  # Legende sur N rangs : indispensable quand les libelles sont longs (noms de clusters) — sur une
+  # seule rangee ils depassent la largeur du SVG et sont coupes a droite (260820).
+  if (!is.null(legend_nrow))
+    p <- p + ggplot2::guides(fill = ggplot2::guide_legend(
+      nrow = legend_nrow, byrow = TRUE, override.aes = list(size = 3)))
 
   # Labels villes : le caller fournit le vecteur exact (label_cities) de city_fr a annoter.
   # World = top 3 par sous-continent hors Europe · Europe = toutes les villes (demande user 260609).
@@ -419,8 +464,10 @@ build_world_map <- function(df, size_col = "vol_n_ann",
   } else if (!is.null(crs_proj)) {
     p <- p + ggplot2::coord_sf(crs = crs_proj)
   } else {
-    # Robinson pour le monde — fallback WGS84 si Robinson échoue
-    p <- p + ggplot2::coord_sf(crs = "+proj=robin", default_crs = sf::st_crs(4326))
+    # Robinson pour le monde. ylim (en lon/lat) coupe l'Antarctique et le vide polaire nord
+    # -> vue monde resserree, sans toucher aux geometries (cf note sur st_crop plus haut).
+    p <- p + ggplot2::coord_sf(crs = "+proj=robin", default_crs = sf::st_crs(4326),
+                                ylim = world_ylim)
   }
   p
 }
@@ -428,10 +475,11 @@ build_world_map <- function(df, size_col = "vol_n_ann",
 # Carte Europe : bbox restrictive [lon_min, lat_min, lon_max, lat_max]
 build_europe_map <- function(df, size_col = "vol_n_ann", label_col = "city_fr",
                               title = NULL, subtitle = NULL, palette = CD_COLS,
-                              label_cities = NULL, label_size = 2.3) {
+                              label_cities = NULL, label_size = 2.3, ...) {
+  # `...` -> passe-plat vers build_world_map (legend_nrow, ne_scale, color_var…)
   build_world_map(df, size_col, label_col, title, subtitle,
                   bbox = c(-12, 35, 32, 62), palette = palette,
-                  label_cities = label_cities, label_size = label_size)
+                  label_cities = label_cities, label_size = label_size, ...)
 }
 
 # --- Helper : plot_cd_bars_ordered ---
@@ -439,7 +487,8 @@ build_europe_map <- function(df, size_col = "vol_n_ann", label_col = "city_fr",
 # Ordre : Europe Ouest-Nord → Sud-Est → Am du Nord → Am latine → Asie → Oceanie → Afrique
 # Drop continents avec < min_cities villes (Afrique souvent = 1)
 plot_cd_bars_ordered <- function(vars, data = kpi, ncol_wrap = 3,
-                                  min_cities = 2, drop_levels = TRUE) {
+                                  min_cities = 2, drop_levels = TRUE,
+                                  strip_wrap = NULL) {
   cd_counts <- table(data$cd)
   keep_cd <- names(cd_counts)[cd_counts >= min_cities]
   ordered_cd <- intersect(CD_ORDER, keep_cd)
@@ -463,7 +512,8 @@ plot_cd_bars_ordered <- function(vars, data = kpi, ncol_wrap = 3,
               color = "#555", family = .font_family) +
     scale_fill_manual(values = setNames(CD_COLS[rev(ordered_cd)], rev(ordered_cd))) +
     scale_x_continuous(expand = expansion(mult = c(0, 0.28))) +
-    facet_wrap(~ var_label, scales = "free_x", ncol = ncol_wrap) +
+    facet_wrap(~ var_label, scales = "free_x", ncol = ncol_wrap,
+               labeller = if (!is.null(strip_wrap)) ggplot2::label_wrap_gen(width = strip_wrap) else "label_value") +
     labs(x = NULL, y = NULL) +
     theme_minimal(base_size = 9, base_family = .font_family) +
     theme(
@@ -482,56 +532,87 @@ plot_cd_bars_ordered <- function(vars, data = kpi, ncol_wrap = 3,
 # et non median(par ville). Pour les volumes : SOMME continentale (annonces, hotes).
 # Pour les ratios (str_ratio_ann_hote) : ratio des sommes (deja pre-calcule sp08).
 # Usage : P1 portrait (volumes) ou tout indicateur dont la SOMME a un sens.
-plot_cd_bars_agg <- function(vars, agg = kpi_cd_agg, ncol_wrap = 3, min_cities = 2) {
-  cd_counts <- table(kpi$cd)
-  keep_cd <- names(cd_counts)[cd_counts >= min_cities]
+plot_cd_bars_agg <- function(vars, agg = kpi_cd_agg, ncol_wrap = 3, min_cities = 2, evol = NULL,
+                             palette = CD_COLS, world_ref = NULL, evol_below = FALSE,
+                             bar_width = 0.6, grid_x = TRUE, strip_size = 8.3, lab_size = 2.3,
+                             dec = NULL, strip_labels = NULL, alpha = 1, strip_wrap = NULL) {
+  # Barres par continent (agg sp08) + option évol 25->26 (geom_label : pastille top bordeaux / bottom bleu).
+  # Rétrocompatible : evol=NULL -> valeurs seules (style rapport). geom_text/label (pas ggtext).
+  cd_counts <- table(kpi$cd); keep_cd <- names(cd_counts)[cd_counts >= min_cities]
   ordered_cd <- intersect(CD_ORDER, keep_cd)
+  fmt1 <- function(v, d) { if (is.na(v)) return(""); if (abs(v) >= 1000) fv(v, "k") else fmt_fr(v, d) }
+  var_lbls <- if (!is.null(strip_labels)) strip_labels else vapply(vars, function(v) {
+    e <- dd$indics[[v]]; if (!is.null(e) && !is.null(e$medium)) e$medium else if (!is.null(e)) e$short else v }, character(1))
 
-  fmt_lbl <- function(vv) vapply(vv, function(v) {
-    if (is.na(v)) return("")
-    if (abs(v) >= 1000) fv(v, "k") else fmt_fr(v, 1)
-  }, character(1))
-
-  plots_data <- lapply(vars, function(v) {
-    entry <- dd$indics[[v]]
-    lbl <- if (!is.null(entry) && !is.null(entry$medium)) entry$medium
-           else if (!is.null(entry)) entry$short else v
-    vals <- setNames(rep(NA_real_, length(ordered_cd)), ordered_cd)
-    if (v %in% names(agg)) {
-      for (i in seq_len(nrow(agg))) {
-        cd_fr <- CD_RECODE[as.character(agg$continent_detail[i])]
-        if (!is.na(cd_fr) && cd_fr %in% ordered_cd) vals[cd_fr] <- as.numeric(agg[[v]][i])
-      }
+  plots_data <- lapply(seq_along(vars), function(i) {
+    v <- vars[i]
+    dv <- if (!is.null(dec) && i <= length(dec) && !is.na(dec[i])) dec[i] else 1
+    ecol <- if (!is.null(evol) && i <= length(evol) && !is.na(evol[i])) evol[i] else NA_character_
+    vals <- setNames(rep(NA_real_, length(ordered_cd)), ordered_cd); evals <- vals
+    if (v %in% names(agg)) for (j in seq_len(nrow(agg))) {
+      cd_fr <- CD_RECODE[as.character(agg$continent_detail[j])]
+      if (!is.na(cd_fr) && cd_fr %in% ordered_cd) { vals[cd_fr] <- as.numeric(agg[[v]][j])
+        if (!is.na(ecol) && ecol %in% names(agg)) evals[cd_fr] <- as.numeric(agg[[ecol]][j]) }
     }
-    data.frame(cd = factor(names(vals), levels = rev(ordered_cd)),
-               val = as.numeric(vals), var_label = lbl,
-               stringsAsFactors = FALSE)
+    data.frame(cd = factor(names(vals), levels = rev(ordered_cd)), val = as.numeric(vals),
+               eval = as.numeric(evals), var_label = var_lbls[i],
+               valtxt = vapply(vals, function(x) fmt1(x, dv), character(1)), stringsAsFactors = FALSE)
   })
-  all_d <- do.call(rbind, plots_data)
-  all_d <- all_d[!is.na(all_d$val), ]
-  all_d$var_label <- factor(all_d$var_label,
-    levels = vapply(vars, function(v) {
-      e <- dd$indics[[v]]; if (!is.null(e) && !is.null(e$medium)) e$medium
-      else if (!is.null(e)) e$short else v }, character(1)))
+  all_d <- do.call(rbind, plots_data); all_d <- all_d[!is.na(all_d$val), ]
+  all_d$var_label <- factor(all_d$var_label, levels = var_lbls)
+  all_d$evtxt <- ifelse(is.na(all_d$eval), "",
+    formatC(all_d$eval, format = "f", digits = 1, decimal.mark = ",", flag = "+"))
+  all_d$evcol <- ifelse(is.na(all_d$eval), "#666", ifelse(all_d$eval >= 0, "#7a3b47", "#26506f"))
+  all_d$hl <- "none"
+  for (vl in levels(all_d$var_label)) {
+    idx <- which(all_d$var_label == vl & !is.na(all_d$eval))
+    if (length(idx) > 0) { all_d$hl[idx[which.max(all_d$eval[idx])]] <- "top"
+                           all_d$hl[idx[which.min(all_d$eval[idx])]] <- "bot" }
+  }
+  has_ev <- any(all_d$evtxt != ""); dy <- if (has_ev && evol_below) 0.17 else 0
+  nx <- diff(range(all_d$val, na.rm = TRUE)) * 0.012
 
-  ggplot(all_d, aes(x = val, y = cd, fill = cd)) +
-    geom_col(width = 0.6, show.legend = FALSE) +
-    geom_text(aes(label = fmt_lbl(val)), hjust = -0.1, size = 2.3,
-              color = "#555", family = .font_family) +
-    scale_fill_manual(values = setNames(CD_COLS[rev(ordered_cd)], rev(ordered_cd))) +
-    scale_x_continuous(expand = expansion(mult = c(0, 0.30))) +
-    facet_wrap(~ var_label, scales = "free_x", ncol = ncol_wrap) +
+  ref_df <- NULL
+  if (!is.null(world_ref)) {
+    ref_df <- data.frame(var_label = factor(var_lbls, levels = var_lbls), wref = as.numeric(world_ref[vars]))
+    ref_df <- ref_df[!is.na(ref_df$wref), ]
+  }
+  ny <- length(ordered_cd)
+
+  p <- ggplot(all_d, aes(x = val, y = cd, fill = cd)) +
+    geom_col(width = bar_width, alpha = alpha, show.legend = FALSE)
+  if (!is.null(ref_df) && nrow(ref_df) > 0)
+    p <- p + geom_vline(data = ref_df, aes(xintercept = wref), linetype = "22", color = "#8a8a8a", linewidth = 0.4) +
+      geom_text(data = ref_df, aes(x = wref, y = ny + 0.55, label = "monde"), inherit.aes = FALSE,
+                # 2.1 -> 2.5 (260820) : a 2.1pt le "n" s'ecrasait en "h" a la rasterisation ("mohde").
+                size = 2.5, color = "#8a8a8a", vjust = 1, family = .font_family)
+  p <- p + geom_text(aes(label = valtxt), hjust = -0.06, nudge_y = dy,
+                     fontface = "bold", color = "#222", size = lab_size, family = .font_family)
+  if (has_ev) {
+    d_norm <- all_d[all_d$hl == "none" & all_d$evtxt != "", ]
+    d_ext  <- all_d[all_d$hl %in% c("top", "bot"), ]
+    if (nrow(d_norm)) p <- p + geom_text(data = d_norm, aes(label = evtxt, color = evcol), hjust = -0.06,
+      nudge_y = -0.17, size = lab_size - 0.35, family = .font_family, show.legend = FALSE)
+    if (nrow(d_ext)) p <- p + geom_text(data = d_ext, aes(label = evtxt, color = evcol), hjust = -0.06,
+      nudge_y = -0.17, size = lab_size + 0.25, fontface = "bold", family = .font_family, show.legend = FALSE)
+    p <- p + scale_color_identity()
+  }
+  p +
+    scale_fill_manual(values = setNames(palette[rev(ordered_cd)], rev(ordered_cd))) +
+    scale_x_continuous(expand = expansion(mult = c(0.10, 0.34))) +
+    coord_cartesian(clip = "off") +
+    facet_wrap(~ var_label, scales = "free_x", ncol = ncol_wrap,
+               labeller = if (!is.null(strip_wrap)) ggplot2::label_wrap_gen(width = strip_wrap) else "label_value") +
     labs(x = NULL, y = NULL) +
     theme_minimal(base_size = 9, base_family = .font_family) +
     theme(
-      strip.text = element_text(face = "bold", size = 8.3, color = "#333", hjust = 0),
-      panel.grid.major.y = element_blank(),
-      panel.grid.minor = element_blank(),
-      axis.text.y = element_text(size = 8, color = "#444"),
-      axis.text.x = element_blank(),
-      axis.ticks.x = element_blank(),
+      strip.text = element_text(face = "bold", size = strip_size, color = "#222", hjust = 0, margin = margin(b = 5)),
+      panel.grid.major.y = element_blank(), panel.grid.minor = element_blank(),
+      panel.grid.major.x = if (grid_x) element_line(color = "#eee") else element_blank(),
+      axis.text.y = element_text(size = 8.5, color = "#444"),
+      axis.text.x = element_blank(), axis.ticks.x = element_blank(),
       plot.background = element_rect(fill = "white", color = NA),
-      panel.spacing = unit(0.35, "lines"))
+      plot.margin = margin(10, 6, 4, 4), panel.spacing = unit(0.6, "lines"))
 }
 
 # --- Helper : small multiples barres horizontales par continent_detail (legacy) ---

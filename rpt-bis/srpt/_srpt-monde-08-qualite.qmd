@@ -1,0 +1,253 @@
+<!-- _srpt-monde-08-qualite.qmd -->
+<!-- Sous-rapport : Partie — Qualité perçue : ce que notent les voyageurs. -->
+<!-- Inclus dans rpt-pbnb-rapport-monde.qmd (MAIN). Chunks : srpt08-* -->
+<!-- v2 — 2026-08-20. Pattern partie standardisé : intro + KPI band + scatter girafe + heatmap rt_heatmap 76 villes. -->
+
+```{r}
+#| label: srpt08-vars
+#| include: false
+#| cache: false
+
+# --- Colonnes notes + libellés FR (ordre d'affichage du heatmap) ---
+NOTE_COLS <- c(actrv_note_glb      = "Globale",
+               actrv_note_proprete = "Propreté",
+               actrv_note_qprix    = "Qualité-prix",
+               actrv_note_emplacem = "Emplacement",
+               actrv_note_exact    = "Exactitude",
+               actrv_note_arrivee  = "Arrivée",
+               actrv_note_communic = "Communic.")
+
+.r   <- function(a, b) cor(kpi[[a]], kpi[[b]], use = "complete.obs")
+.amp <- function(v)    diff(range(kpi[[v]], na.rm = TRUE))
+.tp  <- function(v)    kpi[order(-kpi[[v]]), ][1, ]
+.bt  <- function(v)    kpi[order( kpi[[v]]), ][1, ]
+.vil <- function(slug) kpi[kpi$city == slug, ][1, ]
+
+# --- Note globale : niveau, amplitude, extrêmes ---
+aa_note_med   <- .fp(median(kpi$actrv_note_glb, na.rm = TRUE), 2)
+aa_note_amp   <- .fp(.amp("actrv_note_glb"), 2)
+.g_top <- .tp("actrv_note_glb"); .g_bot <- .bt("actrv_note_glb")
+aa_note_t_top <- .g_top$city_fr; aa_note_v_top <- .fp(.g_top$actrv_note_glb, 2)
+aa_note_t_bot <- .g_bot$city_fr; aa_note_v_bot <- .fp(.g_bot$actrv_note_glb, 2)
+
+# --- Corrélations (valeur absolue : le sens est dit en toutes lettres dans la prose) ---
+aa_note_r_conc <- .fp(abs(.r("actrv_note_glb",   "cr_offre_top10pct_pct")), 2)
+aa_note_r_sh   <- .fp(abs(.r("actrv_note_glb",   "act_superhost_pct")), 2)
+
+# --- Effet superhôtes À CONCENTRATION CONSTANTE ---
+# La corrélation brute sous-estime : les villes riches en superhôtes sont aussi un peu
+# plus concentrées, ce qui tire leurs notes vers le bas et masque l'effet. On neutralise
+# la concentration de deux façons : corrélation partielle (résidus) + écart des droites.
+.d_sh <- kpi[complete.cases(kpi[, c("actrv_note_glb", "act_superhost_pct",
+                                    "cr_offre_top10pct_pct")]), ]
+.r1 <- cor(.d_sh$actrv_note_glb,        .d_sh$act_superhost_pct)
+.r2 <- cor(.d_sh$act_superhost_pct,     .d_sh$cr_offre_top10pct_pct)
+.r3 <- cor(.d_sh$actrv_note_glb,        .d_sh$cr_offre_top10pct_pct)
+aa_note_r_sh_part <- .fp(abs((.r1 - .r2 * .r3) / sqrt((1 - .r2^2) * (1 - .r3^2))), 2)
+
+# Écart vertical entre les deux droites (modèle additif : pentes parallèles, testé non
+# significativement différentes) + R² du modèle continu (superhôtes non dichotomisé).
+.d_sh$.g <- ifelse(.d_sh$act_superhost_pct >= median(.d_sh$act_superhost_pct), "hi", "lo")
+aa_note_sh_gap <- .fp(abs(coef(lm(actrv_note_glb ~ cr_offre_top10pct_pct + .g, .d_sh))[3]), 3)
+aa_note_sh_r2  <- round(100 * summary(lm(actrv_note_glb ~ cr_offre_top10pct_pct +
+                                         act_superhost_pct, .d_sh))$r.squared)
+aa_qp_r_sh     <- .fp(abs(.r("actrv_note_qprix", "act_superhost_pct")), 2)
+aa_qp_r_px     <- .fp(abs(.r("actrv_note_qprix", "px_entire_med")), 2)
+aa_qp_r_prs    <- .fp(abs(.r("actrv_note_qprix", "prs_listings_1000hab_dense")), 2)
+
+# --- Dispersion par dimension ---
+aa_qp_amp  <- .fp(.amp("actrv_note_qprix"), 2)
+aa_com_amp <- .fp(.amp("actrv_note_communic"), 2)
+aa_arr_amp <- .fp(.amp("actrv_note_arrivee"), 2)
+aa_qp_sd   <- .fp(sd(kpi$actrv_note_qprix,    na.rm = TRUE), 3)
+aa_com_sd  <- .fp(sd(kpi$actrv_note_communic, na.rm = TRUE), 3)
+aa_qp_med  <- .fp(median(kpi$actrv_note_qprix, na.rm = TRUE), 2)
+.q_top <- .tp("actrv_note_qprix"); .q_bot <- .bt("actrv_note_qprix")
+aa_qp_t_top <- .q_top$city_fr; aa_qp_v_top <- .fp(.q_top$actrv_note_qprix, 2)
+aa_qp_t_bot <- .q_bot$city_fr; aa_qp_v_bot <- .fp(.q_bot$actrv_note_qprix, 2)
+.qp5       <- kpi[order(kpi$actrv_note_qprix), ][1:5, ]
+aa_qp_bot5 <- paste(sprintf("%s (%s)", .qp5$city_fr, .fp(.qp5$actrv_note_qprix, 2)), collapse = ", ")
+
+# --- Dominance des dimensions : laquelle est la plus basse / la plus haute par ville ---
+.dims6     <- setdiff(names(NOTE_COLS), "actrv_note_glb")
+.mat6      <- as.matrix(kpi[, .dims6])
+aa_qp_last <- sum(.dims6[apply(.mat6, 1, which.min)] == "actrv_note_qprix")
+aa_com_1st <- sum(.dims6[apply(.mat6, 1, which.max)] == "actrv_note_communic")
+aa_arr_1st <- sum(.dims6[apply(.mat6, 1, which.max)] == "actrv_note_arrivee")
+aa_qp_sous <- sum(kpi$actrv_note_qprix    < kpi$actrv_note_glb, na.rm = TRUE)
+aa_com_sur <- sum(kpi$actrv_note_communic > kpi$actrv_note_glb, na.rm = TRUE)
+
+# --- Superhôtes : médiane et extrêmes ---
+aa_sh_med <- .fp(median(kpi$act_superhost_pct, na.rm = TRUE), 0)
+.s_top <- .tp("act_superhost_pct"); .s_bot <- .bt("act_superhost_pct")
+aa_sh_t_top <- .s_top$city_fr; aa_sh_v_top <- .fp(.s_top$act_superhost_pct, 0)
+aa_sh_t_bot <- .s_bot$city_fr; aa_sh_v_bot <- .fp(.s_bot$act_superhost_pct, 0)
+
+# --- Trois villes-cas : deux voies vers l'excellence, une vers la médiocrité ---
+.nash <- .vil("nashville"); .oslo <- .vil("oslo"); .barc <- .vil("barcelona"); .riga <- .vil("riga")
+aa_nash_cr <- .fp(.nash$cr_offre_top10pct_pct, 0); aa_nash_sh <- .fp(.nash$act_superhost_pct, 0)
+aa_nash_ng <- .fp(.nash$actrv_note_glb, 2)
+aa_oslo_cr <- .fp(.oslo$cr_offre_top10pct_pct, 0); aa_oslo_sh <- .fp(.oslo$act_superhost_pct, 0)
+aa_oslo_ng <- .fp(.oslo$actrv_note_glb, 2);        aa_oslo_px <- .fp(.oslo$px_entire_med, 0)
+aa_oslo_qp <- .fp(.oslo$actrv_note_qprix, 2)
+aa_barc_cr <- .fp(.barc$cr_offre_top10pct_pct, 0); aa_barc_sh <- .fp(.barc$act_superhost_pct, 0)
+aa_barc_ng <- .fp(.barc$actrv_note_glb, 2)
+aa_riga_px <- .fp(.riga$px_entire_med, 0);         aa_riga_qp <- .fp(.riga$actrv_note_qprix, 2)
+
+# --- Médianes par groupe continental ---
+.cdm <- function(g, v) median(kpi[[v]][kpi$continent_detail == g], na.rm = TRUE)
+.cdn <- function(g)    sum(kpi$continent_detail == g, na.rm = TRUE)
+aa_na_n  <- .cdn("North America");       aa_se_n  <- .cdn("Europe South & East")
+aa_na_ng <- .fp(.cdm("North America", "actrv_note_glb"), 2)
+aa_na_cr <- .fp(.cdm("North America", "cr_offre_top10pct_pct"), 0)
+aa_na_sh <- .fp(.cdm("North America", "act_superhost_pct"), 0)
+aa_se_ng <- .fp(.cdm("Europe South & East", "actrv_note_glb"), 2)
+aa_se_cr <- .fp(.cdm("Europe South & East", "cr_offre_top10pct_pct"), 0)
+aa_se_sh <- .fp(.cdm("Europe South & East", "act_superhost_pct"), 0)
+aa_wn_ng <- .fp(.cdm("Europe West & North", "actrv_note_glb"), 2)
+aa_wn_cr <- .fp(.cdm("Europe West & North", "cr_offre_top10pct_pct"), 0)
+aa_wn_sh <- .fp(.cdm("Europe West & North", "act_superhost_pct"), 0)
+```
+
+Les notes Airbnb sont frappées d'une inflation structurelle : sur les `r aa$n_villes` villes du panel, la note globale médiane atteint **`r aa_note_med` sur 5** et l'ensemble des marchés tient dans une fourchette de `r aa_note_amp` point, de `r aa_note_v_bot` à `r aa_note_v_top`. Cette compression ne supprime pas le signal, elle le déplace : à l'échelle d'un marché entier, où chaque note agrège des dizaines de milliers d'avis, un dixième de point sépare deux modèles économiques.
+
+```{r}
+#| label: srpt08-kpi-header
+#| cache: false
+
+kpi_row(
+  kpi_band("Note globale",
+    value = aa_note_med, unit = "/5",
+    subtitle = "médiane du panel",
+    top    = sprintf("%s · %s ▲", aa_note_t_top, aa_note_v_top),
+    bottom = sprintf("%s · %s ▼", aa_note_t_bot, aa_note_v_bot)),
+  kpi_band("Qualité-prix",
+    value = aa_qp_med, unit = "/5",
+    subtitle = "la dimension la plus dispersée",
+    top    = sprintf("%s · %s ▲", aa_qp_t_top, aa_qp_v_top),
+    bottom = sprintf("%s · %s ▼", aa_qp_t_bot, aa_qp_v_bot)),
+  kpi_band("Superhôtes",
+    value = aa_sh_med, unit = "%",
+    subtitle = "part des hôtes labellisés",
+    top    = sprintf("%s · %s %% ▲", aa_sh_t_top, aa_sh_v_top),
+    bottom = sprintf("%s · %s %% ▼", aa_sh_t_bot, aa_sh_v_bot))
+)
+```
+
+Cette partie confronte les sept dimensions notées par les voyageurs — note globale, propreté, qualité-prix, emplacement, exactitude de l'annonce, arrivée et communication — à la structure des marchés analysée jusqu'ici : concentration de l'offre, part d'hôtes labellisés superhôtes et niveau de prix.
+
+### Concentration : la professionnalisation dégrade-t-elle l'expérience ?
+
+[**Deux chemins mènent à l'excellence — le marché de particuliers d'Oslo et la professionnalisation d'élite de Nashville**]{.insight}
+
+La note globale recule à mesure que l'offre se concentre : entre elle et la part de marché des dix pour cent d'hôtes les plus actifs, la corrélation est négative et atteint `r aa_note_r_conc`, l'une des relations les plus nettes du panel *(figure ci-contre)*. Le mécanisme est celui de la conciergerie de masse — remise de clés automatisée, logements interchangeables, absence d'interlocuteur — et il place `r aa_note_t_bot` en dernière position avec le taux de concentration le plus élevé des `r aa$n_villes` marchés.
+
+La relation n'est pourtant pas mécanique, et c'est là que se joue l'analyse. Nashville confie `r aa_nash_cr` % de son offre à ses dix pour cent d'hôtes les plus actifs, un niveau presque identique à Barcelone (`r aa_barc_cr` %), mais obtient `r aa_nash_ng` sur 5 quand Barcelone plafonne à `r aa_barc_ng`. La différence tient au **label superhôte** : `r aa_nash_sh` % des hôtes de Nashville le détiennent, contre `r aa_barc_sh` % à Barcelone. La part de superhôtes joue en sens strictement inverse de la concentration, avec une corrélation positive de `r aa_note_r_sh` — qui monte à **`r aa_note_r_sh_part`** une fois la concentration neutralisée. L'écart brut sous-estime en effet l'effet : les marchés riches en superhôtes sont aussi un peu plus concentrés, et les deux forces se compensent partiellement. À concentration égale, l'écart de note entre les deux groupes atteint `r aa_note_sh_gap` point *(droites parallèles sur la figure)*, et le modèle explique `r aa_note_sh_r2` % des écarts de note. Signe qu'il existe deux professionnalisations, celle qui industrialise et celle qui monte en gamme.
+
+```{r}
+#| label: srpt08-scatter-conc-note
+#| fig-width: 9
+#| fig-height: 5.5
+#| cache: false
+
+.med_sh <- median(kpi$act_superhost_pct, na.rm = TRUE)
+d_note  <- kpi
+d_note$sh_class <- ifelse(d_note$act_superhost_pct >= .med_sh,
+                          "Superhôtes : part élevée", "Superhôtes : part faible")
+
+p_note <- plot_scatter(d_note,
+  x = "cr_offre_top10pct_pct", y = "actrv_note_glb",
+  label_col = "city_fr", color_col = "sh_class", size_col = "vol_n_ann",
+  palette = c("Superhôtes : part faible" = col_orange,
+              "Superhôtes : part élevée" = col_cyan),
+  xlab = "Offre captée par les 10 % d'hôtes les plus actifs (%)",
+  ylab = "Note globale (/5)",
+  title = "À concentration égale, les marchés riches en superhôtes gardent les meilleures notes",
+  subtitle = paste("Concentration de l'offre × note globale —", aa$n_villes,
+                   "villes · taille = nombre d'annonces · Inside Airbnb juin 2026"),
+  ref_lines = "auto",
+  ref_x = mean(kpi$cr_offre_top10pct_pct, na.rm = TRUE),
+  ref_y = mean(kpi$actrv_note_glb, na.rm = TRUE),
+  mean_lines = FALSE)
+
+# Notes tassées sur 0,24 point : 1 décimale produit des graduations en doublon (4.8 / 4.8 / 4.8)
+p_note <- p_note + ggplot2::scale_y_continuous(
+  labels = function(v) formatC(v, format = "f", digits = 2, decimal.mark = ","),
+  expand = ggplot2::expansion(mult = c(0.06, 0.06)))
+
+# Droites de tendance par groupe — c'est ce qui DÉMONTRE le titre : l'effet superhôte est
+# invisible en nuage brut (axe y tassé sur 0,24 pt), il devient lisible comme l'écart
+# VERTICAL entre deux droites. Couleurs codées en dur : plot_scatter mappe les points sur
+# `fill` (scale_fill_manual) et n'expose pas d'échelle `colour` — un aes(colour=) ici
+# déclencherait la palette hue par défaut (rouge/turquoise) et jurerait avec la figure.
+# Pentes testées non significativement différentes (F = 0,41 ; p = 0,52) → parallèles.
+for (.g in c("Superhôtes : part faible" , "Superhôtes : part élevée")) {
+  p_note <- p_note + ggplot2::geom_smooth(
+    data = d_note[d_note$sh_class == .g, ],
+    mapping = ggplot2::aes(x = .data[["cr_offre_top10pct_pct"]],
+                           y = .data[["actrv_note_glb"]]),
+    inherit.aes = FALSE, method = "lm", formula = y ~ x, se = FALSE,
+    colour = if (.g == "Superhôtes : part élevée") col_cyan else col_orange,
+    linewidth = 0.9, alpha = 0.9)
+}
+
+log_scatter_auto("srpt08_scatter_conc_note", kpi,
+                 "cr_offre_top10pct_pct", "actrv_note_glb", "city_fr")
+render_girafe(p_note, width_svg = 9, height_svg = 5.5)
+```
+
+<div class="figure-source">Source : Inside Airbnb, juin 2026 · Couleur = part de superhôtes située au-dessus (bleu) ou en dessous (orange) de la médiane du panel · Droites = régressions linéaires par groupe · Lignes de référence = moyenne du panel</div>
+
+::: {.note-lecture}
+Lecture : l'amplitude des notes ne dépasse pas `r aa_note_amp` point sur l'ensemble du panel (de `r aa_note_v_bot` à `r aa_note_v_top` sur 5) — les écarts sont donc statistiquement nets mais faibles en valeur absolue, et l'axe vertical est fortement dilaté. C'est l'**écart entre les deux droites**, et non la position d'une ville isolée, qui porte le résultat. Précision méthodologique : le statut de superhôte intègre lui-même un seuil de note supérieure à 4,8 ; le lien entre part de superhôtes et note globale est donc en partie définitionnel. La relation entre concentration et note, elle, ne souffre pas de ce recouvrement.
+:::
+
+Cette bifurcation dessine une géographie. Les `r aa_na_n` villes nord-américaines atteignent la meilleure note médiane du panel (`r aa_na_ng`) **malgré** une concentration élevée (`r aa_na_cr` % de l'offre aux dix pour cent d'hôtes les plus actifs), portées par une densité de superhôtes de `r aa_na_sh` %. Les `r aa_se_n` villes d'Europe du Sud et de l'Est ferment la marche (`r aa_se_ng`) pour une concentration voisine (`r aa_se_cr` %) mais seulement `r aa_se_sh` % de superhôtes. L'Europe de l'Ouest et du Nord emprunte la troisième voie : concentration faible (`r aa_wn_cr` %), superhôtes rares (`r aa_wn_sh` %) et note médiane malgré tout supérieure à la moyenne (`r aa_wn_ng`) — Oslo y culmine à `r aa_oslo_ng` avec `r aa_oslo_cr` % de concentration et `r aa_oslo_sh` % de superhôtes seulement.
+
+### Dimensions : où les marchés se départagent-ils vraiment ?
+
+Les sept dimensions ne discriminent pas également. La communication et l'arrivée sont saturées — `r aa_com_amp` et `r aa_arr_amp` point d'amplitude sur l'ensemble du panel, pour un écart-type de `r aa_com_sd` — parce que la messagerie automatisée et les boîtes à clés ont standardisé ces deux moments partout. La **qualité-prix** ouvre à l'inverse un écart de `r aa_qp_amp` point entre `r aa_qp_t_top` (`r aa_qp_v_top`) et `r aa_qp_t_bot` (`r aa_qp_v_bot`), avec un écart-type de `r aa_qp_sd`, soit le double de la communication. C'est la seule dimension qui départage vraiment les marchés *(tableau ci-contre)*.
+
+```{r}
+#| label: srpt08-rt-heat-notes
+#| cache: false
+
+d_heat <- kpi |>
+  dplyr::arrange(dplyr::desc(actrv_note_glb)) |>
+  dplyr::transmute(city_fr, cd = as.character(cd), vol_n_ann,
+                   dplyr::across(dplyr::all_of(names(NOTE_COLS))))
+names(d_heat)[4:ncol(d_heat)] <- unname(NOTE_COLS)
+
+.pivot <- median(kpi$actrv_note_glb, na.rm = TRUE)
+log_table_auto("srpt08_heat_notes", d_heat)
+
+rt_heatmap(d_heat, id_col = "city_fr", value_cols = unname(NOTE_COLS),
+  mode = "diverging", center = .pivot, scale = "shared", cap = 0.14,
+  neutral_band = 0.02, curve = 1,
+  pal_pos = c(22, 150, 210),   # bleu Urban = au-dessus de la médiane mondiale
+  pal_neg = c(202, 88, 0),     # orange     = en dessous
+  decimals = 2, id_label = "Ville", id_width = 120, mw = 88, height = 460,
+  lead_cols = list(
+    cd        = rt_col_tag("Continent", w = 96),
+    vol_n_ann = .rt_col_vol(d_heat, "vol_n_ann", "Annonces", mw = 88)),
+  title = paste("La qualité-prix est la seule dimension qui départage les",
+                aa$n_villes, "marchés"),
+  subtitle = paste0("Notes voyageurs sur 7 dimensions, écart à la médiane mondiale (",
+                    aa_note_med, "/5) · échelle commune aux 7 colonnes · villes triées par note globale"),
+  footnote = paste0("Inside Airbnb, juin 2026 · Bleu = au-dessus de la médiane mondiale (",
+                    aa_note_med, "/5), orange = en dessous · échelle saturée à 0,14 point d'écart ",
+                    "(4,72 — 5,00) · Une colonne globalement orange signale une dimension ",
+                    "structurellement plus faible que les autres."))
+```
+
+Lu en colonnes plutôt qu'en lignes, le tableau ajoute un second niveau de lecture, et le contraste y est absolu. Dans les `r aa_qp_sous` villes du panel **sans une seule exception**, la qualité-prix est notée sous la note globale et la communication au-dessus : la première colonne vire à l'orange de haut en bas, la dernière reste bleue de haut en bas. La qualité-prix constitue même le point faible de la ville dans `r aa_qp_last` marchés sur `r aa$n_villes`, quand la communication en est le point fort dans `r aa_com_1st` et l'arrivée dans `r aa_arr_1st`. Le voyageur récompense partout la relation avec l'hôte et sanctionne partout le sentiment de payer trop cher — la hiérarchie entre marchés ne tient qu'à l'intensité de cette seconde sanction.
+
+### Qualité-prix : le tarif explique-t-il la déception ?
+
+[**Riga à `r aa_riga_px` € la nuit et Oslo à `r aa_oslo_px` € obtiennent la même note de qualité-prix**]{.insight}
+
+Le niveau de prix n'explique rien : entre le tarif médian du logement entier et la note de qualité-prix, la corrélation est nulle (`r aa_qp_r_px`). Riga, l'un des marchés les moins chers du panel, et Oslo, l'un des plus chers, obtiennent respectivement `r aa_riga_qp` et `r aa_oslo_qp` sur 5. La pression touristique n'explique pas davantage la déception, avec une corrélation tout aussi négligeable (`r aa_qp_r_prs`) — l'hypothèse intuitive du tourisme de masse qui dégraderait l'expérience ne résiste pas aux données.
+
+Le seul déterminant fort de la qualité-prix est la part de superhôtes, avec une corrélation positive de **`r aa_qp_r_sh`**, la plus élevée du panel entre une note et une variable de structure de marché. Le voyageur ne juge pas le montant payé, il juge l'écart entre ce qu'il a payé et ce qu'il a reçu ; et cet écart se creuse quand l'hôte cesse d'être un hôte pour devenir un gestionnaire. Les cinq marchés qui ferment le classement — `r aa_qp_bot5` — n'ont en commun ni le tarif ni la fréquentation : Singapour affiche la pression résidentielle la plus faible du panel, Lisbonne l'une des plus fortes. Ils partagent un modèle d'exploitation professionnalisé et une faible densité d'hôtes labellisés.
+
+Si la qualité perçue dépend d'abord du modèle d'exploitation, ces écarts recoupent-ils les familles de marchés que l'analyse multivariée fait émerger ?

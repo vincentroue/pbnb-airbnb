@@ -3,73 +3,30 @@
 <!-- Inclus dans rpt-pbnb-synth-monde.qmd (MAIN). Convention chunks : srpt00-* -->
 <!-- v1 — 2026-05-27. Extrait depuis MAIN lignes 24-192. -->
 
-# Partie 1 — Synthèse
+# Synthèse exécutive
 
 {{< include srpt/_srpt-monde-synthese.qmd >}}
 
-```{r}
-#| label: srpt00-kpi-syn-header
-#| cache: false
+<!-- Bloc KPI PARTAGÉ avec la synthèse autonome (4 tuiles kpi_tiles_synth + databar continentale).
+     Remplace l'ancien bandeau kpi_e2/kpi_band (données 2506 périmées, doublon des tuiles). 260820 -->
+{{< include srpt/_srpt-monde-kpi-synth.qmd >}}
 
-kpi_row(
-  kpi_e2("Périmètre",
-    list(
-      list(value = sprintf("%d", aa$n_villes), label = "villes"),
-      list(value = sprintf("%d", aa$n_pays), label = "pays"),
-      list(value = sprintf("%d", aa$n_continents), label = "continents"),
-      list(value = aa$n_total_km, label = "annonces actives"),
-      list(value = aa$n_hosts_km, label = "hôtes actifs")
-    )),
-  kpi_band("Pression",
-    value = aa$v_pression_med,
-    unit = "‰",
-    subtitle = "ann./1 000 hab. médiane",
-    top = sprintf("%s %s ▲", aa$t_top_pression, aa$v_top_pression),
-    bottom = sprintf("%s %s ▼", aa$t_bot_pression, aa$v_bot_pression)),
-  kpi_band("Professionnalisation",
-    value = aa$v_multi,
-    unit = "%",
-    subtitle = "annonces multi-loueurs (panel)",
-    top = "Adamiak 2022 : 59 % monde ▲",
-    bottom = sprintf("Tokyo > 85 %% · Copenhague %s %% ▼", aa$v_bot_multi))
-)
-```
+<!-- Les 8 messages, PARTAGÉS avec la synthèse autonome (source unique). La carte des clusters
+     qui les suit dans la synthèse est volontairement exclue : le rapport la porte en partie 8. -->
+{{< include srpt/_srpt-monde-messages.qmd >}}
 
-# Partie 2 — Cadrage et méthode
+# Cadrage et méthode
 
 ## Contexte : un marché en recomposition ?
 
-Le marché mondial d'Airbnb a connu une croissance quasi ininterrompue depuis sa création : passant de **140 millions de nuitées** en 2016 à **491 millions** en 2024 (Airbnb SEC filings), soit un quasi-triplement en huit ans.
+Le marché mondial d'Airbnb a connu une croissance quasi ininterrompue depuis sa création : passant de **140 millions de nuitées** en 2016 à **533 millions** en 2025 (Airbnb SEC filings), soit un quasi-quadruplement en neuf ans.
 
 <!-- ==&td== vv à reprendre pour rapport France/Europe (trop tourné Europe ici, à retirer ou requalifier en focus européen)
 En parallèle, les plateformes de **location courte durée** (LCD) ont totalisé **854 millions de nuitées** dans l'Union européenne en 2024 (Eurostat), Airbnb représentant la part dominante de ce marché — environ 28 % de l'hébergement touristique européen total.
 ==&td== -->
 
-```{r}
-#| label: srpt00-kpi-cadrage
-#| cache: false
-
-# Bandeau pleine largeur : kpi_e2 marché mondial + kpi_pareto_h concentration
-kpi_row(
-  kpi_e2("Marché mondial Airbnb",
-    list(
-      list(value = "8 M ann.",
-           label = "actives monde 2024 (<strong>▲ 43&nbsp;%</strong> en 5 ans)",
-           top = "Airbnb 10-K FY2024"),
-      list(value = "491 M",
-           label = "nuitées Airbnb 2024 (<strong>▲ 50&nbsp;%</strong> vs 2019)",
-           top = "Airbnb SEC filings"),
-      list(value = "59 %",
-           label = "annonces gérées par multi-loueurs (<strong>Adamiak 2022</strong>, 167 pays)",
-           top = "référence académique")
-    )),
-  kpi_pareto_h("Concentration de l'offre",
-    left_value = "15",  left_unit = "%",
-    left_label = "des hôtes<br>contrôlent",
-    right_value = "50", right_unit = "%",
-    right_label = "des annonces<br>(panel mondial)")
-)
-```
+<!-- Bandeau KPI cadrage RETIRÉ 260820 : doublon des tuiles de la synthèse exécutive (chiffres marché
+     mondial) + la « Concentration de l'offre » relevait de la partie Professionnalisation, pas du cadrage. -->
 
 ::: {.float-section}
 
@@ -91,10 +48,10 @@ ggplot(ctx_ab, aes(x = factor(year), y = airbnb_nights_world_M, fill = highlight
   scale_fill_manual(values = c("last" = col_cyan, "other" = col_spacegray)) +
   scale_y_continuous(expand = expansion(mult = c(0, 0.15))) +
   labs(title = "Nuit\u00e9es Airbnb monde (millions)",
-       subtitle = "Airbnb SEC filings \u00b7 2016-2024",
+       subtitle = "Airbnb SEC filings \u00b7 2016-2025",
        x = NULL, y = NULL) +
   theme(axis.text.y = element_blank(), axis.ticks.y = element_blank(),
-        panel.grid.major.y = element_blank(),
+        panel.grid = element_blank(),   # aucune ligne derrière les barres (260820)
         plot.title = element_text(size = 10),
         plot.subtitle = element_text(size = 8),
         axis.text.x = element_text(size = 8))
@@ -102,7 +59,7 @@ ggplot(ctx_ab, aes(x = factor(year), y = airbnb_nights_world_M, fill = highlight
 
 :::
 
-Le creux de 2020 (193 millions de nuitées, recul de 41 %) a été effacé dès 2022 (394 millions), et la croissance se poursuit à un rythme soutenu (hausse de 10 % en 2024). Cette pression touristique n'est pas un phénomène statique mais un processus en accélération, qui redistribue les cartes entre villes régulées et villes permissives. La professionnalisation l'accompagne : **59 %** des annonces gérées par des multi-loueurs selon Adamiak (2022) à l'échelle de 167 pays — un ratio que notre panel de `r aa$n_villes` villes confirme largement (médiane `r aa$v_multi` %).
+Le creux de 2020 (193 millions de nuitées, recul de 41 %) a été effacé dès 2022 (394 millions), et la croissance se poursuit à un rythme soutenu (hausse de 8,6 % en 2025, à 533 millions de nuitées). Cette pression touristique n'est pas un phénomène statique mais un processus en accélération, qui redistribue les cartes entre villes régulées et villes permissives. La professionnalisation l'accompagne : **59 %** des annonces gérées par des multi-loueurs selon Adamiak (2022) à l'échelle de 167 pays — un ratio que notre panel de `r aa$n_villes` villes confirme largement (médiane `r aa$v_multi` %).
 
 :::
 
@@ -114,9 +71,73 @@ Le creux de 2020 (193 millions de nuitées, recul de 41 %) a été effacé dès 
 
 ## Méthodologie, données et axes d'analyse
 
-Le rapport s'appuie sur le snapshot Inside Airbnb de juin 2026 — `r aa$n_total_km` annonces actives retenues après nettoyage sur `r aa$n_villes` villes de `r aa$n_pays` pays, soit environ 67 % des annonces brutes. Les prix sont convertis en euros au taux mi-2026 pour les 21 devises du panel, et les médianes prix portent exclusivement sur les **logements entiers** pour garantir la comparabilité entre marchés.
+Le rapport s'appuie sur le snapshot Inside Airbnb de juin 2026 — `r aa$n_total_km` annonces actives retenues après nettoyage sur `r aa$n_villes` villes de `r aa$n_pays` pays, soit près de 90 % des annonces brutes du périmètre. Les prix sont convertis en euros au taux mi-2026 pour les 21 devises du panel, et les médianes prix portent exclusivement sur les **logements entiers** pour garantir la comparabilité entre marchés.
 
 L'enjeu central du rapport — rendre les villes comparables malgré des périmètres administratifs hétérogènes (commune pour Paris, comté pour Los Angeles, province pour Istanbul) — est résolu par le calcul des ratios sur la **zone dense intra-périmètre Inside Airbnb** : polygones de densité supérieure ou égale à 1 500 habitants/km² (référentiel GHS-POP 2025). Numérateur et dénominateur portent ainsi sur le même polygone urbain, neutralisant le biais de découpage.
+
+Rapporté aux `r aa$cov$world_km` d'annonces recensées dans `r aa$cov$n_terr` territoires par Inside Airbnb, le panel en observe environ **`r aa$cov$monde_pct` %** — soit `r aa$cov$panel_brut` annonces avant nettoyage, la seule base comparable puisque le décompte mondial porte lui aussi sur le stock brut. Surtout, sa composition n'est pas neutre : centré sur les grandes métropoles occidentales sous pression touristique, il sur-représente l'Europe du Sud-Est (`r aa$cov$eurse_sur` points au-dessus de son poids mondial) et sous-représente l'Amérique latine (`r aa$cov$latam_sous` points en dessous), l'Asie et l'Afrique, réduites à quelques villes (couverture de `r aa$cov$asia_cov` % et `r aa$cov$africa_cov` %). L'Amérique du Nord et l'Europe de l'Ouest sont, elles, quasi calibrées sur le marché réel.
+
+```{r}
+#| label: srpt00-tbl-couverture
+#| echo: false
+
+cd_fr <- c("Europe South & East" = "Europe Sud-Est", "Oceania" = "Océanie",
+           "Europe West & North" = "Europe Ouest-Nord", "North America" = "Amérique du Nord",
+           "Africa" = "Afrique", "Asia" = "Asie", "Latin America" = "Amérique latine")
+
+# COMPARAISON BRUT À BRUT (260820). Le comptage mondial Inside Airbnb est un STOCK non nettoyé ;
+# on lui oppose donc nos volumes BRUTS (sp08c-volumes-bruts-panel), pas le panel après filtrage —
+# sinon on compare deux définitions et la couverture est mécaniquement sous-estimée.
+.brut <- read.csv(file.path(DATA_INTERIM, "panel-volumes-bruts-2606.csv"),
+                  encoding = "UTF-8", fileEncoding = "UTF-8-BOM")
+.wld  <- cov_cw[cov_cw$level == "continent_detail",
+                c("continent_detail", "n_pays", "n_listings", "share_global_pct")]
+cov_disp <- merge(.brut, .wld, by = "continent_detail")
+cov_disp$part_panel <- cov_disp$n_ann_brut / sum(cov_disp$n_ann_brut) * 100
+cov_disp$ecart      <- cov_disp$part_panel - cov_disp$share_global_pct
+cov_disp$couv       <- cov_disp$n_ann_brut / cov_disp$n_listings * 100
+cov_disp <- cov_disp[order(-cov_disp$ecart), ]
+cov_disp$continent_detail <- cd_fr[cov_disp$continent_detail]
+
+.tot <- data.frame(
+  continent_detail = "Ensemble", n_villes = sum(cov_disp$n_villes),
+  n_ann_brut = sum(cov_disp$n_ann_brut), n_ann_clean = sum(cov_disp$n_ann_clean),
+  retention_pct = NA,
+  # Totaux mondiaux pris sur la ligne `world` du CSV, PAS par somme des sous-continents :
+  # 1 territoire n'est rattaché à aucun sous-continent (223 vs 224 au total).
+  n_pays = n_world_terr, n_listings = n_world_listings,
+  share_global_pct = 100, part_panel = 100, ecart = NA,
+  couv = sum(cov_disp$n_ann_brut) / n_world_listings * 100)
+cov_disp <- rbind(cov_disp, .tot[names(cov_disp)])
+
+cov_disp <- cov_disp[, c("continent_detail", "n_villes", "n_ann_brut", "part_panel",
+                         "n_pays", "n_listings", "share_global_pct", "ecart", "couv")]
+names(cov_disp) <- c("Sous-continent", "Villes", "Annonces", "Part %",
+                     "Territoires", "Annonces ", "Part % ", "Écart (pts)", "Couverture %")
+
+gt_styled(cov_disp,
+  title = "L'échantillon sur-représente l'Europe du Sud-Est, sous-représente l'Amérique latine",
+  subtitle = "Volumes bruts (avant nettoyage) du panel comparés au stock mondial Inside Airbnb",
+  source = "Sources : Inside Airbnb, *The Threat of Short-Term Rentals to Housing* (Q4 2025, 224 territoires) · snapshots Inside Airbnb juin 2026 · calculs auteur") |>
+  gt::tab_spanner(label = "Panel d'étude", columns = c("Villes", "Annonces", "Part %")) |>
+  gt::tab_spanner(label = "Marché mondial — Inside Airbnb",
+                  columns = c("Territoires", "Annonces ", "Part % ")) |>
+  gt::fmt_number(columns = c("Annonces", "Annonces ", "Territoires", "Villes"),
+                 decimals = 0, sep_mark = " ") |>
+  gt::fmt_number(columns = c("Part %", "Part % ", "Écart (pts)", "Couverture %"),
+                 decimals = 1, dec_mark = ",") |>
+  gt::sub_missing(missing_text = "—") |>
+  gt::data_color(columns = "Écart (pts)",
+                 palette = c("#1696d2", "#ffffff", "#ca5800"), domain = c(-8.2, 8.2)) |>
+  gt::tab_style(style = gt::cell_text(weight = "bold"),                    # ligne Ensemble
+                locations = gt::cells_body(rows = nrow(cov_disp))) |>
+  gt::tab_style(style = gt::cell_borders(sides = "top", weight = gt::px(2), color = "#444"),
+                locations = gt::cells_body(rows = nrow(cov_disp)))
+```
+
+::: {.note-lecture}
+Les deux colonnes « Annonces » comptent des **stocks bruts**, avant tout nettoyage : le décompte mondial d'Inside Airbnb ne filtre ni les annonces sans prix, ni les indisponibles, une comparaison à notre panel filtré fausserait la couverture. Un **écart positif** (orange) signale une **sur-représentation** du sous-continent dans l'échantillon, négatif (bleu) une sous-représentation. « Couverture » = nos annonces rapportées au stock mondial du sous-continent. Le panel retient `r aa$n_total` annonces après nettoyage, soit près de 90 % de son volume brut.
+:::
 
 L'analyse est guidée par des hypothèses structurantes (méthodologie complète ci-dessous) et organisée en sept parties analytiques, chacune répondant à une famille de questions évaluatives :
 

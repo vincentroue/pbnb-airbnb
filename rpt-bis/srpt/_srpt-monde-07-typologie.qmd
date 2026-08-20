@@ -9,12 +9,10 @@
 
 La typologie se projette aussi sur la carte du monde : trois familles sont fortement ancrées dans une région, deux transcendent les continents.
 
-::: {.column-page}
-
 ```{r}
-#| label: srpt07-map-clusters
-#| fig-width: 13
-#| fig-height: 6
+#| label: srpt07-map-clusters-v2
+#| fig-width: 9
+#| fig-height: 5.4
 #| cache: false
 
 # Cluster par ville depuis le SNAPSHOT (indiv_df, déjà réordonné) + lat/lon (kpi MAIN).
@@ -39,14 +37,11 @@ p_clust <- build_world_map(.map_clust,
   color_levels = unname(CLUSTER_LABS), palette = CLUSTER_COLS,
   title = "Cinq familles de marchés Airbnb, trois ancrées géographiquement",
   subtitle = "76 villes · couleur = cluster ACP-HCPC, taille = annonces actives — Inside Airbnb juin 2026",
-  label_cities = .lab)
+  label_cities = .lab, legend_nrow = 2)   # 2 rangs : libellés longs coupés sinon
 
-ggiraph::girafe(ggobj = p_clust, width_svg = 13, height_svg = 6,
-  options = list(ggiraph::opts_sizing(rescale = TRUE),
-                 ggiraph::opts_toolbar(saveaspng = FALSE)))
+# render_girafe (et non girafe brut) : pose le CSS tooltip Inter + prune les polices (conv projet).
+render_girafe(p_clust, width_svg = 9, height_svg = 5.4)
 ```
-
-:::
 
 <div class="figure-source">Source : ACP+HCPC config B (76 villes, k=5) · coordonnées city-reference-airbnb · Inside Airbnb juin 2026</div>
 

@@ -1,0 +1,91 @@
+<!-- _srpt-monde-kpi-synth.qmd -->
+<!-- Bloc PARTAGE : 4 tuiles KPI (kpi_tiles_synth) + databar continentale.
+     Inclus par la SYNTHESE autonome ET par le RAPPORT (via _srpt-monde-00-intro).
+     Pas de titre ici : chaque MAIN pose son propre H1. Convention chunks : srpt00b-* -->
+<!-- v1 — 2026-08-20. Extrait de rpt-pbnb-synth-monde.qmd lignes 59-144. -->
+
+```{r}
+#| label: srpt00b-kpi-tiles
+#| cache: false
+
+# Blueprint KPI v4 (260719) : titre court, sous-titre prix viré, +densité monde 10k hab (CSV pays),
+# revenu = moyenne monde estimée, tooltips ville ET pays (bouton "détail"). formatC = pas de backslash.
+cty <- tryCatch(read.csv(file.path(DATA_EXTERNAL, "bnb-inside-study-full-country.csv"),
+                         encoding = "UTF-8", stringsAsFactors = FALSE), error = function(e) NULL)
+world_10k <- if (!is.null(cty)) {
+  cd <- cty[cty$listings_per_10k_hab > 0, ]; cd$pop <- cd$n_listings / cd$listings_per_10k_hab * 1e4
+  round(sum(cd$n_listings) / sum(cd$pop) * 1e4, 1)
+} else 13.7
+v_priv <- round(median(kpi$px_private_med,   na.rm = TRUE))
+v_pp   <- round(median(kpi$px_entire_pp_med, na.rm = TRUE))
+v_rev  <- round(mean(kpi$act_revenu_med,     na.rm = TRUE))   # moyenne monde estimée
+ev_multi <- round(weighted.mean(kpi$cr_offre_1plus, kpi$vol_n_ann, na.rm = TRUE) -
+                  weighted.mean(kpi$cr_offre_1plus_25, kpi$vol_n_ann, na.rm = TRUE), 1)
+
+# binders locaux (data-bound) vers le moteur générique kpi_tip_top_bottom() du canonical jcn-rpt-kpi.R.
+# kpi_tiles_synth / kcat / kpi_evo sont désormais dans jcn-rpt-kpi.R (déjà sourcé).
+tip <- function(col, u = "%", pal = "#6aa9d6", big = FALSE, dg = 1)
+  kpi_tip_top_bottom(kpi, col, "city_fr", pal, u, big, dg, 8, "Top 8 villes", "Bottom 8 villes")
+tip_cty <- function(col, u = "", pal = "#ca5800") {
+  if (is.null(cty)) return("")
+  kpi_tip_top_bottom(cd, col, "country", pal, u, FALSE, 1, 8, "Top 8 pays", "Bottom 8 pays")
+}
+
+kpi_row(
+  kpi_tiles_synth(kcat("globe-americas", "Périmètre analyse · 06 2026"), list(
+    list(value = aa$n_total_km, label = sprintf("<strong>annonces</strong> actives&nbsp;&nbsp;%s", kpi_evo(aa$v_ann_evol))),
+    list(value = aa$n_hosts_km, label = sprintf("<strong>hôtes</strong> actifs&nbsp;&nbsp;%s", kpi_evo(aa$v_host_evol))),
+    list(value = sprintf("%d", aa$n_villes), label = sprintf("villes · %d pays", aa$n_pays)),
+    list(value = sprintf("%d&nbsp;%%", aa$v_couverture_pct), label = "de l'offre mondiale")
+  )),
+  kpi_tiles_synth(kcat("buildings", "Professionnalisation"), list(
+    list(value = sprintf("%s&nbsp;%%", aa$v_hosts50), label = sprintf("des hôtes détiennent <strong>50 %%</strong> de l'offre&nbsp;&nbsp;%s", tip("cr_hosts_offre50_pct", "%", "#8c4a5a"))),
+    list(value = sprintf("%d&nbsp;%%", aa$v_multi), label = sprintf("de l'offre en multi-loueurs&nbsp;&nbsp;%s&nbsp;%s", kpi_evo(ev_multi, "pt", ref = NULL), tip("cr_offre_1plus", "%", "#1696d2"))),
+    list(value = sprintf("%d&nbsp;%%", aa$v_entire), label = sprintf("logements entiers&nbsp;&nbsp;%s&nbsp;%s", kpi_evo(aa$v_entire_evol, "pt", ref = NULL), tip("str_entire_pct", "%", "#55b748")))
+  )),
+  kpi_tiles_synth(kcat("currency-euro", "Prix médian / nuit et revenu"), list(
+    list(value = sprintf("%s&nbsp;€", aa$v_prix_med), label = sprintf("logement entier <em style='color:#9a9a9a;font-size:.86em'>· %s €/pers</em>&nbsp;&nbsp;%s", v_pp, tip("px_entire_med", " €", "#8c6a3f", dg = 0))),
+    list(value = sprintf("%s&nbsp;€", v_priv), label = sprintf("chambre privée&nbsp;&nbsp;%s", tip("px_private_med", " €", "#8c6a3f", dg = 0))),
+    list(value = sprintf("%s&nbsp;€", .fn(v_rev)), label = sprintf("revenu estimé / an&nbsp;&nbsp;%s", tip("act_revenu_med", " €", "#8c6a3f", big = TRUE)))
+  )),
+  kpi_tiles_synth(kcat("house-door", "Pression résidentielle"), list(
+    list(value = sprintf("%s", aa$v_pression_med),
+         label = sprintf("annonces / 1 000 hab. zone dense&nbsp;&nbsp;%s", tip("prs_listings_1000hab_dense", "‰", "#ca5800"))),
+    list(value = sprintf("%s", formatC(world_10k, format = "f", digits = 1, decimal.mark = ",")),
+         label = sprintf("annonces / 10 000 hab. — monde 224 pays&nbsp;&nbsp;%s", tip_cty("listings_per_10k_hab")))
+  ))
+)
+```
+
+::: {.kpi-fieldset}
+[Métriques clés par région]{.kpi-ft-title}
+
+```{r}
+#| label: srpt00b-kpi-databar
+#| fig-width: 10
+#| fig-height: 2.6
+#| out-width: "100%"
+#| cache: false
+
+# Databar continentale sous les 4 KPI (helper rapport + évol 25->26 + réf monde pointillée).
+# Palette = CD_COLS_SYNTH (_helpers-monde-srpt.R) — partagée avec les small multiples du rapport.
+SYNTH_CD_COLS <- CD_COLS_SYNTH
+plot_cd_bars_agg(
+  c("vol_n_ann", "cr_offre_1plus", "str_entire_pct", "prs_listings_1000hab_dense"),
+  ncol_wrap = 4,
+  evol = c("vol_n_ann_vevol_2526", "cr_offre_1plus_vdifp_2526",
+           "str_entire_pct_vdifp_2526", "prs_listings_1000hab_dense_vevol_2526"),
+  palette = SYNTH_CD_COLS,
+  world_ref = c(vol_n_ann = NA,
+                cr_offre_1plus = as.numeric(kpi_world$cr_offre_1plus),
+                str_entire_pct = as.numeric(kpi_world$str_entire_pct),
+                prs_listings_1000hab_dense = as.numeric(kpi_world$prs_listings_1000hab_dense)),
+  strip_labels = c("Annonces actives", "% multi-loueurs", "% logements entiers", "Annonces / 1 000 hab.
+en zone dense"),
+  evol_below = TRUE, bar_width = 0.72, grid_x = FALSE, alpha = 0.82,
+  strip_size = 10.5, lab_size = 2.8, dec = c(1, 1, 0, 1))
+```
+
+<div class="figure-source">Par continent (nos données) — évolution 2025→2026 : <span style='color:#7a3b47;font-weight:600'>bordeaux = hausse</span>, <span style='color:#26506f;font-weight:600'>bleu = baisse</span> · pointillé « monde » = moyenne mondiale. Source : Inside Airbnb, juin 2026.</div>
+
+:::

@@ -25,13 +25,23 @@ source("_setup-common.R")
 source("_data-load.R")
 source("_helpers-monde-srpt.R")
 
+# Bilan ACP DÉCOUPLÉ : snapshot produit par rpt-pbnb-acpnbk-monde.qmd
+# (pca, hcpc, indiv_df, dim_names, cluster_names, aa_n_actives, aa_n_bestk, aa_v_sil…).
+# Chargé DÈS LE SETUP (260820) : les 8 messages de la synthèse exécutive citent la typologie,
+# ils s'affichent donc bien avant la partie 8 où ce chargement se trouvait auparavant.
+JCN <- "C:/Users/vince/hh/pq/PDS/mutils/jrr"
+source(file.path(JCN, "jcn-all.R"))
+source(file.path(JCN, "jcn-dml-acp-plots.R"))
+source(file.path(JCN, "jcn-dml-hcpc-typo.R"))
+list2env(readRDS("data/rsl/acp-bilan-snapshot.rds"), environment())
+
 claude_log_init("rapport-monde-v2")
 log_aa_vars(aa)  # Dump aa$* dans le JSON — source unique pour Pass 2 narration
 ```
 
 {{< include srpt/_srpt-monde-00-intro.qmd >}}
 
-# Partie 3 — Analyse comparée
+# Analyse comparée
 
 ## 1. Portrait mondial de l'activité
 
@@ -57,31 +67,21 @@ log_aa_vars(aa)  # Dump aa$* dans le JSON — source unique pour Pass 2 narratio
 
 {{< include srpt/_srpt-monde-06-regulation.qmd >}}
 
-## 7. Typologie : 5 familles de marchés Airbnb
+## 7. Qualité perçue : ce que notent les voyageurs
 
-```{r}
-#| label: load-acp-bilan
-#| include: false
-#| cache: false
+{{< include srpt/_srpt-monde-08-qualite.qmd >}}
 
-# Bilan ACP DÉCOUPLÉ : on charge le snapshot produit par rpt-pbnb-acpnbk-monde.qmd
-# (pca, hcpc, indiv_df, dim_names, cluster_names, aa_*…) — zéro recompute ACP ici.
-JCN <- "C:/Users/vince/hh/pq/PDS/mutils/jrr"
-source(file.path(JCN, "jcn-all.R"))
-source(file.path(JCN, "jcn-dml-acp-plots.R"))
-source(file.path(JCN, "jcn-dml-hcpc-typo.R"))
-list2env(readRDS("outputs/acp-bilan-snapshot.rds"), environment())
-```
+## 8. Typologie : 5 familles de marchés Airbnb
 
 {{< include _00-bilanacp.qmd >}}
 
 {{< include srpt/_srpt-monde-07-typologie.qmd >}}
 
-# Partie 4 — Annexes
+# Annexes
 
 ## Glossaire des indicateurs
 
-Le dictionnaire complet des 82 indicateurs (sept familles thématiques : volumes, structure, prix, concentration, pression, activité, contexte) est disponible dans le [glossaire dédié](_glossaire-indicateurs.html). Les trois indicateurs phares — part de logements entiers, part de longue durée (proxy régulation), pression résidentielle en zone dense — sont détaillés dans la Partie 2 (encadré FOCUS).
+Le dictionnaire complet des 82 indicateurs (sept familles thématiques : volumes, structure, prix, concentration, pression, activité, contexte) est disponible dans le [glossaire dédié](_glossaire-indicateurs.html). Les trois indicateurs phares — part de logements entiers, part de longue durée (proxy régulation), pression résidentielle en zone dense — sont détaillés dans le cadrage (encadré FOCUS).
 
 ## Méthodologie détaillée
 
