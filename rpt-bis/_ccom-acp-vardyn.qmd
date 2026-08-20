@@ -33,7 +33,7 @@ dim_comments <- c(
 # Config C finale (260721) : 6 actives (densité, entiers, min-nuits, concentration,
 # superhost, avis), k=5. Tailles 26/25/14/8/3. Noms alignés sur les v-test réels.
 cluster_names <- c(
-  "1" = "marchés professionnalisés actifs",
+  "1" = "marchés à superhôtes très actifs",
   "2" = "tourisme patrimonial court-terme",
   "3" = "grandes métropoles régulées",
   "4" = "amateurs Europe Ouest-Nord",
@@ -41,7 +41,7 @@ cluster_names <- c(
 )
 # Phrases CLÉS métier (1 par cluster — injectées en tête de chaque bulle) :
 cluster_comments <- c(
-  "1" = "Les marchés les plus actifs et professionnalisés — superhôtes et volume d'avis au plus haut, logements entiers de grande capacité — mais dans des villes au PIB et à la densité de population plus modérés. Métropoles régionales nord-américaines et villes européennes matures (Seattle, Prague, Portland, Budapest, San Diego, Athènes, Florence).",
+  "1" = "Les marchés les plus actifs et les mieux tenus — superhôtes et volume d'avis au plus haut, logements entiers de grande capacité — mais dans des villes au PIB et à la densité de population plus modérés. La concentration de l'offre n'y est pas particulièrement forte : c'est la qualité de gestion, pas la structure de propriété, qui les distingue. Métropoles régionales nord-américaines et villes européennes matures (Seattle, Prague, Portland, Budapest, San Diego, Athènes, Florence).",
   "2" = "Grandes destinations touristiques patrimoniales — proximité de sites classés, offre orientée courte durée, professionnalisation seulement moyenne. Le cœur des métropoles touristiques mondiales établies (Paris, Londres, Rome, Milan, Lisbonne, Vienne, Sydney).",
   "3" = "Grandes métropoles à forte part de longue durée et offre concentrée sur des professionnels, mais faible densité Airbnb et peu de logements entiers — signature des marchés sous régulation (Barcelone, Berlin, San Francisco, Boston, Madrid, Istanbul, Los Angeles).",
   "4" = "Marchés d'hôtes occasionnels — offre peu concentrée, peu de superhôtes, peu d'avis. Cœur amateur d'Europe de l'Ouest et du Nord (Amsterdam, Copenhague, Oslo, Stockholm, Munich, Genève).",

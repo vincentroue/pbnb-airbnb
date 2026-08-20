@@ -32,6 +32,8 @@ kpi_row(
 
 Cette partie examine trois dimensions de la professionnalisation : le **ratio annonces par hôte** (proxy de gestion multi-biens), la **part des super-professionnels** (≥ 10 annonces, opérateurs commerciaux purs) et la **concentration au sommet** (CR10, part des 10 premiers hôtes par ville).
 
+La professionnalisation s'entend ici au sens **structurel** — qui détient l'offre — et non au sens de la qualité de gestion. Le label superhôte, qu'on associe spontanément au professionnalisme, mesure tout autre chose : il récompense la tenue du logement et la fiabilité de l'accueil. Les deux sont statistiquement **indépendants** dans le panel (corrélation de 0,13, non significative) : Hong Kong et Singapour confient plus de 70 % de leur offre à des opérateurs professionnels pour seulement 14 % de superhôtes, quand Tokyo cumule les deux. Le label superhôte est donc traité avec la qualité perçue, en Partie 7.
+
 ::: {.cld-ctx}
 **La fin de l'économie collaborative — taxonomie Adamiak (2022).** L'étude de référence sur 167 pays établit en 2019 une répartition en 4 profils croisant type de logement (chambre / logement entier) et statut (mono- / multi-hôtes) : **multi-homes 41,5 %** (logements entiers gérés par multi-hôtes), **single-homes 33,2 %**, **multi-rooms 17,5 %**, **single-rooms 7,9 %** — le concept originel d'Airbnb réduit à moins d'une annonce sur 12. Dynamique 2018-2019 : hausse de **22,6 %** des annonces mondiales, portée à 30,5 % pour les multi-homes — l'accélération est continue.
 
