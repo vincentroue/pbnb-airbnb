@@ -134,3 +134,14 @@ dashboard/.observablehq/
 yviz/
 *.pdf
 data/_cache_acp/
+
+# --- Artefacts de travail : hors vitrine publique ---
+*_BACKUP_*
+*.bak
+*.bak-*
+_TODO*
+_relecture*
+_analyses_agents*
+_meta-context*
+_note_transversale*
+test-callout*
