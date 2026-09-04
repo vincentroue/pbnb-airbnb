@@ -8,7 +8,12 @@ En quinze ans, Airbnb est passé du complément économique au concurrent direct
 ```{r}
 #| label: srpt05-calc
 #| include: false
+#| cache: false
 
+# ⚠️ cache:false OBLIGATOIRE — ce chunk MUTE l'objet global `aa`. Un chunk caché qui modifie un
+# objet global fait restaurer par knitr l'objet ENTIER dans l'état où il était à l'écriture du
+# cache : toute la prose `aa$*` en aval repart alors sur des données périmées, SANS erreur.
+# (Diagnostiqué 260831 : pression BAB affichée 48,1 ‰ au lieu de 53,4 ‰ après refonte du CSV.)
 aa$v_ratio_ann_hote_med <- round(median(kpi$str_ratio_ann_hote, na.rm = TRUE), 1)
 aa$t_top_ratio <- kpi$city_fr[which.max(kpi$str_ratio_ann_hote)]
 aa$v_top_ratio <- round(max(kpi$str_ratio_ann_hote, na.rm = TRUE), 1)

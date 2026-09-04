@@ -353,9 +353,9 @@ export function createScatterWithZoom(config) {
     const w = Math.max(300, container.clientWidth - 8);
     const h = Math.max(300, container.clientHeight - 8);
 
-    // Clear old content but keep controls
-    const oldSvg = container.querySelector("svg");
-    if (oldSvg) oldSvg.remove();
+    // Clear old plot (Plot.plot returns <figure> when legend:true, or <svg> otherwise)
+    const oldPlot = container.querySelector("figure") || container.querySelector("svg");
+    if (oldPlot) oldPlot.remove();
 
     const svg = renderScatter({
       ...config,
@@ -373,14 +373,16 @@ export function createScatterWithZoom(config) {
 
     container.insertBefore(svg, ctrlDiv);
 
-    // Attach wheel + pan events to the SVG
-    svg.addEventListener("wheel", onWheel, {passive: false});
-    svg.addEventListener("mousedown", onPanStart);
-    svg.style.cursor = "grab";
+    // Attach wheel + pan events to the plot element (figure or svg)
+    const plotEl = svg.tagName === "FIGURE" ? svg : svg;
+    plotEl.addEventListener("wheel", onWheel, {passive: false});
+    plotEl.addEventListener("mousedown", onPanStart);
+    plotEl.style.cursor = "grab";
   }
 
   function onWheel(e) {
     e.preventDefault();
+    e.stopPropagation();
     const factor = e.deltaY < 0 ? 1 / ZOOM_STEP : ZOOM_STEP;
     const newZoom = Math.max(1, Math.min(MAX_ZOOM, zoomLevel * (1 / factor)));
     if (newZoom === zoomLevel) return;

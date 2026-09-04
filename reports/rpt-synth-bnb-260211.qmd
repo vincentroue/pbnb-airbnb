@@ -32,7 +32,7 @@ main h3 { color: #1696d2; }
 #| include: false
 
 library(reticulate)
-use_python("C:/ScoopApps/apps/python/current/python.exe", required = TRUE)
+use_python("C:/Users/vince/AppData/Local/Programs/Python/Python312/python.exe", required = TRUE)
 source("C:/Users/vince/hh/pq/PDS/mutils/jrr/jcn-table.R")
 ```
 

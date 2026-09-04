@@ -41,10 +41,13 @@ PER = SNAP_REF[:2] + SNAP_CUR[:2]   # "2526"
 # PRIX + REVENU EXCLUS de l'évolution : cassés par le changement de méthode Inside Airbnb 2026
 # (price base->devis daté ; act_revenu_med = occupation x prix). Cf reference_inside_airbnb_price_total_display.
 # (px_med, px_entire_med, act_revenu_med retirés le 2026-07-17)
-VEVOL = ["vol_n_ann", "vol_n_hotes", "str_ratio_ann_hote", "act_reserv_j_med", "actrv_avis_mois"]
+# prs_listings_1000hab_dense inclus (2506 recompté base actuelle via sp08d --snapshot 25-06,
+# puis KPI 2506 dense patché) -> évol dense propre. Berlin proxy -> NA (is_proxy).
+VEVOL = ["vol_n_ann", "vol_n_hotes", "str_ratio_ann_hote", "act_reserv_j_med", "actrv_avis_mois",
+         "prs_listings_1000hab_dense"]
 VDIFP = ["str_entire_pct", "str_minnuits30_pct", "cr_host_single_pct", "cr_host_pro_pct",
          "cr_offre_top10pct_pct", "act_reserv_taux", "act_superhost_pct",
-         "str_instantbook_pct", "cr_host_1plus"]
+         "str_instantbook_pct", "cr_host_1plus", "cr_offre_1plus"]
 VABS = ["cr_gini"]
 PRICE_COLS = ["px_med", "px_entire_med", "act_revenu_med"]  # -> NA si price_invalid
 # &e

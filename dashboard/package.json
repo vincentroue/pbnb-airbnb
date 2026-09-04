@@ -1,0 +1,12 @@
+{
+  "name": "pbnb-dashboard",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "observable preview",
+    "build": "observable build"
+  },
+  "devDependencies": {
+    "@observablehq/framework": "^1.13.3"
+  }
+}

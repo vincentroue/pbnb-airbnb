@@ -76,13 +76,24 @@ export function buildDataTable(container, data, config) {
     stats[k] = {max, mean, std: Math.sqrt(variance), p02, p98};
   }
 
-  // Build toolbar
+  // Build toolbar with fullscreen toggle
   container.innerHTML =
     '<div class="t-toolbar">' +
     '<input placeholder="Filtrer...">' +
     '<span class="info"></span>' +
+    '<button class="t-fs-btn" title="Plein \u00e9cran">\u26f6</button>' +
     '</div>' +
     '<div class="t" style="max-height:' + maxHeight + 'px;overflow-y:auto;overflow-x:auto;"></div>';
+
+  const fsBtn = container.querySelector(".t-fs-btn");
+  if (fsBtn) {
+    fsBtn.addEventListener("click", () => {
+      const isFs = container.classList.toggle("t-fullscreen");
+      const tb = container.querySelector(".t");
+      if (tb) tb.style.maxHeight = isFs ? "calc(100vh - 80px)" : maxHeight + "px";
+      fsBtn.textContent = isFs ? "\u2716" : "\u26f6";
+    });
+  }
 
   let sortCol = defaultSort;
   let sortAsc = config.defaultAsc || false;

@@ -11,3 +11,7 @@
 # Dev / temp
 /dev/
 /ytest/
+
+# Backups version pré-refonte
+**/*-OLD-*.qmd
+**/*-OLD-*

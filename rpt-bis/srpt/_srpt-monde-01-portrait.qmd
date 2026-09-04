@@ -54,6 +54,11 @@ render_girafe(p_combined, width_svg = 9.5, height_svg = 4.6)
 ```{r}
 #| label: srpt01-calc-cd-vars
 #| include: false
+#| cache: false
+
+# ⚠️ cache:false OBLIGATOIRE — ce chunk MUTE l'objet global `aa` (cf. même garde dans srpt05-calc).
+# Un chunk caché qui modifie un objet global fait restaurer par knitr l'objet ENTIER tel qu'il était
+# à l'écriture du cache → toute la prose `aa$*` en aval repart sur des données périmées, sans erreur.
 
 # Variables narratives continent_detail (source kpi_cd_agg)
 cd_agg_val <- function(v, cd_fr) {

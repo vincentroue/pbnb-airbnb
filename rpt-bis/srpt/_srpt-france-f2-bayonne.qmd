@@ -1,0 +1,73 @@
+<!-- _srpt-france-f2-bayonne.qmd -->
+<!-- Focus territorial : Bayonne. Inclus dans rpt-pbnb-rapport-france.qmd (partie Focus). -->
+<!-- Chunks : focbay-* · v1 — 2026-08-28 -->
+<!-- PORTABLE (pterr) : dépendances = _setup-common.R (jcn-all), _data-load-france.R -->
+<!-- (kpi_fr_city, kpi_fr_iris, kpi_fr_pays, load_iris_geo, naf/nint), _helpers-france-srpt.R -->
+<!-- (blocs IRIS_FOCUS et FOCUS_COMMUNE). Aucune variable du MAIN requise. -->
+
+```{r}
+#| label: focbay-vars
+#| include: false
+#| cache: false
+
+.fy  <- focus_city_row("bayonne")
+.gy  <- load_iris_commune("bayonne")
+.dy  <- sf::st_drop_geometry(.gy)
+
+ay_n_ann    <- nint(.fy$vol_n_ann)
+ay_v_evol   <- naf(.fy$vol_n_ann_vevol_2526, 1)
+ay_v_px     <- naf(.fy$px_entire_med, 0)
+ay_v_press  <- naf(.fy$prsf_listings_1000rps, 0)
+ay_v_multi  <- naf(.fy$cr_offre_1plus, 0)
+ay_v_pro10  <- naf(.fy$cr_offre_10plus, 0)
+ay_v_rev    <- nint(.fy$act_revenu_med)
+ay_v_cal    <- naf(.fy$act_cal_ouvert_med, 0)
+ay_v_rp_pct <- naf(.fy$rp / .fy$logements * 100, 0)
+ay_v_rs_pct <- naf((.fy$logements - .fy$rp - .fy$log_vacants) / .fy$logements * 100, 1)
+ay_n_pop    <- nint(.fy$pop)
+ay_v_press_bdx <- naf(bordeaux_fr$prsf_listings_1000rps, 0)
+
+.ty <- .dy[order(-.dy$prsf_listings_1000rps), ]
+ay_t_iris1 <- .ty$nom_iris[1]; ay_v_iris1 <- naf(.ty$prsf_listings_1000rps[1], 0)
+ay_t_iris2 <- .ty$nom_iris[2]; ay_v_iris2 <- naf(.ty$prsf_listings_1000rps[2], 0)
+ay_v_iris3 <- naf(.ty$prsf_listings_1000rps[3], 0)
+ay_v_med   <- naf(median(.dy$prsf_listings_1000rps, na.rm = TRUE), 0)
+```
+
+### Bayonne : la ville ordinaire d'une agglomération touristique
+
+[**Même agglomération, même régulation — mais `r ay_v_press` annonces pour 1 000 logements occupés, deux fois moins qu'à Biarritz**]{.insight}
+
+Bayonne est le contre-exemple qui éclaire sa voisine. La ville-centre de l'agglomération compte `r ay_n_ann` annonces actives pour `r ay_n_pop` habitants — une pression de `r ay_v_press` pour 1 000 logements occupés, un cran au-dessus de Bordeaux (`r ay_v_press_bdx`) mais sans commune mesure avec le littoral. La raison est dans le parc : `r ay_v_rp_pct` % de résidences principales, `r ay_v_rs_pct` % de résidences secondaires seulement — moins qu'à Bordeaux ou Lyon. Bayonne n'a pas de stock de villégiature à basculer en location touristique ; son marché Airbnb est un **usage d'appoint du parc habité**, à `r ay_v_px` € la nuit, avec un calendrier ouvert `r ay_v_cal` jours par an en médiane et un revenu estimé de `r ay_v_rev` € — quasi moitié de celui de Biarritz sur les trois indicateurs.
+
+```{r}
+#| label: focbay-kpi
+#| cache: false
+
+focus_kpi_row("bayonne")
+```
+
+La géographie interne est l'inverse de celle de Biarritz : **concentrée, pas saturée** *(cartes ci-contre)*. La tension se loge dans le centre historique — `r ay_t_iris1` (`r ay_v_iris1` annonces pour 1 000 logements occupés) et le `r ay_t_iris2` (`r ay_v_iris2`) — puis chute d'un facteur deux dès qu'on quitte les quais de la Nive : le troisième quartier tombe à `r ay_v_iris3`, et la médiane communale s'établit à `r ay_v_med`. C'est une tension de patrimoine, portée par les rues du vieux Bayonne, là où celle de Biarritz est une tension de littoral qui couvre toute la commune.
+
+```{r}
+#| label: focbay-maps
+#| cache: false
+
+log_map_auto("focbay_pression", "prsf_listings_1000rps", .dy, "nom_iris")
+log_map_auto("focbay_pro", "cr_offre_1plus_ville", .dy, "nom_iris")
+focus_duo_maps("bayonne", geo = .gy)
+```
+
+<div class="figure-source">Source : Inside Airbnb, juin 2026 · INSEE RP 2022 · Échelle de couleur propre à la commune · Survol pour le détail, molette pour zoomer · Projection Lambert 93</div>
+
+L'offre bayonnaise reste un marché de particuliers : `r ay_v_multi` % seulement relève de multi-hôtes et `r ay_v_pro10` % d'opérateurs à dix annonces ou plus — les taux les plus bas du panel français avec Anglet. Et alors que la compensation sur le changement d'usage s'applique ici comme à Biarritz depuis 2023, l'offre progresse encore de `r ay_v_evol` % en un an : la contrainte ne mord pas un marché qui ne repose ni sur la villégiature ni sur l'investissement locatif dédié. Bayonne montre en creux ce que la régulation atteint — le stock touristique professionnalisable — et ce qu'elle n'atteint pas.
+
+```{r}
+#| label: focbay-rt-iris
+#| cache: false
+
+log_table_auto("focbay_iris", .dy)
+focus_top_iris("bayonne", geo = .gy,
+  title = "La tension bayonnaise tient dans deux quartiers : le centre historique et le Petit Bayonne",
+  subtitle = "17 IRIS, triés par pression — Inside Airbnb juin 2026 · INSEE RP 2022")
+```

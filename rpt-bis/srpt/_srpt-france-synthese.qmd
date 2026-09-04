@@ -1,0 +1,132 @@
+<!-- _srpt-france-synthese.qmd -->
+<!-- Bloc « En synthèse » PARTAGÉ (accroche EXEC) : destiné au RAPPORT France (via srpt-00) -->
+<!-- ET à la SYNTHÈSE France autonome. Source unique. Consomme aa_fr$* (tout dynamique). -->
+<!-- Pas de YAML, pas de # H1. v1 — 2026-07-18. -->
+
+::: {.synth-wrap}
+
+## En synthèse {.synth-title}
+
+::: {.synth-accroche}
+
+Avec **`r aa_fr$n_total` annonces actives** réparties entre Paris, Lyon, Bordeaux et le corridor basque Biarritz·Anglet·Bayonne, les six marchés français analysés comptent parmi les plus tendus d'Europe. La France est le **2ᵉ marché mondial** d'Airbnb en volume, derrière les États-Unis. Cette synthèse confronte d'abord ces marchés à **`r aa_fr$n_eu_bench` villes de six pays européens**, puis descend à la maille IRIS — environ 2 000 habitants — pour **`r aa_fr$n_iris` quartiers**. Elle interroge trois dimensions :
+
+- **La France dans l'Europe** — où se situent les marchés français en pression, prix et professionnalisation ?
+- **Six marchés, trois profils** — qu'est-ce qui sépare Paris, le Pays Basque et le duo Lyon-Bordeaux ?
+- **Pression infraterritoriale** — où, dans la ville, l'offre touristique se substitue-t-elle au logement ?
+
+**Ce que montre l'analyse.** Trois régimes se dégagent. **Paris** domine en volume — `r aa_fr$paris_n` annonces, 2ᵉ rang européen derrière Londres — et en prix (`r aa_fr$paris_prix` €/nuit). **Le Pays Basque** bascule dans la saturation : Biarritz atteint **`r aa_fr$biarritz_rp` annonces pour 1 000 résidences principales**, record du panel français, sans flambée tarifaire. **Lyon et Bordeaux** forment un duo intermédiaire, aux prix et pressions plus modérés. La **professionnalisation française reste contenue** — `r aa_fr$fr_multi` % de l'offre est gérée par des multi-loueurs, contre `r aa_fr$eu_multi_med` % en médiane européenne et plus de 70 % dans les villes espagnoles. À l'échelle fine, la pression se concentre sur le cœur historique des villes, laissant les périphéries en retrait.
+
+:::
+:::
+
+## L'essentiel en chiffres
+
+```{r}
+#| label: srptfr-exec-kpi
+#| cache: false
+
+# Aligné sur la synthèse monde (_srpt-monde-kpi-synth.qmd, 260820) : on passe des 4 `kpi_band`
+# plats de la v1 aux TUILES `kpi_tiles_synth` du canonical jcn-rpt-kpi.R — une icône + une
+# catégorie par tuile, PLUSIEURS lignes par tuile, pastille d'évolution 25→26 et tooltip
+# top/bottom au survol. Même grammaire visuelle que le monde, données France.
+.fp <- kpi_fr_pays
+.ev <- function(col) {
+  v <- .fp[[col]]
+  if (is.null(v) || length(v) == 0) NA_real_ else round(as.numeric(v[1]), 1)
+}
+.v  <- function(col, dg = 0) {
+  x <- .fp[[col]]
+  if (is.null(x) || length(x) == 0 || is.na(x[1])) "—"
+  else formatC(round(as.numeric(x[1]), dg), big.mark = " ", format = "f", digits = dg,
+               decimal.mark = ",")
+}
+
+# Binder local (data-bound) vers le moteur générique kpi_tip_top_bottom() du canonical.
+# Panel de référence = les 23 villes EUROPÉENNES comparables, pas les 6 françaises : avec
+# 6 séries, le « top 8 » et le « bottom 8 » afficheraient la même liste.
+tipf <- function(col, u = "%", pal = "#6aa9d6", big = FALSE, dg = 1)
+  kpi_tip_top_bottom(kpi_comp, col, "city_fr", pal, u, big, dg, 8,
+                     "Top 8 villes europeennes", "Bottom 8 villes europeennes")
+
+kpi_row(
+  kpi_tiles_synth(kcat("geo-alt", "Périmètre France · 06 2026"), list(
+    list(value = aa_fr$n_total,
+         label = sprintf("<strong>annonces</strong> actives&nbsp;&nbsp;%s",
+                         kpi_evo(.ev("vol_n_ann_vevol_2526")))),
+    list(value = aa_fr$n_hosts,
+         label = sprintf("<strong>hôtes</strong> actifs&nbsp;&nbsp;%s",
+                         kpi_evo(.ev("vol_n_hotes_vevol_2526")))),
+    list(value = sprintf("%d", aa_fr$n_villes),
+         label = sprintf("villes · %d quartiers IRIS", aa_fr$n_iris)),
+    # Rang MONDIAL de la France : fait externe (rapport Threat / Inside Airbnb 2026), pas une
+    # sortie du panel — donc littéral assumé. NE PAS reprendre aa_fr$paris_rank_eu, qui est le
+    # rang de PARIS en EUROPE (il vaut 2 lui aussi : la coïncidence masquait le contresens).
+    list(value = "2<sup>e</sup>",
+         label = "marché mondial, derrière les États-Unis")
+  )),
+  kpi_tiles_synth(kcat("buildings", "Professionnalisation"), list(
+    list(value = sprintf("%s&nbsp;%%", aa_fr$fr_multi),
+         label = sprintf("de l'offre en <strong>multi-loueurs</strong>&nbsp;&nbsp;%s&nbsp;%s",
+                         kpi_evo(.ev("cr_offre_1plus_vdifp_2526"), "pt", ref = NULL),
+                         tipf("cr_offre_1plus", "%", "#1696d2"))),
+    list(value = sprintf("%s&nbsp;%%", aa_fr$fr_entire),
+         label = sprintf("logements entiers&nbsp;&nbsp;%s&nbsp;%s",
+                         kpi_evo(.ev("str_entire_pct_vdifp_2526"), "pt", ref = NULL),
+                         tipf("str_entire_pct", "%", "#55b748"))),
+    list(value = sprintf("%s&nbsp;%%", .v("cr_offre_top10pct_pct")),
+         label = sprintf("de l'offre aux <strong>10 %%</strong> d'hôtes les plus gros&nbsp;&nbsp;%s",
+                         tipf("cr_offre_top10pct_pct", "%", "#8c4a5a")))
+  )),
+  kpi_tiles_synth(kcat("currency-euro", "Prix médian / nuit et revenu"), list(
+    list(value = sprintf("%s&nbsp;€", aa_fr$fr_prix),
+         label = sprintf("logement entier <em style='color:#9a9a9a;font-size:.86em'>· médiane européenne %s €</em>&nbsp;&nbsp;%s",
+                         aa_fr$eu_prix_med, tipf("px_entire_med", " €", "#8c6a3f", dg = 0))),
+    list(value = sprintf("%s&nbsp;€", .v("px_private_med")),
+         label = sprintf("chambre privée&nbsp;&nbsp;%s",
+                         tipf("px_private_med", " €", "#8c6a3f", dg = 0))),
+    list(value = sprintf("%s&nbsp;€", aa_fr$fr_revenu),
+         label = sprintf("revenu estimé / an&nbsp;&nbsp;%s",
+                         tipf("act_revenu_med", " €", "#8c6a3f", big = TRUE)))
+  )),
+  kpi_tiles_synth(kcat("house-door", "Pression résidentielle"), list(
+    list(value = aa_fr$ref_france_pression,
+         label = sprintf("annonces / 1 000 hab. zone dense&nbsp;&nbsp;%s&nbsp;%s",
+                         kpi_evo(.ev("prs_listings_1000hab_dense_vevol_2526")),
+                         tipf("prs_listings_1000hab_dense", "‰", "#ca5800"))),
+    list(value = .v("prsf_listings_1000rps"),
+         label = "annonces / 1 000 <strong>logements occupés</strong>"),
+    list(value = aa_fr$biarritz_rp,
+         label = "record du panel — Biarritz, / 1 000 résidences principales")
+  ))
+)
+```
+
+::: {.kpi-fieldset}
+[Métriques clés par ville]{.kpi-ft-title}
+
+```{r}
+#| label: srptfr-exec-databar
+#| results: asis
+#| cache: false
+
+# Équivalent France de la databar continentale du monde : mêmes 4 indicateurs structurants,
+# séries = les 6 communes, trait de repère France sur chaque barre, pastille signée pour
+# l'évolution (une barre ne sait pas porter un signe : −7 % et +3 % partiraient tous deux
+# vers la droite).
+cat(databar_fr(
+  c("vol_n_ann", "cr_offre_1plus", "str_entire_pct", "prs_listings_1000hab_dense"),
+  labels = c("Annonces actives", "Offre en multi-loueurs",
+             "Logements entiers", "Annonces / 1 000 hab. zone dense"),
+  subs   = c("n · juin 2026 · pastille = évol. 25→26",
+             "% · pastille = évol. en points",
+             "% · pastille = évol. en points",
+             "‰ · pastille = évol. 25→26"),
+  evol   = c("vol_n_ann_vevol_2526", "cr_offre_1plus_vdifp_2526",
+             "str_entire_pct_vdifp_2526", "prs_listings_1000hab_dense_vevol_2526"),
+  dec = c(0, 0, 0, 1), units = c("", "%", "%", "‰"), n_col = 4))
+```
+
+<div class="figure-source">Les six communes françaises analysées — évolution 2025→2026 : <span style='color:#7a3b47;font-weight:600'>bordeaux = hausse</span>, <span style='color:#26506f;font-weight:600'>bleu = baisse</span> · trait « fr » = moyenne France. Source : Inside Airbnb, juin 2026 · INSEE RP 2022.</div>
+
+:::

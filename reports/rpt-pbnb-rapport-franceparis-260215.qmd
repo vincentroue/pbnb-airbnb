@@ -15,7 +15,7 @@ execute:
 #| include: false
 
 library(reticulate)
-use_python("C:/ScoopApps/apps/python/3.13.3/python.exe", required = TRUE)
+use_python("C:/Users/vince/AppData/Local/Programs/Python/Python312/python.exe", required = TRUE)
 source("C:/Users/vince/hh/pq/PDS/mutils/jrr/jcn-setup.R")
 source("C:/Users/vince/hh/pq/PDS/mutils/jrr/jcn-table.R")
 source("C:/Users/vince/hh/pq/PDS/mutils/jrr/jcn-graph.R")

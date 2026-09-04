@@ -1,9 +1,7 @@
 ---
 title: "Méthodologie — Pipeline ETL et indicateurs"
 subtitle: "Annexe technique · Inside Airbnb juin 2025 · 75 villes"
-author: "Vincent R."
-date: today
-date-format: "DD MMMM YYYY"
+date: "2026"
 categories: ["Annexe méthodologique"]
 number-sections: false
 format:
@@ -36,7 +34,7 @@ execute:
 #| include: false
 
 library(reticulate)
-use_python("C:/ScoopApps/apps/python/current/python.exe", required = TRUE)
+use_python("C:/Users/vince/AppData/Local/Programs/Python/Python312/python.exe", required = TRUE)
 ```
 
 ```{python}

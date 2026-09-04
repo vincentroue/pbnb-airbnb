@@ -1,0 +1,161 @@
+
+```{r}
+#| label: glossaire-setup
+#| include: false
+
+if (!exists("g_short")) {
+  library(jsonlite)
+  library(dplyr)
+  DDICT_PATH <- "C:/Users/vince/hh/pq/PDS/pbnb-airbnb-log-jrr-jpy/reports/helpers/ddict-airbnb.json"
+  dd_raw <- fromJSON(DDICT_PATH, simplifyVector = FALSE)$indicators
+  ddict <- bind_rows(lapply(names(dd_raw), function(k) {
+    v <- dd_raw[[k]]
+    if (is.null(v) || !is.list(v)) return(NULL)
+    tibble(variable = k, short = v$short %||% "", medium = v$medium %||% "", long = v$long %||% "")
+  }))
+  g_short  <- function(var) { r <- ddict |> filter(variable == var) |> pull(short);  if (length(r)==0) paste0("[??", var, "]") else r }
+  g_medium <- function(var) { r <- ddict |> filter(variable == var) |> pull(medium); if (length(r)==0) paste0("[??", var, "]") else r }
+}
+```
+
+## Glossaire des indicateurs
+
+> Ce glossaire reprend les indicateurs utilisés tout au long du rapport, en mettant en évidence leur **label court** (colonnes de tableau), leur **label moyen** (titres de graphique) et leur **lecture interprétative**. Les noms de variables sont les ancres stables ; les labels short et medium sont récupérés dynamiquement depuis le ddict du projet.
+
+### Pression territoriale
+
+On parle d'**indicateurs de pression territoriale** pour mesurer l'intensité d'implantation d'Airbnb sur les territoires — combien d'annonces par habitant, par km², ou pour 1 000 logements. Ils répondent à la question : *quelle empreinte Airbnb prend-il dans la ville ?*
+
+L'indicateur de référence du projet est `prs_listings_1000hab_dense`, calé sur le périmètre **GHS-POP zone dense** pour assurer la comparabilité inter-villes mondiale.
+
+- **`r g_medium("prs_listings_1000hab_dense")`** (`r g_short("prs_listings_1000hab_dense")`) — Annonces pour 1 000 habitants en zone dense (GHS-POP ≥ 1 500 hab/km²). ***Sens*** : pression démographique relative — combien d'annonces par tranche de population dans le polygone urbain dense. Neutralise les différences de délimitation communale entre villes. **Indicateur clé du projet** pour comparaisons inter-villes mondiales.
+
+- **`r g_medium("prs_density_l_km2_dense")`** (`r g_short("prs_density_l_km2_dense")`) — Nombre d'annonces par km² dans la zone dense. ***Sens*** : intensité spatiale du marché Airbnb. Indépendant de la population résidente. *Paris ≈ 588/km², London ≈ 390/km².*
+
+- **`r g_medium("prs_pct_listings_dense")`** (`r g_short("prs_pct_listings_dense")`) — Part des annonces situées dans la zone dense. ***Sens*** : concentration géographique du marché. **100%** = purement urbain (Paris, Bangkok). **< 50%** = offre diffuse étalée sur un périmètre large (Cape Town 51%, Nashville 22%).
+
+- **`r g_medium("listings_1000hsg")`** (`r g_short("listings_1000hsg")`) — Densité Airbnb pour 1 000 logements du parc résidentiel. ***Sens*** : ponction potentielle sur le marché résidentiel — quel rapport entre offre Airbnb et stock de logements existants. Permet de mesurer la **tension locative induite par l'activité Airbnb**.
+
+- **`r g_medium("listings_1000rp")`** (`r g_short("listings_1000rp")`) — Annonces pour 1 000 résidences principales (INSEE). ***Sens*** : pression sur le logement habité au quotidien. **Variable de référence pour les villes françaises**, source INSEE.
+
+### Professionnalisation et concentration de l'offre
+
+Le marché Airbnb est partagé entre des **particuliers occasionnels** et des **opérateurs commerciaux** qui gèrent plusieurs annonces. Cette section décrit la pyramide des hôtes selon leur niveau de professionnalisation, et la concentration de l'offre entre les plus gros acteurs.
+
+#### Les quatre niveaux d'hôtes
+
+> Nous classons les hôtes en quatre niveaux selon le nombre d'annonces qu'ils gèrent :
+> - **single-host** : 1 annonce — loueur particulier occasionnel, modèle Airbnb originel
+> - **semi-pro** : 2 à 4 annonces — multi-host de petite taille (investisseur, conciergerie débutante)
+> - **pro** : 5 à 9 annonces — multi-host d'échelle commerciale
+> - **superpro** : ≥ 10 annonces — conciergerie ou opérateur professionnel à grande échelle
+>
+> Le terme **multi-host** désigne génériquement tous les hôtes au-delà de single-host (≥ 2 annonces) — terminologie d'Adamiak (2018, 2022) reprise par la littérature comparative urbaine.
+
+#### Indicateurs cumulés (seuils croissants)
+
+Comptent tous les hôtes au-delà d'un seuil. Un superpro est aussi compté dans multi-host. Utilisés pour les comparaisons inter-villes et l'analyse multivariée.
+
+- **`r g_medium("cr_host_1plus")`** (`r g_short("cr_host_1plus")`) — Part des hôtes gérant au moins 2 annonces. ***Sens*** : taux global de professionnalisation. À l'échelle mondiale, ≈ 26% des hôtes sont multi-host mais ils détiennent ≈ 63% des annonces.
+
+- **`r g_medium("cr_host_5plus")`** (`r g_short("cr_host_5plus")`) — Part des hôtes gérant au moins 5 annonces. ***Sens*** : taux de professionnalisation effective — au-delà de la simple gestion de patrimoine. À l'échelle mondiale, ≈ 6,5% des hôtes contrôlent ≈ 40% des annonces.
+
+- **`r g_medium("cr_host_10plus")`** (`r g_short("cr_host_10plus")`) — Part des hôtes gérant au moins 10 annonces. ***Sens*** : opérateurs commerciaux purs — conciergeries, gestionnaires multi-bien. **2,4% des hôtes mondiaux concentrent ≈ 29% de l'offre**. Indicateur fort de la pression réglementaire.
+
+#### Indicateurs exclusifs (composition du marché)
+
+Comptent les hôtes appartenant à une seule classe. Somment à 100% par construction. Utilisés pour les graphiques de composition (stacked bar par ville).
+
+- **`r g_medium("cr_host_single_pct")`** (`r g_short("cr_host_single_pct")`) — Part des hôtes ne gérant qu'une seule annonce. ***Sens*** : poids du modèle pair-à-pair originel.
+
+- **`r g_medium("cr_host_semipro_pct")`** (`r g_short("cr_host_semipro_pct")`) — Part des hôtes gérant 2 à 4 annonces. ***Sens*** : multi-host de petite taille — souvent investisseurs de patrimoine.
+
+- **`r g_medium("cr_host_pro_pct")`** (`r g_short("cr_host_pro_pct")`) — Part des hôtes gérant 5 à 9 annonces. ***Sens*** : multi-host d'échelle commerciale.
+
+- **`r g_medium("cr_host_superpro_pct")`** (`r g_short("cr_host_superpro_pct")`) — Part des hôtes gérant 10 annonces ou plus. ***Sens*** : opérateur professionnel à grande échelle.
+
+#### Concentration globale du marché
+
+Mesurent la **distribution de l'offre** entre hôtes — qui détient quoi.
+
+- **`r g_medium("cr_hosts_offre50_pct")`** (`r g_short("cr_hosts_offre50_pct")`) — Part des hôtes nécessaires pour détenir 50% des annonces. ***Sens*** : concentration totale du marché. **Plus la valeur est faible, plus le marché est concentré entre quelques acteurs.** Florence ≈ 12%, Tokyo ≈ 35%.
+
+- **`r g_medium("cr_offre_top10host_pct")`** (`r g_short("cr_offre_top10host_pct")`) — Part des annonces détenues par les 10 plus gros hôtes. ***Sens*** : pouvoir de marché des leaders — concentration ratio standard en analyse industrielle.
+
+#### Grille Adamiak — type × pro
+
+Pour caractériser la **composition du marché**, nous utilisons une grille croisée à quatre catégories proposée par Adamiak (2018, 2022) et reprise par APUR (2024). Elle croise le **type de logement** (entier vs chambre) avec le **niveau professionnel** (single vs multi).
+
+- **`r g_medium("crt_ada_single_home_pct")`** (`r g_short("crt_ada_single_home_pct")`) — Logement entier géré par un host à 1 annonce unique. ***Sens*** : particulier qui loue son logement quand il part — modèle pair-à-pair pur. Faible signal d'impact sur le marché résidentiel.
+
+- **`r g_medium("crt_ada_multi_home_pct")`** (`r g_short("crt_ada_multi_home_pct")`) — Logement entier géré par un multi-host (≥ 2 annonces). ***Sens*** : **professionnalisation locative pure — signal régulation prioritaire**. Pro qui gère plusieurs logements entiers (= autant de logements potentiellement retirés du parc résidentiel).
+
+- **`r g_medium("crt_ada_single_room_pct")`** (`r g_short("crt_ada_single_room_pct")`) — Chambre privée gérée par un host single (1 annonce au total). ***Sens*** : couchsurfing payant, étudiants louant une chambre chez eux — modèle peu impactant sur le marché résidentiel.
+
+- **`r g_medium("crt_ada_multi_room_pct")`** (`r g_short("crt_ada_multi_room_pct")`) — Chambre privée gérée par un multi-host (≥ 2 annonces). ***Sens*** : modèle hostel ou colocation organisée — opérateurs commerciaux gérant plusieurs chambres en location courte durée.
+
+> Les quatre catégories somment à 100% par construction. La **part de logements entiers de multi-host** est l'indicateur le plus parlant pour mesurer la professionnalisation locative et la pression sur le marché résidentiel.
+
+> ⚠️ La grille Adamiak utilise un seuil binaire (single = 1 annonce, multi = ≥ 2 annonces), différent de notre découpage pyramidal à 4 niveaux (single-host, semi-pro, pro, superpro). Les deux logiques sont **complémentaires** — la pyramide capte la **granularité** de la professionnalisation, la grille Adamiak capte le **croisement** type × pro pour comparabilité avec la littérature.
+
+### Structure de l'offre
+
+Caractérisent la **nature de l'offre Airbnb** — types de logement, durée minimum, capacité, modes de réservation.
+
+- **`r g_medium("str_entire_pct")`** (`r g_short("str_entire_pct")`) — Part des logements entiers dans l'offre active. ***Sens*** : indicateur clé de la **transformation de l'usage résidentiel**. Plus de logements entiers = plus de patrimoine retiré du marché long terme. Moyenne mondiale ≈ 75%.
+
+- **`r g_medium("str_minnuits30_pct")`** (`r g_short("str_minnuits30_pct")`) — Part des annonces avec minimum de séjour ≥ 30 nuits. ***Sens*** : proxy de **régulation locale** ou de bail mobilité. Plus le seuil est élevé, plus la ville pousse les hôtes vers le moyen terme.
+
+- **`r g_medium("str_minnuits90_pct")`** (`r g_short("str_minnuits90_pct")`) — Part des annonces avec minimum ≥ 90 nuits. ***Sens*** : régulation très restrictive — bascule vers le marché de la location étudiante / professionnelle.
+
+- **`r g_medium("str_cap_pers_med")`** (`r g_short("str_cap_pers_med")`) — Nombre médian de personnes accueillies par annonce. ***Sens*** : taille moyenne des logements offerts. **Capacité élevée** = logements grands, plutôt familiaux ou groupes ; **capacité faible** = studios, chambres.
+
+- **`r g_medium("str_ratio_ann_hote")`** (`r g_short("str_ratio_ann_hote")`) — Nombre moyen d'annonces par hôte. ***Sens*** : indicateur synthétique de professionnalisation — un ratio > 2 signale un marché majoritairement professionnel.
+
+- **`r g_medium("str_instantbook_pct")`** (`r g_short("str_instantbook_pct")`) — Part des annonces en réservation sans validation hôte. ***Sens*** : proxy de **professionnalisation opérationnelle** — les opérateurs grands automatisent leur gestion.
+
+### Prix
+
+Les indicateurs de prix mesurent les **niveaux tarifaires** par segment d'offre. Le prix de référence du projet est le **prix médian des logements entiers**, comparable entre villes pour le segment le plus représentatif du marché.
+
+- **`r g_medium("px_entire_med")`** (`r g_short("px_entire_med")`) — Prix médian par nuit en EUR, logements entiers uniquement. ***Sens*** : niveau tarifaire de référence pour comparaisons inter-villes — le segment "logement entier" est le plus homogène et représente la majorité de l'offre. Indicateur central de positionnement de marché.
+
+### Activité commerciale
+
+Les indicateurs d'activité mesurent **l'usage commercial réel** des annonces. Deux familles très différentes à ne pas confondre.
+
+> **⚠️ Disponibilité observée vs Occupation estimée — deux concepts distincts**
+>
+> - **Disponibilité (`act_cal_*`)** : nombre de jours **ouverts à la réservation** sur le calendrier public au moment du scrape. Donnée **observée** mais imparfaite — on ne distingue pas les jours bloqués volontairement par l'hôte (vacances, travaux) des jours déjà réservés par un guest. Une valeur faible peut signifier annonce **très demandée** OU annonce **fermée à la location** ; à croiser avec les reviews pour interpréter.
+> - **Occupation estimée (`act_reserv_*`)** : nombre de jours **estimés réservés**, calculé par le modèle dit *San Francisco* d'Inside Airbnb (reviews × 2 × durée moyenne séjour, cappé à 70%). Donnée **modélisée** dont les biais sont documentés ; sa valeur réside dans la **comparaison relative entre villes** où le biais est constant.
+> - **Revenu estimé (`act_revenu_*`)** : revenu annuel calculé comme `occupation estimée × prix moyen`. Donnée **doublement modélisée** — cumule les biais de l'occupation estimée et de la moyenne de prix.
+
+#### Disponibilité observée (calendrier)
+
+- **`r g_medium("act_cal_ouvert_med")`** (`r g_short("act_cal_ouvert_med")`) — Nombre médian de jours ouverts à la réservation sur 365 (champ `availability_365`). ***Sens*** : ouverture moyenne du calendrier hôte. Une annonce à 0 jour est soit fermée volontairement soit déjà entièrement réservée — interpréter avec les reviews.
+
+- **`r g_medium("act_cal_ouvert_moy")`** (`r g_short("act_cal_ouvert_moy")`) — Moyenne du calendrier ouvert. Plus sensible aux annonces à calendrier totalement libre (365 j). ***Sens*** : complément de la médiane pour évaluer l'asymétrie de la distribution.
+
+- **`r g_medium("act_cal_180j_pct")`** (`r g_short("act_cal_180j_pct")`) — Part des annonces dont le calendrier est ouvert plus de 6 mois par an. ***Sens*** : proxy d'**activité professionnelle** — un particulier ouvre rarement son calendrier > 180 jours (logement habité). Au-delà = location dédiée.
+
+#### Occupation estimée (modèle San Francisco)
+
+- **`r g_medium("act_reserv_j_med")`** (`r g_short("act_reserv_j_med")`) — Jours estimés réservés par an (modèle SF d'Inside Airbnb). ***Sens*** : niveau d'activité commerciale. Sous-estime le réel (modèle conservateur cappé à 70%) mais comparable entre villes.
+
+- **`r g_medium("act_reserv_j_moy")`** (`r g_short("act_reserv_j_moy")`) — Moyenne de l'occupation estimée — tirée vers le haut par les annonces très réservées. ***Sens*** : complément de la médiane pour évaluer l'asymétrie de la distribution.
+
+- **`r g_medium("act_reserv_taux")`** (`r g_short("act_reserv_taux")`) — Occupation estimée rapportée à 365 jours, exprimée en pourcentage. Plafonné à 70% par construction du modèle SF. ***Sens*** : proxy de **performance commerciale** — Florence ≈ 35-45%, Paris ≈ 30-40%, Tokyo ≈ 25-35%.
+
+- **`r g_medium("act_reserv_30j_pct")`** (`r g_short("act_reserv_30j_pct")`) — Part des annonces ayant une activité significative (≥ 1 mois occupé par an estimé). ***Sens*** : filtre les annonces dormantes ou très occasionnelles.
+
+- **`r g_medium("act_reserv_180j_pct")`** (`r g_short("act_reserv_180j_pct")`) — Part des annonces à forte occupation estimée (≥ 6 mois/an). ***Sens*** : proxy de **gestion professionnelle à temps plein**. À comparer avec `act_cal_180j_pct` — l'écart révèle les annonces ouvertes mais peu réservées.
+
+#### Revenu estimé
+
+- **`r g_medium("act_revenu_med")`** (`r g_short("act_revenu_med")`) — Revenu annuel estimé médian par annonce (modèle SF — bookings × LoS × prix). ***Sens*** : niveau de monétisation typique. **Estimation conservatrice** ; valeurs réelles probablement supérieures de 30-100%.
+
+- **`r g_medium("act_revenu_moy")`** (`r g_short("act_revenu_moy")`) — Moyenne de la distribution. Tirée vers le haut par les très grosses annonces. ***Sens*** : complément de la médiane pour évaluer l'asymétrie de la distribution.
+
+#### Statut Airbnb
+
+- **`r g_medium("act_superhost_pct")`** (`r g_short("act_superhost_pct")`) — Part des annonces gérées par un hôte au statut **Superhost** (label Airbnb officiel — critères de qualité, taux de réponse, taux d'annulation). ***Sens*** : proxy de **qualité gestion** et d'expérience hôte. Plus une ville a de superhosts, plus le marché est mature.

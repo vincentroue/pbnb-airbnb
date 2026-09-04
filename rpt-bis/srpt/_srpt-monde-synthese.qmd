@@ -8,7 +8,7 @@
 
 ::: {.synth-accroche}
 
-Avec **533 millions de nuitées** vendues en 2025 et **près de 8 millions d'annonces** actives — face à 17,5 millions de chambres d'hôtel — Airbnb rivalise désormais avec l'hôtellerie traditionnelle et progresse dix fois plus vite (location courte durée à 9 % par an contre 1 %). Cette étude s'appuie sur l'analyse de **`r aa$n_total` annonces individuelles actives**[^synth-indiv] réparties sur **`r aa$n_villes` villes** de **`r aa$n_pays` pays** (`r aa$n_villes_eur` en Europe, `r sum(kpi$continent_detail == "North America")` en Amérique du Nord). Elle interroge sept dimensions :
+Avec **533 millions de nuitées** vendues en 2025 et **près de 8 millions d'annonces** actives — face à 17,5 millions de chambres d'hôtel — Airbnb rivalise désormais avec l'hôtellerie traditionnelle et progresse dix fois plus vite (location courte durée à 9 % par an contre 1 %). Cette étude s'appuie sur l'analyse de **`r aa$n_total` annonces individuelles actives**[^synth-indiv] réparties sur **`r aa$n_villes` villes** de **`r aa$n_pays` pays** (`r aa$n_villes_eur` en Europe, `r sum(kpi$continent_detail == "North America")` en Amérique du Nord). Elle interroge huit dimensions :
 
 - **Portrait** — où se concentrent annonces et hôtes ?
 - **Prix, structure, activité** — quels niveaux tarifaires, quelle offre, quel revenu hôte ?
@@ -16,6 +16,7 @@ Avec **533 millions de nuitées** vendues en 2025 et **près de 8 millions d'ann
 - **Pression résidentielle** — densité d'annonces par habitant en zone dense ?
 - **Concurrence** — Airbnb face à l'hôtellerie en prix, capacité, géographie ?
 - **Régulation** — quels leviers effectifs, quels horizons à 2030 ?
+- **Qualité perçue** — que disent les notes des voyageurs ?
 - **Typologie** — quelles familles de marchés se dégagent ?
 
 **Ce que montre l'analyse.** Le « partage entre particuliers » a vécu : **`r aa$v_multi` %** de l'offre est gérée par des multi-loueurs[^synth-multi] et **`r aa$v_hosts50` %** des hôtes en captent la moitié. À Tokyo, Singapour ou Hong Kong, plus de **85 % des annonces** sont aux mains de professionnels, contre moins de 20 % à Copenhague ou Oslo. Côté **prix**, la médiane du logement entier (**`r aa$v_prix_med` €/nuit**) rejoint désormais le tarif d'une chambre d'hôtel, effaçant l'avantage tarifaire historique d'Airbnb. La **pression résidentielle** frappe d'abord les villes touristiques moyennes — le Pays Basque, Venise et Florence approchent ou dépassent 40 annonces pour 1 000 habitants en zone dense — plutôt que les mégapoles. Face à cela, les villes activent des **leviers distincts** : enregistrement, plafond de nuitées, interdiction (Barcelone d'ici 2028), transparence imposée (Règlement UE 2024/1028). **Cinq familles de marchés** se dégagent de la typologie finale.

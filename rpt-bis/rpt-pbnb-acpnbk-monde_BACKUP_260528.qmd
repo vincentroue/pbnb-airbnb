@@ -1,0 +1,945 @@
+---
+title: "ACP + HCPC — Typologie 74 villes Airbnb"
+subtitle: "Analyse factorielle et clustering | KPI agrégés par ville, Inside Airbnb juin 2025"
+date: today
+execute:
+  cache: true
+  warning: false
+  message: false
+---
+
+```{r}
+#| label: config
+#| code-fold: false
+#| cache: false
+
+# &s &CONFIG_aaMAIN - Configuration ACP+HCPC depuis CSV validation
+
+JCN <- "C:/Users/vince/hh/pq/PDS/mutils/jrr"
+source(file.path(JCN, "jcn-all.R"))
+source(file.path(JCN, "jcn-dml-acp-plots.R"))
+source(file.path(JCN, "jcn-dml-hcpc-typo.R"))
+source(file.path(JCN, "jcn-dml-grid-acp.R"))
+source(file.path(JCN, "jcn-claude-log.R"))
+source(file.path(JCN, "jcn-eda-summary.R"))   # calc_eda_summary pour log_eda_digest
+source(file.path(JCN, "jcn-eda-corr.R"))      # calc_corr_diag, calc_eta2_table
+
+LOG_OUT_DIR <- "C:/Users/vince/hh/pq/PDS/pbnb-airbnb-log-jrr-jpy/reports/outputs"
+claude_log_init("acpnbk-monde", output_dir = LOG_OUT_DIR)
+
+BASE <- "C:/Users/vince/hh/pq/PDS/pbnb-airbnb-log-jrr-jpy"
+DATA_PATH <- file.path(BASE, "data/interim/kpi_global_by_city_2506.csv")
+DDICT_CSV <- file.path(BASE, "reports/helpers/ddict-validation-airbnb.csv")
+
+# Lire roles ACP depuis CSV validation (_acp1 = config A, _acp2 = config B)
+dd_csv <- read.csv(DDICT_CSV, fileEncoding = "UTF-8-BOM", stringsAsFactors = FALSE)
+dd_csv$X_acp1 <- trimws(dd_csv$X_acp1)  # read.csv prefixe _ avec X
+dd_csv$X_acp2 <- trimws(dd_csv$X_acp2)
+
+# Helper: extraire qa/qs/ql depuis une colonne
+get_roles <- function(df, col) {
+  list(
+    qa = df$variable[df[[col]] == "qa"],
+    qs = df$variable[df[[col]] == "qs"],
+    ql = df$variable[df[[col]] == "ql"]
+  )
+}
+
+roles_A <- get_roles(dd_csv, "X_acp1")
+roles_B <- get_roles(dd_csv, "X_acp2")
+
+cat(sprintf("Config A: %d qa, %d qs, %d ql\n", length(roles_A$qa), length(roles_A$qs), length(roles_A$ql)))
+cat(sprintf("Config B: %d qa, %d qs, %d ql\n", length(roles_B$qa), length(roles_B$qs), length(roles_B$ql)))
+
+# continent_detail toujours en quali sup
+QUALI_SUP_BASE <- "continent_detail"
+
+# Config C: concentration approfondie
+roles_C_qa <- c("prs_listings_1000hab_dense","str_entire_pct","str_minnuits30_pct",
+                "cr_host_5plus","cr_hosts_offre50_pct","cr_offre_top10host_pct",
+                "px_entire_med","actrv_avis_mois")
+roles_C_qs <- c("str_cap_pers_med","cr_offre_5plus","act_superhost_pct","actrv_note_glb",
+                "vol_n_ann","ctx_ucdb_hdi_latest","ctx_ucdb_gdp_avg_20")
+
+# Config D: Adamiak en active
+roles_D_qa <- c("prs_listings_1000hab_dense",
+                "crt_ada_multi_home_pct","crt_ada_multi_room_pct",
+                "str_minnuits30_pct","px_entire_med","actrv_avis_mois",
+                "act_superhost_pct")
+roles_D_qs <- c("str_entire_pct","str_cap_pers_med","cr_offre_5plus",
+                "crt_ada_single_home_pct","crt_ada_single_room_pct",
+                "vol_n_ann","ctx_ucdb_hdi_latest","ctx_ucdb_gdp_avg_20")
+
+# Config E: leger 6 vars
+roles_E_qa <- c("prs_listings_1000hab_dense","str_entire_pct","str_minnuits30_pct",
+                "cr_offre_5plus","px_entire_med","actrv_avis_mois")
+roles_E_qs <- c("str_cap_pers_med","act_cal_ouvert_med","act_reserv_taux",
+                "act_superhost_pct","actrv_note_glb","act_revenu_med",
+                "vol_n_ann","ctx_ucdb_hdi_latest","ctx_ucdb_gdp_avg_20","ctx_pop_dense")
+
+# Sup communs
+QS_ALL <- c("ctx_ucdb_hdi_latest", "ctx_ucdb_temp_mean_latest", "ctx_ucdb_gdp_avg_20",
+            "ctx_ucdb_pop_ghsl_20", "ctx_static_gawc_score", "ctx_static_unesco_50km",
+            "ctx_pop_dense", "vol_n_ann", "act_revenu_med")
+QL_ALL <- c("continent_detail", "is_capital")
+
+# Grille 5 configs
+GRID_CONFIGS <- list(
+  list(id = "A", actives = roles_A$qa, sup_quanti = QS_ALL,
+       sup_quali = QL_ALL,
+       k = 4, transform = "none",
+       note = "Reference 10 vars brut k=4"),
+  list(id = "B", actives = roles_B$qa, sup_quanti = QS_ALL,
+       sup_quali = QL_ALL,
+       k = 4, transform = c("prs_listings_1000hab_dense", "px_entire_med"),
+       note = "Sans touchy, +avis_mois, log prs+px k=4"),
+  list(id = "C", actives = roles_C_qa, sup_quanti = QS_ALL,
+       sup_quali = QL_ALL,
+       k = 4, transform = c("prs_listings_1000hab_dense"),
+       note = "Concentration approfondie 8 vars k=4"),
+  list(id = "D", actives = roles_D_qa, sup_quanti = QS_ALL,
+       sup_quali = QL_ALL,
+       k = 4, transform = c("prs_listings_1000hab_dense"),
+       note = "Adamiak en active 7 vars k=4"),
+  list(id = "E", actives = roles_E_qa, sup_quanti = QS_ALL,
+       sup_quali = QL_ALL,
+       k = 4, transform = c("prs_listings_1000hab_dense", "px_entire_med"),
+       note = "Leger 6 vars, ratio n/p=12 k=4")
+)
+
+# Sup quanti et quali communs a toutes les configs
+SUP_QS_COMMON <- QS_ALL
+SUP_QL_COMMON <- QL_ALL
+
+CONFIG <- list(
+  data_path   = DATA_PATH,
+  encoding    = "UTF-8-BOM",
+  label_col   = "city_fr",
+  filter_expr = "scope == 'city'",
+  actives     = roles_B$qa,
+  sup_quanti  = SUP_QS_COMMON,
+  sup_quali   = SUP_QL_COMMON,
+  transform   = c("prs_listings_1000hab_dense", "px_entire_med"),
+  k           = 4,
+  size_col    = "vol_n_ann",
+  top_n       = 25,
+  selected    = "B",
+  run_grid    = TRUE,
+  grid_configs = GRID_CONFIGS,
+
+  # Pipeline cleaning |r| >= threshold_drop (Kaiser 1970, MSA min) — données pbnb
+  # contiennent 164 paires |r|>0.90 (vrais doublons type cr_host_1plus vs
+  # cr_host_single_pct), activation justifiée. force_keep peut protéger des
+  # indicateurs métier critiques.
+  threshold_drop = 0.90,
+  force_keep     = NULL
+)
+# &e
+```
+
+```{r}
+#| label: setup
+#| include: false
+#| cache: false
+
+library(dplyr)
+library(FactoMineR)
+library(factoextra)
+library(cluster)
+library(ggplot2)
+library(patchwork)
+library(reactable)
+```
+
+```{r}
+#| label: calc-all
+#| include: false
+#| cache: true
+
+# &s &COMPUTE_ALL_aaMAIN - Donnees, grille ACP, HCPC
+
+# &s &LOAD_DATA - Chargement + continent_detail
+df_raw <- read.csv(CONFIG$data_path, stringsAsFactors = FALSE, fileEncoding = CONFIG$encoding)
+if (!is.null(CONFIG$filter_expr) && nzchar(CONFIG$filter_expr)) {
+  df <- df_raw %>% filter(eval(parse(text = CONFIG$filter_expr)))
+} else {
+  df <- df_raw
+}
+
+# continent_detail deja dans le CSV (sp08)
+df$continent_detail <- factor(df$continent_detail)
+
+# Fallback city_fr = city si manquant (Winnipeg, etc.)
+if ("city_fr" %in% names(df)) {
+  miss <- is.na(df$city_fr) | df$city_fr == ""
+  df$city_fr[miss] <- df$city[miss]
+}
+
+# Capital en factor pour sup quali (string "True"/"False"/"" -> booleen -> factor)
+if ("is_capital" %in% names(df)) {
+  v <- df$is_capital
+  is_cap <- ifelse(is.na(v) | v == "" | v == "False", FALSE, TRUE)
+  df$is_capital <- factor(is_cap, levels = c(FALSE, TRUE), labels = c("Non-capitale", "Capitale"))
+}
+
+df <- df[complete.cases(df[, CONFIG$actives, drop = FALSE]), ]
+aa_n_pool <- nrow(df)
+
+# Imputer NA dans les sup quanti par la mediane (PCA refuse les NA en sup)
+all_qs <- unique(unlist(lapply(GRID_CONFIGS, function(x) x$sup_quanti)))
+for (v in all_qs) {
+  if (v %in% names(df) && any(is.na(df[[v]]))) {
+    med_val <- median(df[[v]], na.rm = TRUE)
+    n_imp <- sum(is.na(df[[v]]))
+    df[[v]][is.na(df[[v]])] <- med_val
+    cat(sprintf("  Impute %s: %d NA -> mediane %.1f\n", v, n_imp, med_val))
+  }
+}
+# &e
+
+# &s &RUN_ACP - Grid ou single (centralise dans jcn-dml-grid-acp)
+acp <- prepare_pca_hcpc(df, CONFIG)
+list2env(acp, environment())  # expose pca, hcpc, df_pca, grid
+# &e
+
+# &s &METRICS - aa_* inline + scores + sil_obj + size_vec + inert
+m <- compute_acp_metrics(pca, hcpc, df = df,
+  size_col  = CONFIG$size_col,
+  label_col = CONFIG$label_col,
+  vars_mah  = CONFIG$actives)
+list2env(m, environment())
+# &e
+
+# &s &LOG_RESULTS - Export JSON pour analyse posterieure
+log_step("SETUP",
+         n_villes = aa_n_ind,
+         n_actives = aa_n_actives,
+         config_selected = CONFIG$selected,
+         k = aa_n_bestk,
+         transform = paste(CONFIG$transform, collapse = "+"))
+
+# Socle stat global pour Claude — describe + corr + eta² + dump dataset 77 villes
+log_eda_digest(df,
+  vars       = CONFIG$actives,
+  quali_vars = CONFIG$sup_quali,
+  label_col  = CONFIG$label_col,
+  name_prefix = "eda",
+  max_rows_dump = 500L)
+
+# Grid summary (5 configs comparees + variable polluante MSA min)
+if (!is.null(grid)) {
+  log_result("grid_summary", as.data.frame(grid$summary),
+             interpret = sprintf("5 configs testees, config %s retenue (silhouette=%.3f, KMO=%.2f)",
+                                 CONFIG$selected, aa_v_sil,
+                                 grid$summary$kmo[grid$summary$id == CONFIG$selected]))
+
+  # MSA individuels de la config retenue (identifie la variable polluante)
+  msai_vec <- grid$results[[CONFIG$selected]]$msai
+  if (!is.null(msai_vec)) {
+    log_result("msai_individual", as.list(msai_vec),
+      interpret = sprintf("Variable la plus polluante : %s (MSA=%.2f)",
+        names(msai_vec)[which.min(msai_vec)], min(msai_vec)))
+  }
+
+  # Bench k_alt par config (silent si aucune config n'a de k_alt)
+  log_k_alt_grid(grid$results)
+}
+
+# ACP : contributions et eigenvalues
+log_acp_results(pca)
+log_hcpc_results(hcpc, pca)
+
+# Profil clusters par variable active (z-score)
+profil_df <- typo_profil(hcpc, CONFIG$actives)
+log_result("clusters_profil", profil_df,
+           interpret = sprintf("Profil %d clusters sur %d variables actives", aa_n_bestk, length(CONFIG$actives)))
+
+# Coordonnees individus + cluster
+indiv_df <- data.frame(
+  city_fr = rownames(pca$ind$coord),
+  cluster = as.character(hcpc$data.clust$clust),
+  dim1 = round(pca$ind$coord[, 1], 3),
+  dim2 = round(pca$ind$coord[, 2], 3),
+  dim3 = round(pca$ind$coord[, 3], 3),
+  silhouette = round(scores$silhouette, 3),
+  voisin = scores$voisin,
+  mahalanobis = round(scores$mahalanobis, 2),
+  stringsAsFactors = FALSE
+)
+# Joindre meta (continent_detail, country, pop, vol_n_ann)
+meta_cols <- c("country_code","continent","continent_detail","is_capital","ctx_pop_dense","vol_n_ann")
+meta_cols <- meta_cols[meta_cols %in% names(df)]
+df_meta <- df[match(indiv_df$city_fr, df[[CONFIG$label_col]]), c(CONFIG$label_col, meta_cols), drop = FALSE]
+names(df_meta)[1] <- "city_fr"
+indiv_df <- merge(indiv_df, df_meta, by = "city_fr", all.x = TRUE, sort = FALSE)
+log_result("indiv_clusters", indiv_df,
+           interpret = sprintf("%d villes avec coordonnees ACP + cluster + meta", nrow(indiv_df)))
+
+# Atypiques mahalanobis (top 10)
+top_aty <- indiv_df[order(-indiv_df$mahalanobis), ][1:min(10, nrow(indiv_df)), ]
+log_result("top_atypiques", top_aty,
+           interpret = paste("Top 10 villes atypiques (mahalanobis):",
+                             paste(head(top_aty$city_fr, 5), collapse = ", ")))
+
+# Mal classes (silhouette < 0)
+mal_classes <- indiv_df[indiv_df$silhouette < 0, ]
+if (nrow(mal_classes) > 0) {
+  log_result("mal_classes", mal_classes,
+             interpret = sprintf("%d villes mal classees (silhouette<0)", nrow(mal_classes)))
+}
+
+# Croisement cluster x continent_detail
+if ("continent_detail" %in% names(indiv_df)) {
+  ct_cont <- as.data.frame.matrix(table(indiv_df$continent_detail, indiv_df$cluster))
+  ct_cont$total <- rowSums(ct_cont)
+  ct_cont$region <- rownames(ct_cont)
+  log_result("crosstab_cluster_continent_detail", ct_cont,
+             interpret = "Distribution clusters par sous-region continentale")
+}
+
+# Croisement cluster x pays (top pays par cluster)
+ct_pays <- as.data.frame(table(indiv_df$country_code, indiv_df$cluster))
+names(ct_pays) <- c("country_code", "cluster", "n")
+ct_pays <- ct_pays[ct_pays$n > 0, ]
+log_result("crosstab_cluster_country", ct_pays,
+           interpret = "Distribution clusters par pays")
+
+# Parangons et atypiques HCPC
+para_df <- typo_parangons(hcpc, n = 5)
+log_result("parangons", para_df,
+           interpret = "Parangons (centres) et atypiques par cluster")
+
+# Inertie + qualite globale
+log_result("inertie", inert,
+           interpret = sprintf("Inertie inter/totale apres consolidation: %.3f",
+                               ifelse(!is.na(inert$inertie_inter_apres),
+                                      inert$inertie_inter_apres, 0)))
+
+claude_log_save()
+# &e
+
+# &e (FIN COMPUTE_ALL_aaMAIN)
+```
+
+## 1 — Cadrage & méthode
+
+::: {.cld-add}
+Ce rapport applique une **Analyse en Composantes Principales (ACP)** suivie d'une **Classification Ascendante Hiérarchique sur Composantes Principales (HCPC)** sur `r aa_n_pool` villes Airbnb, `r aa_n_actives` variables actives. L'ACP réduit l'information à quelques axes synthétiques orthogonaux ; la HCPC regroupe ensuite les villes en clusters homogènes dans cet espace réduit.
+
+Trois étapes structurent le rapport : (**§4**) comparaison de plusieurs **configurations candidates** (A-E) sur des indicateurs de qualité — variance expliquée, KMO, multicolinéarité, silhouette — pour justifier la config retenue ; (**§5**) **lecture de l'ACP** retenue — éboulis, biplots, interprétation des axes ; (**§6**) **typologie HCPC** — dendrogramme, séparation des clusters, profils v.test, parangons.
+
+::: {.callout-tip collapse="true" appearance="minimal"}
+## REPÈRES MÉTHODO : pipeline ACP + HCPC, hypothèses et limites
+
+**Pourquoi ACP + HCPC plutôt que k-means brut ?** L'ACP centre-réduit les variables et les orthogonalise. La HCPC sur ces composantes (puis consolidation k-means) produit une typologie qui (1) intègre les corrélations entre variables, (2) ne dépend pas de l'échelle, (3) reste interprétable via les axes ACP.
+
+**Hypothèses sous-jacentes** : (1) variables idéalement continues — les ordinales s'encodent numériquement si l'ordre est stable, sinon FAMD/MCA ; (2) relations linéaires entre variables (l'ACP capture la covariance linéaire) ; (3) pas de variable cible dans les actives — sinon leakage du signal explicatif vers les axes ; (4) **scale = TRUE** systématique car les variables ont des échelles différentes (`FactoMineR::PCA()` par défaut).
+
+**Triangulation des diagnostics** : on ne juge **jamais** la qualité d'une ACP sur une seule métrique. Combinaison nécessaire — KMO (adéquation matrice de corrélation, Kaiser-Meyer-Olkin) + Bartlett (sphéricité) + Kaiser λ>1 + parallel analysis de Horn (corrige la sur-extraction de Kaiser à p>10) + % variance cumulée. Pour HCPC : silhouette + inertie inter + Calinski-Harabasz + stabilité bootstrap (Jaccard >0,75).
+
+**Limites à connaître** : (1) une silhouette <0,25 ne signale pas un échec — sur données territoriales/sciences sociales les profils forment un *continuum*, pas des catégories tranchées ; (2) un cluster <5 % des villes est fragile (à fusionner ou expliquer) ; (3) corrélation v.test ≠ causalité.
+
+**Validation par triangulation** : aucune valeur de référence unique ne suffit. Croiser KMO, MSA min, Kaiser, Horn, silhouette, inertie inter, équilibre clusters et accepter les écarts modérés. Sur 74 villes avec ~10 variables actives, des silhouettes 0,20-0,35 sont attendues — ne jamais juger sur un seul chiffre.
+:::
+:::
+
+## 2 — Bilan : que retient-on de l'analyse ?
+
+::: {.encadre-insight}
+- **`r aa_n_ind` villes**, `r aa_n_actives` variables actives, k = **`r aa_n_bestk` clusters** (`r aa_t_sizes`)
+- **ACP** — Variance 1-2 : `r aa_v_var12` %, 1-3 : `r aa_v_var13` %. `r aa_n_kaiser` axes Kaiser, **Horn confirme `r aa_n_horn`**
+  - Dim1 (`r aa_v_dim1` %) `r aa_t_dim1`
+  - Dim2 (`r aa_v_dim2` %) `r aa_t_dim2`
+- **HCPC** — Silhouette **`r aa_v_sil`** (`r aa_t_sil_qual`), `r aa_n_neg` mal classés (`r aa_v_neg_pct` %)
+:::
+
+## 3 — Données : quel pool, quelles variables ?
+
+**`r aa_n_pool` villes** dans le pool d'analyse (scope = city, hors sub_cities BAB). Le tableau ci-dessous présente les variables candidates avec leurs **stats descriptives** (n, médiane, écart-type, P10, P90) calculées sur le pool. Le rôle de chaque variable selon la config (active / supplémentaire quanti / supplémentaire quali) est traité en §4 — *Vue croisée des configurations testées*.
+
+::: {.cld-add}
+```{r}
+#| label: rt-ddict
+#| cache: false
+
+# Build DDICT depuis le CSV validation (variable + short)
+DDICT_VEC <- setNames(dd_csv$short, dd_csv$variable)
+# Garder uniquement les vars effectivement dans df
+vars_in_df <- intersect(names(DDICT_VEC), names(df))
+
+.calc_stat <- function(x) {
+  x <- x[!is.na(x)]
+  c(n = length(x),
+    median = if (length(x) > 0) median(x) else NA_real_,
+    sd     = if (length(x) > 1) sd(x) else NA_real_,
+    p10    = if (length(x) > 0) quantile(x, 0.10, names = FALSE) else NA_real_,
+    p90    = if (length(x) > 0) quantile(x, 0.90, names = FALSE) else NA_real_)
+}
+stats_mat <- sapply(vars_in_df, function(v) {
+  x <- df[[v]]
+  if (is.numeric(x)) .calc_stat(x) else c(n = sum(!is.na(x)), median = NA, sd = NA, p10 = NA, p90 = NA)
+})
+
+# Format intelligent : decimales selon ordre de grandeur
+.fmt_num <- function(v) {
+  if (is.na(v)) return("—")
+  if (abs(v) >= 1000) sprintf("%.0f", v)
+  else if (abs(v) >= 10) sprintf("%.1f", v)
+  else sprintf("%.2f", v)
+}
+
+ddict_df <- data.frame(
+  Variable = vars_in_df,
+  Label    = unname(DDICT_VEC[vars_in_df]),
+  n        = as.integer(stats_mat["n", ]),
+  median   = vapply(stats_mat["median", ], .fmt_num, character(1)),
+  sd       = vapply(stats_mat["sd", ],     .fmt_num, character(1)),
+  p10      = vapply(stats_mat["p10", ],    .fmt_num, character(1)),
+  p90      = vapply(stats_mat["p90", ],    .fmt_num, character(1)),
+  stringsAsFactors = FALSE)
+
+rt_table(ddict_df, cols = list(
+  Variable = colDef(name = "Variable R", minWidth = 130,
+    style = list(fontFamily = "Fira Code, monospace", fontSize = "10px")),
+  Label    = colDef(name = "Description", minWidth = 220),
+  n        = colDef(name = "n", width = 55, align = "right",
+    style = list(fontSize = "11px", color = "#666")),
+  median   = colDef(name = "Médiane", width = 75, align = "right",
+    style = list(fontSize = "11px", fontWeight = "600")),
+  sd       = colDef(name = "Écart-type", width = 85, align = "right",
+    style = list(fontSize = "11px", color = "#666")),
+  p10      = colDef(name = "P10", width = 70, align = "right",
+    style = list(fontSize = "10px", color = "#888")),
+  p90      = colDef(name = "P90", width = 70, align = "right",
+    style = list(fontSize = "10px", color = "#888"))
+), page_size = 100, height = "350px", searchable = TRUE)
+```
+:::
+
+## 4 — Grille : quelle config retenir ?
+
+```{r}
+#| label: ctx-acp
+#| include: false
+
+ACP_CTX <- "territorial"
+options(acp.context = ACP_CTX)
+```
+
+```{r}
+#| label: topo-grille
+#| results: asis
+#| echo: false
+
+cat(acp_grid_topo_auto_comment(grid$summary, selected = CONFIG$selected, context = ACP_CTX))
+```
+
+```{r}
+#| label: referentiels-table
+#| results: asis
+#| echo: false
+#| cache: false
+
+render_referentials_table(context = ACP_CTX)
+```
+
+```{r}
+#| label: diag-preal
+#| eval: !expr CONFIG$run_grid
+#| cache: false
+#| results: asis
+
+diag <- compute_data_diagnostic(df, CONFIG$grid_configs)
+render_data_diagnostic(diag, context = ACP_CTX)
+```
+
+### Tableau comparatif des configurations
+
+```{r}
+#| label: rt-grid-summary
+#| eval: !expr CONFIG$run_grid
+#| cache: false
+
+rt_acp_summary_v2(grid$summary, selected = CONFIG$selected)
+```
+
+::: {.note-lecture}
+**Gradient cellules** — 3 zones continues selon distance au seuil target : 🟢 **cyan** (target atteint, saturation ↑ avec l'écart positif) · 🟡 **beige/rose** (entre target et acceptable, zone grise) · 🔴 **bordeaux** (sous le seuil critique). Direction affichée sous chaque label (target ≥ X pour KMO/MSA/Silh./Var ; target < X pour max |r|/Paires — un fond cyan sur max |r| = faible corrélation = bon). **Survol header** = tooltip avec seuils + référence académique. **Colonne Nettoyage** : `—` = aucune variable retirée par le pipeline cleaning ; `−N (var, +X)` = N variables retirées (tooltip natif → liste complète). `✅` colonne de gauche = config retenue, `❌` = écartée.
+:::
+
+### Note de lecture détaillée par config
+
+```{r}
+#| label: narrative-grid
+#| eval: !expr CONFIG$run_grid
+#| cache: false
+#| results: asis
+
+render_config_narratives(
+  grid$summary,
+  selected     = CONFIG$selected,
+  context      = ACP_CTX,
+  grid_results = grid$results)   # transmet drop_log → 5e puce Nettoyage
+```
+
+### MSA individuels — diagnostic variables polluantes
+
+Le **MSA** (Measure of Sampling Adequacy) mesure, pour chaque variable, son **intégration au reste des actives** — pas son information propre. Un MSA bas ne signifie pas « variable inutile » mais « variable mal corrélée au groupe » : elle tire le KMO global vers le bas. Échelle Kaiser : > 0,80 bonne · 0,60-0,80 moyenne · 0,50-0,60 misérable · **< 0,50 inacceptable**.
+
+```{r}
+#| label: msa-individuals
+#| eval: !expr CONFIG$run_grid
+#| cache: false
+#| results: asis
+
+render_msa_individuals(grid$results, selected = CONFIG$selected, context = ACP_CTX)
+```
+
+::: {.note-lecture}
+**Trois options** pour une variable MSA < 0,50 : (1) la **retirer** des actives (KMO ↑, analyse plus propre mais on perd la dimension métier) ; (2) la passer en **`sup_quanti`** (projetée a posteriori, sans influence sur les axes — elle se lit alors comme un commentaire métier) ; (3) la garder avec **`force_keep`** si elle est conceptuellement centrale (le prix sur un marché immobilier, par exemple) et activer le cleaning pour la protéger des retraits automatiques.
+:::
+
+### Variables : rôle par config (pivot thème × A-E)
+
+```{r}
+#| label: rt-config-pivot
+#| cache: false
+
+# Ajouter continent_detail au ddict si absent (sup quali commune)
+if (!"continent_detail" %in% dd_csv$variable) {
+  extra <- dd_csv[1, , drop = FALSE]; extra[1, ] <- NA
+  extra$variable <- "continent_detail"; extra$short <- "Continent det."
+  extra$theme <- "ctx"
+  dd_csv <- rbind(dd_csv, extra)
+}
+if (!"is_capital" %in% dd_csv$variable) {
+  extra <- dd_csv[1, , drop = FALSE]; extra[1, ] <- NA
+  extra$variable <- "is_capital"; extra$short <- "Capitale"
+  extra$theme <- "ctx"
+  dd_csv <- rbind(dd_csv, extra)
+}
+
+pivot_df <- build_config_pivot(GRID_CONFIGS, dd_csv,
+  theme_col = "theme", var_col = "variable", label_col = "short",
+  unit_col  = "unit")
+rt_config_pivot(pivot_df, selected = CONFIG$selected,
+  show_var = FALSE, unit_col = "unit", legend = TRUE)
+```
+
+## 5 — ACP : quelles dimensions structurent les marchés Airbnb ?
+
+L'ACP réduit les `r aa_n_actives` variables actives à un petit nombre d'axes synthétiques (composantes principales) qui capturent l'essentiel de l'information. La lecture se fait en deux temps : (1) **éboulis + diagnostics** déterminent *combien* d'axes méritent d'être interprétés ; (2) **biplots** disent *quoi* chacun raconte — quelles variables le structurent et quelles villes s'opposent dans ce plan.
+
+### Éboulis : combien d'axes retenir ?
+
+L'**éboulis** (scree plot) classe les axes par variance expliquée décroissante. Deux critères académiques décident combien retenir :
+
+- **Kaiser** (1960) — axes avec valeur propre λ > 1. Un axe doit expliquer plus qu'une variable seule pour mériter d'être interprété. **Sur ce jeu : `r aa_n_kaiser` axes**.
+- **Parallel analysis de Horn** (1965) — compare les eigenvalues observés à ceux simulés sur des datasets aléatoires de même dimension. Retenir uniquement les axes où λ_obs > λ_sim(95ᵉ percentile). **Méthode plus parcimonieuse que Kaiser**, particulièrement à p > 10 où Kaiser sur-extrait systématiquement (Glorfeld 1995 ; Zwick & Velicer 1986).
+
+::: {.callout-tip collapse="true" appearance="minimal"}
+## REPÈRES MÉTHODO : Kaiser vs Horn, et seuils variance
+
+**Quand Horn et Kaiser divergent** : sur peu de variables (p < 10) ils concordent souvent. Sur p > 20, Kaiser sur-extrait — un dataset social typique à p ≈ 100 vars peut donner Kaiser ≈ 20 axes vs Horn 5-8. Dans ce cas **toujours suivre Horn**.
+
+**Quand les deux concordent** : signal de qualité du jeu de données (pas de sur-dispersion, le pool actif est bien centré sur l'information utile).
+
+**Seuils variance cumulée** (lecture pragmatique) :
+- Var 1-2 ≥ 50 % = plan factoriel principal lisible
+- Var 1-2 < 40 % = la 2D ne capture qu'une fraction, regarder l'axe 3 + biplot 1-3
+- Var 1-3 ≥ 70 % = analyse robuste sur 3 axes
+- Var 1-3 < 60 % = sur-dispersion, vérifier si certains axes capturent du bruit (cf. Horn)
+
+**Coude visuel** : rupture nette sur l'éboulis entre axes informatifs et bruit résiduel. Cohérent avec Kaiser le plus souvent, parfois plus restrictif (= Horn).
+:::
+
+*Sur ce jeu : `r aa_n_kaiser` axes passent Kaiser, **Horn confirme `r aa_n_horn`**. Les 2 premiers cumulent `r aa_v_var12` % de variance ; les 3 premiers `r aa_v_var13` %.*
+
+```{r}
+#| label: plt-screeplot
+#| fig-width: 10
+#| fig-height: 5
+
+plot_screeplot(pca)
+```
+
+### Biplot dual — Axes 1-2 (`r aa_v_var12` % variance)
+
+Un **biplot dual** affiche **deux panneaux côte à côte sur le même plan factoriel** : à gauche les **variables** (flèches partant de l'origine), à droite les **villes** (points). Les deux panneaux partagent les mêmes axes Dim1×Dim2 mais colorent les flèches selon deux logiques complémentaires :
+
+- **Panneau cos²** (qualité de représentation) — l'intensité du rouge mesure si la variable est bien projetée sur **ce plan-ci**. cos² > 0,5 = bien représentée, l'interprétation est fiable ; cos² < 0,3 = position non fiable, regarder un autre plan (1-3, 2-3).
+- **Panneau contrib** (contribution aux axes) — l'intensité mesure si la variable **structure** Dim1 et/ou Dim2. Une variable peut avoir cos² faible (mal projetée) mais contrib forte sur un seul axe (= elle nomme cet axe sans rester dans le plan).
+
+Les deux panneaux **se complètent** : cos² dit *où regarder*, contrib dit *quoi nommer*.
+
+::: {.callout-tip collapse="true" appearance="minimal"}
+## REPÈRES MÉTHODO : géométrie du biplot et lecture des angles
+
+**Longueur de flèche** = norme de la projection sur ce plan. Flèche longue = variable bien représentée. Flèche courte = se cache dans une autre dimension.
+
+**Angle entre 2 flèches** : 0° = corrélation forte positive ; 90° = indépendance (orthogonales) ; 180° = corrélation forte négative.
+
+**Proximité variable ↔ ville** : une ville près d'une flèche a une **valeur élevée** sur cette variable. À l'opposé = valeur basse. C'est ce qui permet de **nommer un cluster** par les variables des flèches voisines.
+
+**Chaque axe se lit comme un gradient** : la projection donne le score d'une ville sur cet axe synthétique, et les variables contributrices nomment le gradient (ex : Dim1 = « capitales touristiques denses vs marchés secondaires diffus »).
+
+**Variables supplémentaires** (flèches pointillées) : projetées *a posteriori*, n'influencent pas le calcul des axes. Utiles pour valider la cohérence avec une cible (target) ou une variable de contrôle (IDH, population).
+:::
+
+```{r}
+#| label: biplot-12-lecture
+#| echo: false
+#| cache: false
+#| results: asis
+
+# .cld-add : Lecture analytique semi-auto Dim1+Dim2 : top contrib + signe coord
+top1 <- head(sort(pca$var$contrib[, 1], decreasing = TRUE), 4)
+top2 <- head(sort(pca$var$contrib[, 2], decreasing = TRUE), 4)
+sign1 <- sign(pca$var$coord[names(top1), 1])
+sign2 <- sign(pca$var$coord[names(top2), 2])
+pos1 <- names(top1)[sign1 > 0]; neg1 <- names(top1)[sign1 < 0]
+pos2 <- names(top2)[sign2 > 0]; neg2 <- names(top2)[sign2 < 0]
+
+# Wrap variables en ==marker== pour highlight Pandoc +mark
+.wrap_mark <- function(v) if (length(v) == 0) "(aucune)" else paste(sprintf("==%s==", v), collapse = ", ")
+
+cat("::: {.cld-add}\n")
+cat("::: {.callout-note appearance='minimal'}\n")
+cat("## Lecture analytique du plan 1-2 (à renseigner / valider)\n\n")
+cat(sprintf("**Axe 1 (%.1f %% de variance)** oppose deux pôles : à droite %s ; à gauche %s. Cet axe se lit comme un gradient continu — les villes à l'extrémité droite ont des valeurs élevées sur les premières, faibles sur les secondes.\n\n",
+  aa_v_dim1, .wrap_mark(pos1), .wrap_mark(neg1)))
+cat(sprintf("**Axe 2 (%.1f %% de variance)** est orthogonal à Dim1 (variance non corrélée). Pôle haut : %s ; pôle bas : %s. À niveau Dim1 équivalent, cet axe sépare des sous-profils.\n\n",
+  aa_v_dim2, .wrap_mark(pos2), .wrap_mark(neg2)))
+cat("*Commentaire métier à ajouter ici par l'analyste : nom du gradient Dim1, mécanisme métier, cas concrets.*\n")
+cat(":::\n:::\n")
+```
+
+::: {.column-screen-inset}
+```{r}
+#| label: plt-biplot-dual-12
+#| cache: false
+#| fig-width: 16
+#| fig-height: !expr biplot_dual_height(pca, c(1,2))
+
+plot_biplot_dual(pca, axes = c(1, 2), top_n = CONFIG$top_n,
+  show_sup = TRUE, show_cor = TRUE, size_col_data = size_vec,
+  interactive = FALSE, title = FALSE)
+```
+:::
+
+### Biplot dual — Axes 1-3 (`r aa_v_plan13` % du plan)
+
+Le plan **Dim1 × Dim3** révèle une dimension complémentaire que le plan principal ne montre pas. Souvent l'axe 3 oppose des profils que les 2 premiers axes ne séparent pas clairement (sous-typologie, profil atypique). À examiner pour valider qu'un cluster reste cohérent sur les 3 axes.
+
+```{r}
+#| label: biplot-13-lecture
+#| echo: false
+#| cache: false
+#| results: asis
+
+# .cld-add : Lecture analytique semi-auto Dim1+Dim3 : top contrib Dim3
+if (ncol(pca$var$contrib) >= 3) {
+  top3 <- head(sort(pca$var$contrib[, 3], decreasing = TRUE), 4)
+  sign3 <- sign(pca$var$coord[names(top3), 3])
+  pos3 <- names(top3)[sign3 > 0]; neg3 <- names(top3)[sign3 < 0]
+  .wrap_mark <- function(v) if (length(v) == 0) "(aucune)" else paste(sprintf("==%s==", v), collapse = ", ")
+
+  cat("::: {.cld-add}\n")
+  cat("::: {.callout-note appearance='minimal'}\n")
+  cat("## Lecture analytique du plan 1-3 (à renseigner / valider)\n\n")
+  cat(sprintf("**Axe 3 (%.1f %% de variance)** apporte une dimension orthogonale à Dim1 et Dim2. Pôle haut : %s ; pôle bas : %s. Cet axe capture une information masquée par le plan principal — souvent un gradient secondaire (sous-typologie, composition).\n\n",
+    aa_v_dim3, .wrap_mark(pos3), .wrap_mark(neg3)))
+  cat("**Lire la cohérence cluster en 1-3** : un cluster bien séparé en Dim1×Dim2 *et* compact en Dim1×Dim3 = caractérisation robuste sur 3 dimensions. À l'inverse, un cluster éclaté en Dim1×Dim3 signale une hétérogénéité interne.\n\n")
+  cat("*Commentaire métier à ajouter ici : nom du gradient Dim3, ce qu'il apporte par rapport à Dim1+Dim2.*\n")
+  cat(":::\n:::\n")
+}
+```
+
+::: {.column-screen-inset}
+```{r}
+#| label: plt-biplot-dual-13
+#| cache: false
+#| fig-width: 16
+#| fig-height: !expr biplot_dual_height(pca, c(1,3))
+
+plot_biplot_dual(pca, axes = c(1, 3), top_n = CONFIG$top_n,
+  show_sup = TRUE, show_cor = TRUE, size_col_data = size_vec,
+  interactive = FALSE, title = FALSE)
+```
+:::
+
+### Synthèse ACP : que disent les dimensions retenues ?
+
+```{r}
+#| label: synthese-acp
+#| echo: false
+#| cache: false
+#| results: asis
+
+cat("::: {.encadre-insight}\n")
+cat(sprintf("[**SYNTHÈSE ACP — %d axes retenus, %.1f %% de variance cumulée**]{.encadre-insight-titre}\n\n",
+  min(aa_n_kaiser, aa_n_horn, na.rm = TRUE), aa_v_var13))
+cat(sprintf("- **Concordance Kaiser/Horn** — %s. %s\n",
+  if (!is.na(aa_n_horn) && aa_n_kaiser == aa_n_horn) sprintf("Kaiser et Horn convergent sur **%d axes**", aa_n_kaiser)
+  else if (!is.na(aa_n_horn)) sprintf("Kaiser propose **%d axes**, Horn (plus parcimonieux) ramène à **%d**", aa_n_kaiser, aa_n_horn)
+  else sprintf("Kaiser propose **%d axes** (Horn non disponible)", aa_n_kaiser),
+  if (!is.na(aa_n_horn) && aa_n_kaiser == aa_n_horn) "Signal de qualité — le jeu de données ne sur-disperse pas."
+  else if (!is.na(aa_n_horn)) "Suivre Horn (Glorfeld 1995) — Kaiser sur-extrait à p>10."
+  else ""))
+cat(sprintf("- **Plan principal Dim1×Dim2** capte %.1f %% de variance. %s\n",
+  aa_v_var12,
+  if (aa_v_var12 >= 50) "Plan factoriel principal lisible — l'interprétation 2D est fiable."
+  else if (aa_v_var12 >= 40) "Plan principal modéré — vérifier la cohérence sur Dim1×Dim3."
+  else "Plan principal faible — la 2D ne capture qu'une fraction, regarder absolument l'axe 3."))
+cat(sprintf("- **Ncp recommandé pour HCPC** = %d (médiane Kaiser/Horn).\n",
+  as.integer(stats::median(c(aa_n_kaiser, aa_n_horn), na.rm = TRUE))))
+cat(":::\n")
+```
+
+## 6 — HCPC : quelles familles de villes ?
+
+La classification ascendante hiérarchique (Ward) sur les coordonnées ACP identifie `r aa_n_bestk` clusters de profils homogènes. Chaque section ci-dessous caractérise la qualité de la partition (silhouette, mal classés), positionne les clusters dans le plan factoriel, et profile chaque cluster par les variables qui le distinguent significativement (heatmap v-test).
+
+::: {.callout-tip collapse="true" appearance="minimal"}
+## REPÈRES MÉTHODO : qualité d'un clustering et lecture des profils
+
+**Silhouette (Kaufman 1990)** : pour chaque individu, mesure +1 (dans son cluster) à -1 (mal classé). Moyenne **≥ 0,50 = forte** structure ; 0,25–0,50 = raisonnable ; < 0,25 = pas de structure substantielle. *Une silhouette de 0,21 ne veut pas dire « pas de typologie » mais que les clusters se chevauchent dans le plan factoriel — l'interpréter prudemment.*
+
+**Mal classés** (silhouette < 0) : individus dont le cluster voisin est plus proche que le sien. > 10 % = clusters mal séparés ; < 5 % = bonne cohérence.
+
+**Mahalanobis** : distance multivariée d'un individu au profil moyen de son cluster, en tenant compte des corrélations. Moyenne attendue ≈ nombre d'actives. Valeur élevée = individu atypique dans son groupe.
+
+**v-test** : signe et amplitude de l'écart entre la moyenne du cluster et la moyenne globale, exprimé en écarts-types. **|v| > 1,96 = significatif (p < 5 %)** ; |v| > 3 = très significatif (p < 0,1 %). Sert à nommer les clusters par les variables qui les distinguent le plus.
+
+**Parangons** : individus les plus représentatifs de chaque cluster (au plus proche du barycentre). Utiles pour l'interprétation narrative.
+:::
+
+### Dendrogramme et gains d'inertie
+
+Le **dendrogramme** (gauche) visualise la fusion progressive des individus en clusters. Le trait horizontal coupe l'arbre à `r aa_n_bestk` clusters. L'**éboulis des gains d'inertie** (droite) marque le saut d'inertie à chaque coupure : un saut prononcé signale la « bonne » coupure. *Sélection ici : k = `r aa_n_bestk` (`r aa_t_sizes`).*
+
+::: {.column-page}
+```{r}
+#| label: plt-dendro-elbow
+#| fig-width: 16
+#| fig-height: 6
+
+plot_dendro_elbow(hcpc, k = aa_n_bestk)
+```
+:::
+
+### Silhouette : les individus sont-ils bien dans leur cluster ?
+
+Pour chaque individu, mesure +1 (parfait) à -1 (mal classé), 0 = frontière. Moyenne **≥ 0,50** = forte structure · 0,25-0,50 = raisonnable (continuum) · < 0,25 = peu de structure. Silhouette modeste sur données territoriales = **continuum de profils** plutôt que catégories tranchées, pas un échec.
+
+```{r}
+#| label: plt-silhouette
+#| fig-width: 12
+#| fig-height: 5
+
+factoextra::fviz_silhouette(sil_obj, print.summary = FALSE) +
+  labs(title = sprintf("Silhouette = %.3f — %d mal classe(s) (%.1f%%)",
+    aa_v_sil, aa_n_neg, aa_v_neg_pct)) +
+  theme_minimal(base_size = 11) +
+  theme(plot.title = element_text(size = 12, face = "bold"))
+```
+
+### `r aa_n_bestk` clusters — Axes 1-2 et 1-3
+
+Position des clusters dans le plan factoriel principal (1-2) et complémentaire (1-3). Chaque point = un individu coloré par cluster. **Séparation nette** = clusters distincts sur ces axes. **Chevauchement 2D** = les clusters ne diffèrent que sur des axes supérieurs, ou continuum de profils (caractéristique territoriale). Cohérence entre 1-2 et 1-3 = stabilité de la partition.
+
+::: {.column-screen-inset}
+```{r}
+#| label: plt-clusters-dual
+#| fig-width: 16
+#| fig-height: 7
+
+ind_coords <- pca$ind$coord
+shared_ylim <- range(c(ind_coords[,2], ind_coords[,3])) * 1.15
+shared_xlim <- range(ind_coords[,1]) * 1.15
+
+p12 <- plot_ind_cluster(pca, hcpc, axes = c(1, 2)) +
+  coord_cartesian(xlim = shared_xlim, ylim = shared_ylim)
+p13 <- plot_ind_cluster(pca, hcpc, axes = c(1, 3)) +
+  coord_cartesian(xlim = shared_xlim, ylim = shared_ylim)
+p12 + p13 +
+  plot_layout(ncol = 2, guides = "collect") &
+  theme(legend.position = "bottom")
+```
+:::
+
+### Heatmap v-test : par quelles variables nommer les clusters ?
+
+Le **v-test** mesure l'écart entre la moyenne du cluster et la moyenne globale en écarts-types. **|v.test| > 1,96** = écart significatif (p<5 %), **> 3** = très significatif. Variables classées par **eta²** (pouvoir discriminant : combien la variable sépare les clusters). Les premières colonnes structurent le plus la typologie.
+
+```{r}
+#| label: rt-vtest-heatmap
+#| cache: false
+
+typo_vtest_rt(hcpc, cap_z = 2.0, seuil_zscore = 0.3)
+```
+
+::: {.note-lecture}
+Cellule = moyenne du cluster. Fond bordeaux/bleu = z-score vs moyenne globale. Etoiles : \* p<5%, \*\* p<1%, \*\*\* p<0.1%. Pourcentage = ecart relatif. Colonnes triees par eta2 (pouvoir discriminant).
+:::
+
+```{r}
+#| label: comment-profil
+#| echo: false
+#| results: asis
+cat(typo_summary_text(hcpc))
+```
+
+### Heatmap individus : qui est typique, qui est atypique ?
+
+Vue détaillée par individu : cluster, silhouette, voisin, atypicité multivariée (**Mahalanobis** tient compte des corrélations entre variables), puis profil sur chaque variable active. Repère les **parangons** (silhouette haute, Mahalanobis faible) et **cas atypiques** (Mahalanobis fort = profil multivarié éloigné de la moyenne du cluster).
+
+::: {.column-page}
+```{r}
+#| label: rt-heatmap-individus
+#| cache: false
+
+typo_individus_rt(hcpc, pca, vars = CONFIG$actives,
+  label_col = CONFIG$label_col,
+  cap_z = 2.0, band = 0.3, page_size = 25, max_rows = 2000)
+```
+:::
+
+::: {.note-lecture}
+**Cl.** = cluster. **Silh.** = silhouette (+1 parfait, 0 frontiere, <0 mal classe). **Vois.** = cluster voisin le plus proche. **Mah.** = distance de Mahalanobis (sans unite, moyenne attendue = `r aa_n_actives`). **Variables** : valeur brute, fond bordeaux/bleu = z-score.
+:::
+
+### Modalités quali : quelles catégories caractérisent chaque cluster ?
+
+Modalités qualitatives sur-représentées par cluster vs le reste. Permet de **relier la typologie quantitative à des catégories nominales** (région, type) sans qu'elles aient été utilisées pour construire les clusters — elles servent de **témoins illustratifs**. v.test > 1,96 = sur-représentation significative ; comparer **% cluster vs % global** pour calibrer la force du marqueur.
+
+```{r}
+#| label: rt-desc-quali
+#| cache: false
+#| eval: !expr length(CONFIG$sup_quali) > 0
+
+desc_ql <- typo_desc(hcpc, proba = 0.05, type = "quali")
+if (nrow(desc_ql) > 0) {
+  desc_ql %>%
+    group_by(cluster) %>% slice_head(n = 5) %>%
+    select(cluster, variable, v.test, mean_clust, mean_global) %>%
+    rt_table(cols = list(
+      cluster = colDef(name = "Cluster", width = 70),
+      variable = colDef(name = "Modalite", minWidth = 200),
+      v.test = colDef(name = "v.test", width = 60, align = "right",
+        cell = function(v) sprintf("%.1f", v)),
+      mean_clust = colDef(name = "% cluster", width = 80, align = "right",
+        cell = function(v) sprintf("%.1f%%", v)),
+      mean_global = colDef(name = "% global", width = 80, align = "right",
+        cell = function(v) sprintf("%.1f%%", v))
+    ), page_size = 20)
+}
+```
+
+### Parangons : les individus emblématiques
+
+Pour chaque cluster, les **5 individus les plus proches du barycentre** : ils incarnent le profil moyen. À utiliser pour **nommer un cluster** en référence à des cas concrets plutôt que par une combinaison abstraite de variables. La **distance au barycentre** classe les parangons : plus elle est faible, plus l'individu est typique.
+
+```{r}
+#| label: rt-parangons
+#| cache: false
+
+parangons <- typo_parangons(hcpc, n = 5)
+if (nrow(parangons) > 0) {
+  parangons %>% filter(type == "paragon") %>%
+    select(cluster, individu, distance) %>%
+    rt_table(cols = list(
+      cluster = colDef(name = "Cl.", width = 50),
+      individu = colDef(name = "Ville", minWidth = 180),
+      distance = colDef(name = "Distance", width = 100, align = "right",
+        cell = function(v) sprintf("%.3f", v))
+    ))
+}
+```
+
+```{r}
+#| label: paragons-narratif
+#| echo: false
+#| cache: false
+#| results: asis
+
+# .cld-add : Mini-redige dynamique par cluster (top 3 paragons + top vars discriminantes)
+para_all <- typo_parangons(hcpc, n = 5)
+desc_q   <- typo_desc(hcpc, proba = 0.05, type = "quanti")
+
+cat("::: {.cld-add}\n")
+cat("::: {.callout-note appearance='minimal'}\n")
+cat("## Lecture parangons : qui incarne chaque cluster ?\n\n")
+clusters <- sort(unique(as.character(hcpc$data.clust$clust)))
+for (cl in clusters) {
+  para_cl <- para_all %>% filter(type == "paragon", cluster == cl) %>% head(3)
+  desc_cl <- desc_q %>% filter(cluster == cl) %>% arrange(desc(abs(v.test))) %>% head(3)
+  n_cl <- sum(hcpc$data.clust$clust == cl)
+  pct_cl <- round(n_cl / nrow(hcpc$data.clust) * 100, 0)
+  para_ids <- paste(sprintf("`%s` (d=%.2f)", para_cl$individu, para_cl$distance), collapse = ", ")
+  vars_disc <- paste(sprintf("**%s** (%s)", desc_cl$variable,
+    ifelse(desc_cl$v.test > 0, "+", "−")), collapse = ", ")
+  cat(sprintf("- **C%s** (%d villes, %d %%) — incarnée par %s. Profil discriminant : %s.\n",
+    cl, n_cl, pct_cl, para_ids, vars_disc))
+}
+cat(":::\n:::\n")
+```
+
+### Villes atypiques : les cas hors-norme
+
+Les **villes atypiques** sont celles dont le profil multivarié s'écarte fortement du barycentre de leur cluster *même en tenant compte des corrélations entre variables* (distance de Mahalanobis élevée). Cas à examiner : régulation forte, hub touristique singulier, ou marché émergent.
+
+```{r}
+#| label: insight-outliers
+#| echo: false
+#| cache: false
+#| results: asis
+
+# .cld-add : top 10 atypiques Mahalanobis > P95
+mah_p95 <- quantile(indiv_df$mahalanobis, 0.95, na.rm = TRUE)
+n_above_p95 <- sum(indiv_df$mahalanobis > mah_p95, na.rm = TRUE)
+top_aty_n <- indiv_df[order(-indiv_df$mahalanobis), ][1:min(10, nrow(indiv_df)), ]
+
+cat("::: {.cld-add}\n")
+cat("::: {.callout-note appearance='minimal'}\n")
+cat(sprintf("## Top 10 villes atypiques (Mahalanobis > P95 = %.2f)\n\n", mah_p95))
+cat(sprintf("**%d villes** dépassent le seuil P95. Les 10 premières triées par Mahalanobis décroissante :\n\n", n_above_p95))
+for (i in seq_len(min(10, nrow(top_aty_n)))) {
+  cat(sprintf("- **%s** — cluster C%s, Mahalanobis = %.2f\n",
+    top_aty_n$city_fr[i], top_aty_n$cluster[i], top_aty_n$mahalanobis[i]))
+}
+cat(":::\n:::\n")
+```
+
+## 7 — Qualité : la typologie tient-elle ?
+
+Synthèse des indicateurs de robustesse de la partition.
+
+- **Équilibre** : taille des clusters (un cluster < 5 % des villes est fragile, à fusionner ou expliquer)
+- **Cohérence interne** : silhouette moyenne (≥ 0,50 = forte, 0,25–0,50 = raisonnable, < 0,25 = clusters chevauchants — typique des continuums territoriaux)
+- **Inertie inter** : part de la variance totale captée par la séparation entre clusters. La **consolidation k-means** raffine légèrement les frontières après HCPC.
+
+```{r}
+#| label: quality-summary
+#| echo: false
+#| results: asis
+
+cat(sprintf("- **%d clusters**, %d villes (%s)\n", aa_n_bestk, aa_n_ind, aa_t_sizes))
+cat(sprintf("- Silhouette : **%.3f** (%s)\n", aa_v_sil, aa_t_sil_qual))
+cat(sprintf("- Mal classés : %d (%.1f %%)\n", aa_n_neg, aa_v_neg_pct))
+if (!is.na(inert$inertie_inter_apres))
+  cat(sprintf("- Inertie inter : **%.3f** (gain consolid. %+.1f %%)\n",
+    inert$inertie_inter_apres, if (!is.na(inert$gain_consol_pct)) inert$gain_consol_pct else 0))
+```
+
+::: {.callout-tip collapse='true' appearance='minimal'}
+## REPÈRES MÉTHODO : quand une silhouette modeste reste valable
+
+Sur **données territoriales / sciences sociales**, une silhouette de 0,20-0,40 est fréquente et ne signale pas un échec : elle traduit le fait que les profils forment un **continuum** plutôt que des catégories tranchées. La typologie reste utile pour :
+
+- nommer des **gradients** (plus dense vs plus diffus, plus régulé vs moins régulé) plutôt que des catégories étanches ;
+- identifier les **parangons** (cas typiques) et les **transitions** (cas-frontière) ;
+- piloter des comparaisons internationales différenciées sans prétendre que les groupes sont hermétiques.
+
+Validation par triangulation : silhouette + Calinski-Harabasz + Davies-Bouldin + Gap stat + stabilité bootstrap (`fpc::clusterboot()`, Jaccard moyen >0,75). Rejet de la typologie uniquement si silhouette <0,15 sur l'ensemble des métriques.
+:::

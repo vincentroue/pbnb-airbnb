@@ -1,0 +1,8 @@
+france_kpi cols: label,level,n_listings,n_hosts,prix_med,prix_med_entire,prix_moy,pct_entire,pct_multi,pct_longterm,dispo_med,reviews_med,rpm_med,ratio_lh,top10_share,listings_1000hab,listings_1000hsg
+france_kpi 1000hab: NA
+france_kpi 1000hsg: NA
+paris_kpi 1000hab: 135.8
+sum prop: NA
+sum rp: NA
+france n_listings: 64467
+class: data.frame

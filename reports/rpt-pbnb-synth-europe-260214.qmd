@@ -2,7 +2,7 @@
 title: "Airbnb en Europe : 37 marchés, 463 000 annonces"
 subtitle: "Quand la location courte durée redessine le logement urbain"
 author: "Vincent R."
-date: "Février 2026"
+date: "2026"
 number-sections: false
 toc: false
 format:
@@ -17,7 +17,7 @@ format:
 #| include: false
 
 library(reticulate)
-use_python("C:/ScoopApps/apps/python/current/python.exe", required = TRUE)
+use_python("C:/Users/vince/AppData/Local/Programs/Python/Python312/python.exe", required = TRUE)
 
 # ACP + tables
 library(FactoMineR)
@@ -31,7 +31,7 @@ library(reactablefmtr)
 
 source("C:/Users/vince/hh/pq/PDS/mutils/jrr/jcn-setup.R")
 source("C:/Users/vince/hh/pq/PDS/mutils/jrr/jcn-table.R")
-source("C:/Users/vince/hh/pq/PDS/mutils/jrr/jcn-acp-pca-plots.R")
+source("C:/Users/vince/hh/pq/PDS/mutils/jrr/jcn-dml-acp-plots.R")
 
 # Charger KPI pour R (reactable, ACP)
 kpi_r <- read.csv("C:/Users/vince/hh/pq/PDS/pbnb-airbnb-log-jrr-jpy/data/interim/kpi_europe_by_city_2506.csv",

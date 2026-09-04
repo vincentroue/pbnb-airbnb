@@ -1,0 +1,85 @@
+<script>
+// Fix ScrollSpy cassé avec toc-location: left en mode Quarto website
+// Bootstrap ScrollSpy ne suit pas le scroll quand le TOC est dans la sidebar gauche
+// Solution : IntersectionObserver custom qui track les sections visibles
+document.addEventListener('DOMContentLoaded', function() {
+  // Désactiver Bootstrap ScrollSpy (cassé dans ce layout)
+  var spyEl = document.querySelector('[data-bs-spy="scroll"]');
+  if (spyEl) {
+    spyEl.removeAttribute('data-bs-spy');
+    try {
+      var instance = bootstrap && bootstrap.ScrollSpy && bootstrap.ScrollSpy.getInstance(spyEl);
+      if (instance) instance.dispose();
+    } catch(e) {}
+  }
+
+  // Custom IntersectionObserver — track la section visible en haut du viewport
+  setTimeout(function() {
+    var tocNav = document.querySelector('nav[role="doc-toc"]');
+    if (!tocNav) return;
+    var tocLinks = tocNav.querySelectorAll('a[href^="#"]');
+    if (!tocLinks.length) return;
+
+    // Map section ID → lien TOC
+    var linkMap = {};
+    tocLinks.forEach(function(link) {
+      var id = link.getAttribute('href').slice(1);
+      linkMap[id] = link;
+    });
+
+    // Trouver toutes les sections avec entrée TOC
+    var sectionIds = Object.keys(linkMap);
+    var sections = [];
+    sectionIds.forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) sections.push(el);
+    });
+    if (!sections.length) return;
+
+    var currentActive = null;
+
+    var observer = new IntersectionObserver(function(entries) {
+      // Collecter toutes les sections visibles
+      var visible = [];
+      entries.forEach(function(entry) {
+        if (entry.isIntersecting) {
+          visible.push({
+            id: entry.target.getAttribute('id'),
+            top: entry.boundingClientRect.top
+          });
+        }
+      });
+
+      if (visible.length) {
+        // Prendre la section la plus haute dans le viewport
+        visible.sort(function(a, b) { return a.top - b.top; });
+        var activeId = visible[0].id;
+
+        if (activeId !== currentActive) {
+          currentActive = activeId;
+          tocLinks.forEach(function(l) { l.classList.remove('active'); });
+          if (linkMap[activeId]) linkMap[activeId].classList.add('active');
+        }
+      }
+    }, {
+      // Section "active" quand dans les 10-30% supérieurs du viewport
+      rootMargin: '-10% 0px -70% 0px',
+      threshold: 0
+    });
+
+    sections.forEach(function(s) { observer.observe(s); });
+  }, 1500); // Attendre que les widgets soient chargés
+
+  // Auto-afficher le nom du fichier source (.qmd)
+  var path = window.location.pathname;
+  var filename = path.split('/').pop().replace('.html', '.qmd');
+  if (filename && filename !== '.qmd') {
+    var el = document.createElement('div');
+    el.className = 'source-filename';
+    el.textContent = filename;
+    var meta = document.querySelector('.quarto-title-meta-container') ||
+               document.querySelector('.quarto-title-meta');
+    if (meta) meta.appendChild(el);
+  }
+});
+</script>

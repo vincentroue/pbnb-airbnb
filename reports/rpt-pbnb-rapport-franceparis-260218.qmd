@@ -1,11 +1,13 @@
 ---
 title: "Airbnb en France : quatre villes face aux marchés européens"
 subtitle: "Paris · Lyon · Bordeaux · Pays basque (Biarritz·Anglet·Bayonne) — positionnement, pression, prix, professionnalisation · Inside Airbnb juin 2025"
-author: "Vincent R."
-date: today
-date-format: "DD MMMM YYYY"
+date: "2025"
 categories: ["Rapport d'analyse"]
 number-sections: false
+format:
+  html:
+    toc: true
+    toc-depth: 2
 execute:
   warning: false
 freeze: auto
@@ -13,34 +15,79 @@ freeze: auto
 
 <!-- Fichier : rpt-pbnb-rapport-franceparis-260218.qmd | Type : RAPPORT | Scope : France (Paris, Lyon, Bordeaux, BAB) -->
 
-<details>
-<summary style="cursor:pointer; font-weight:600; font-size:14px; color:#666; margin:8px 0;">
-Plan de travail auto-généré (cliquer pour déplier)
-</summary>
-
-*Commentaires : écrire `<!-- vvr: texte -->` dans le corps du rapport (pas ici). Le plan se met à jour au render.*
-
-```{r}
-#| label: auto-plan-parse
-#| results: asis
-#| echo: false
-source("C:/Users/vince/hh/pq/PDS/mutils/jrr/jcn-auto-plan.R")
-generate_auto_plan(knitr::current_input(),
-                   fallback = "rpt-pbnb-rapport-franceparis-260218.qmd",
-                   exclude_chunks = c("setup-reticulate", "config", "auto-plan-parse"))
-```
-
-</details>
+<style>
+/* Réduction espaces entre sections */
+.quarto-section-identifier { margin-top: 1.8rem; }
+h2 { margin-top: 2rem !important; margin-bottom: 0.8rem !important; }
+h3 { margin-top: 1.4rem !important; margin-bottom: 0.6rem !important; }
+.grey-section { margin: 1rem 0 !important; padding: 0.8rem 1.2rem !important; }
+/* Grille 3 cartes côte à côte pour Leaflet */
+.map-trio {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+.map-trio .map-cell h4 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin: 0 0 0.3rem;
+  color: #1a2744;
+}
+.map-trio .map-cell p {
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: #555;
+  margin: 0 0 0.5rem;
+}
+.map-trio .leaflet-container {
+  height: 400px !important;
+  border-radius: 4px;
+  border: 1px solid #e0e0e0;
+}
+@media (max-width: 1000px) {
+  .map-trio { grid-template-columns: 1fr; }
+}
+/* Commentaire au-dessus de la carte */
+.map-comment {
+  font-size: 0.93em;
+  line-height: 1.6;
+  margin-bottom: 0.8rem;
+}
+/* Enseignements 2 colonnes */
+.synthese-2col {
+  column-count: 2;
+  column-gap: 2rem;
+  column-rule: 1px solid #e0e0e0;
+  orphans: 2;
+  widows: 2;
+}
+.synthese-2col > p { break-inside: avoid; }
+@media (max-width: 900px) { .synthese-2col { column-count: 1; } }
+/* Trio cartes pleine page */
+.map-trio-wrap {
+  width: 100vw;
+  margin-left: calc(-50vw + 50%);
+  padding: 0 2rem;
+  box-sizing: border-box;
+}
+</style>
 
 ```{r}
 #| label: setup-reticulate
 #| include: false
 
 library(reticulate)
-use_python("C:/ScoopApps/apps/python/3.13.3/python.exe", required = TRUE)
+use_python("C:/Users/vince/AppData/Local/Programs/Python/Python312/python.exe", required = TRUE)
 source("C:/Users/vince/hh/pq/PDS/mutils/jrr/jcn-setup.R")
 source("C:/Users/vince/hh/pq/PDS/mutils/jrr/jcn-table.R")
 source("C:/Users/vince/hh/pq/PDS/mutils/jrr/jcn-graph.R")
+source("C:/Users/vince/hh/pq/PDS/mutils/jrr/jcn-ggmapstatic.R")
+
+library(sf)
+library(ggplot2)
+library(ggrepel)
+library(leaflet)
 
 YTEST_R <- "C:/Users/vince/hh/pq/PDS/pbnb-airbnb-log-jrr-jpy/reports/ytest"
 ```
@@ -118,6 +165,7 @@ dd = _mod_dd.load_ddict(BASE / "reports" / "helpers" / "ddict-airbnb.json")
 # &e
 ```
 
+
 ```{python}
 #| label: data-load
 #| echo: false
@@ -134,7 +182,7 @@ df["price_eur"] = df["price"]
 df = df[df["price_eur"].notna() & (df["price_eur"] > 0)]
 df = df[df["availability_365"] > 0]
 df = df[df["room_type"] != "Hotel room"]
-df = df[(df["price_eur"] >= 10) & (df["price_eur"] <= 1000)]
+df = df[(df["price_eur"] >= 10) & (df["price_eur"] <= 2000)]
 df["is_longterm"] = df["minimum_nights"] >= 30
 df["is_multihost"] = df["calculated_host_listings_count"] > 1
 df["is_entire_home"] = df["room_type"] == "Entire home/apt"
@@ -348,7 +396,7 @@ clog.result("france_overview", {
 
 **Périmètre** : 4 villes françaises · **~65 000 annonces** actives (juin 2025, commune centre) · Benchmarking vs 40 villes européennes dont 6 pays comparables (ITA, DEU, GBR, ESP, NLD)
 
-**Sources** : Inside Airbnb (scraping plateforme) · Population et logements INSEE (commune propre)
+**Sources** : Inside Airbnb (données collectées depuis la plateforme) · Population et logements INSEE (commune)
 
 **Questions directrices** :
 
@@ -360,11 +408,25 @@ clog.result("france_overview", {
 :::
 
 ::: {.grey-section}
-**Données** : Inside Airbnb juin 2025 · Paris (51K), Bordeaux (8K), Lyon (5K), Pays basque (4,6K) · sumlistings nettoyés
+**Données** : Inside Airbnb juin 2025 · Paris (51K), Bordeaux (8K), Lyon (5K), Pays basque (4,6K) · annonces nettoyées
 
 **Référentiels** : Moyennes France (4 villes), Europe (40 marchés), Pays comparables (21 villes : ITA, DEU, GBR, ESP, NLD)
 
 **Limites** : Population = commune propre INSEE (Paris 2,1M vs aire urbaine 11M) · BAB = Biarritz + Anglet + Bayonne (118K hab), filtré depuis pays-basque Inside Airbnb · Données IRIS (sp10) disponibles pour Paris (958), Lyon (174), Bordeaux (88), BAB (43) · Dénominateurs INSEE : population, résidences principales, propriétaires
+:::
+
+::: {.callout-warning collapse="true"}
+## Méthodologie et limites
+
+**Nettoyage** : prix renseigné, disponibilité > 0, hors hôtels, fourchette 10-2 000 €/nuit. Taux de rétention ~65-70 % de la base brute. Même pipeline que le [rapport mondial](rpt-pbnb-rapport-ALL-260207.html).
+
+**Périmètre** : commune propre — Paris 2,1M hab (pas l'aire urbaine 11M). Le ratio ann./1 000 hab est donc surestimé pour Paris et sous-estimé pour les villes intégrées dans une aire métropolitaine plus étendue. BAB = Biarritz + Anglet + Bayonne (118K hab), filtré depuis la zone « pays-basque » d'Inside Airbnb.
+
+**Données IRIS** : 1 263 IRIS renseignés (Paris 958, Lyon 103, Bordeaux 73, BAB 41). Seuil minimum : 5 annonces par IRIS. Jointure spatiale listings → contours IRIS IGN 2025.
+
+**Population et logements** : INSEE RP 2022. Trois dénominateurs : population totale (hab), résidences principales (RP), propriétaires (prop).
+
+**Sources** : Inside Airbnb (juin 2025) · INSEE (RP 2022) · APUR (mars 2025) · Eurostat (nuitées 2024)
 :::
 
 ### Contexte : le déploiement d'Airbnb en France {.unnumbered}
@@ -401,10 +463,10 @@ Ce rapport suit une logique **du général au particulier** en trois parties :
 
 | Partie | Contenu | Échelle |
 |--------|---------|---------|
+| [**Enseignements**](#sec-synthese) | Réponses aux 5 questions directrices | Transversal |
 | [**P1 — La France dans le marché européen**](#sec-partie1) | Positionnement prix × pression, structure de l'offre, professionnalisation | 21 villes, 6 pays |
 | [**P2 — Quatre villes, quatre profils**](#sec-partie2) | Volumes, prix, profils d'hôtes, concentration, top hosts croisés, trajectoire | Paris, Bordeaux, Lyon, Pays basque |
 | [**P3 — Géographie fine de la pression**](#sec-partie3) | Arrondissements, IRIS, cartographie, Pays basque (Biarritz/Anglet/Bayonne) | Intra-ville |
-| [**Synthèse**](#sec-synthese) | Réponses aux 5 questions directrices | — |
 :::
 
 ## Synthèse exécutive {.unnumbered}
@@ -439,21 +501,35 @@ kpi_html = f"""<div class="kpi-card-grid">
 print(_re.sub(r'>\s+<', '><', kpi_html).strip())
 ```
 
-**1.** Le Pays basque atteint **39 annonces pour 1 000 habitants** — record des quatre villes françaises, devant Paris (24) et Bordeaux (17). À Biarritz, la pression est comparable aux quartiers les plus saturés d'Europe du sud.
+**1.** Biarritz-Anglet-Bayonne atteint **39 annonces pour 1 000 habitants** — record français, devant Paris (24) et Bordeaux (17). À Biarritz seule, la pression explose : **79 ann./1 000 hab**, comparable aux arrondissements centraux de Paris, et le quartier Front de Mer culmine à **251 ann./1 000 hab** — un record absolu. Rapporté aux logements, le 2e arrondissement de Paris atteint **176 ann./1 000 RP**, les IRIS les plus saturés de Biarritz dépassent **200 ann./1 000 logements**.
 
-**2.** Le logement entier parisien (**161 €/nuit**) coûte le double de Bordeaux (90 €) et Lyon (83 €). Le Pays basque (115 €) s'intercale entre les deux, porté par le segment balnéaire premium de Biarritz.
+**2.** Le logement entier parisien (**161 €/nuit**) coûte le double de Bordeaux (90 €) et Lyon (83 €). Biarritz-Anglet-Bayonne (115 €) s'intercale entre les deux, porté par le segment balnéaire premium de Biarritz (134 €).
 
 **3.** La concentration reste contenue : **2 % des hôtes** parisiens détiennent **27 % de l'offre**, nettement sous la moyenne européenne (36 %). Mais **99 hôtes** opèrent sur plusieurs villes françaises — signe d'une professionnalisation inter-marchés.
 
 **4.** La loi Le Meur (nov. 2024) produit un signal précoce de baisse des volumes à Paris (–5 % en 6 mois).
 
----
+## Enseignements — réponses aux questions directrices {#sec-synthese .unnumbered}
+
+<div class="synthese-2col">
+
+**Q1. Volumes et positionnement** — La France pèse **65 000 annonces** sur les 4 villes étudiées (commune centre pour Bordeaux). Paris est le 2e marché européen (51K) derrière Londres (61K). Le Pays basque (4,6K) complète le panorama avec un positionnement balnéaire premium. Rapportée à la population, Paris (24 annonces/1 000 hab) reste modérée face à Porto (55) ou Lisbonne (38), mais le Pays basque (39) rejoint les marchés les plus sous tension.
+
+**Q2. Pression territoriale** — Le Pays basque (**39 annonces/1 000 hab**, 68 ann./1 000 RP) est le marché français le plus sous pression, devant Paris (24, 45 ann./1 000 RP) et Bordeaux commune (17 ann./1 000 hab, 30 ann./1 000 RP). Le dénominateur par **résidences principales** (RP) affine la lecture : Paris atteint 45 ann./1 000 RP quand Lyon reste à 19. Rapporté aux **propriétaires**, le Pays basque (79 ann./1 000 prop.) dépasse Paris (71) et Bordeaux commune (44). Biarritz atteint **79 ann./1 000 hab**, comparable aux arrondissements centraux de Paris. Lyon reste modéré (10 ann./1 000 hab). À l'échelle IRIS, le quartier Front de Mer à Biarritz (**251 ann./1 000 hab**) et le centre historique bordelais (>50 ann./1 000 RP) illustrent l'hyperconcentration locale. Bordeaux est la seule ville où le ratio Airbnb/hôtels dépasse 1 (**1,4**).
+
+**Q3. Niveaux de prix** — Le logement entier parisien (**161 €**) coûte le double de Lyon (83 €). Le Pays basque s'intercale à **115 €**, porté par Biarritz (134 €). Bordeaux (90 €) et Lyon (83 €) restent proches. Ce ratio est modéré comparé au facteur 4 Amsterdam-Budapest. La chambre privée (99 € à Paris, 43-61 € hors Paris) offre une alternative économique.
+
+**Q4. Concentration et professionnalisation** — Les hôtes semi-professionnels (≥5 annonces) ne représentent que **2 % des hôtes** parisiens mais détiennent **27 % de l'offre** — nettement sous la moyenne européenne (37 %). Le Pays basque est le plus atomisé (1,4 % / 13 %). Fait notable : **99 hôtes opèrent sur plusieurs villes françaises**, formant un réseau de gestionnaires inter-marchés. Le multi-louage français (33-44 %) reste modéré face aux marchés espagnols (73-81 %).
+
+**Q5. Régulation** — Les traces sont mesurables : **14 % de location longue durée** à Paris (vs seulement 4 % au Pays basque), et une **baisse de –5 % des volumes** entre mars et septembre 2025 — signal précoce de la loi Le Meur. Le PLU bioclimatique interdit toute création de meublé touristique dans les arrondissements 1 à 11. Le cas bordelais interpelle : avec un ratio Airbnb/hôtels de **1,4** (le plus élevé de France) et **44 annonces pour 1 000 propriétaires** (commune centre), la pression sur le parc privé bordelais reste modérée en volume mais la substitution hôtelière est la plus avancée de France. La cartographie IRIS montre que la pression reste hyperconcentrée dans les quartiers touristiques centraux et les stations balnéaires.
+
+</div>
 
 ## Méthodologie {.unnumbered}
 
-Ce rapport exploite les mêmes données et le même pipeline de nettoyage que le [rapport mondial](rpt-pbnb-rapport-ALL-260207.html) (prix non null, dispo > 0, excl. hôtels, prix 10-1000 EUR). Seul le filtre géographique change : `country_code == "FRA"`.
+Ce rapport exploite les mêmes données et les mêmes critères de nettoyage que le [rapport mondial](rpt-pbnb-rapport-ALL-260207.html) (prix renseigné, disponibilité > 0, hors hôtels, fourchette 10-2 000 €/nuit). Seul le périmètre géographique change : France uniquement.
 
-Les données de **population** et de **logements** proviennent de l'INSEE (commune propre) et sont confirmées dans le référentiel `city_reference_data.py`. Le biais commune/aire urbaine est documenté : Paris commune (2,1M hab) vs aire urbaine (11M) fausse la comparaison du ratio par habitant.
+Les données de **population** et de **logements** proviennent de l'INSEE (commune propre). Le biais commune/aire urbaine est documenté : Paris commune (2,1M hab) vs aire urbaine (11M) fausse la comparaison du ratio par habitant.
 
 Quatre niveaux de référence sont systématiquement utilisés :
 
@@ -464,17 +540,17 @@ Quatre niveaux de référence sont systématiquement utilisés :
 | **Europe** | 40 marchés européens | Contexte continental |
 | **Monde** | 75 villes, 30 pays | Perspective globale |
 
----
-
 ## Partie 1 — La France dans le marché Airbnb européen {#sec-partie1}
 
-::: {.chapeau}
+::: {.grey-section}
+**Cadrage européen** — L'Europe concentre **~550 000 annonces** Airbnb actives sur les 40 marchés étudiés. La France, avec **65 000 annonces** sur 4 villes, est le 2e marché derrière le Royaume-Uni (Londres 61K + 5 villes). Paris est la 2e ville européenne (51K) derrière Londres. Le prix médian du logement entier en Europe s'établit à **120 €/nuit** (moyenne des 40 marchés), la pression moyenne à **15 ann./1 000 hab**, et la part des multi-loueurs (≥2 annonces) à **40 %**. Les marchés sud-européens (Lisbonne, Porto, Athènes, Florence) affichent les pressions les plus fortes (30-55 ann./1 000 hab) tandis que les marchés régulés (Amsterdam, Berlin) restent sous 10.
+:::
+
 Comment la France se distingue-t-elle parmi les marchés européens comparables ? Cette première partie situe les quatre villes françaises dans l'espace continental — positionnement prix × pression, intensité de l'offre, structure par type de logement, et degré de professionnalisation des hôtes.
 
 - Paris se positionne dans le **quadrant premium / pression modérée**, aux côtés de Londres et Amsterdam
 - Le Pays basque (39 ann./1 000 hab) et Paris (24) supportent une **pression supérieure à la moyenne européenne** — Bordeaux commune (17) se situe dans la moyenne
 - La professionnalisation française reste **contenue face aux marchés sud-européens** (33-44 % vs 73-81 %)
-:::
 
 ### Paris dans le quadrant premium européen, le Pays basque dépasse Florence {.unnumbered}
 
@@ -576,8 +652,6 @@ Ce positionnement divergent reflète des dynamiques distinctes : Paris attire un
 
 <div class="figure-source">Source : Inside Airbnb, juin 2025 · Prix médian logement entier · 21 villes, 6 pays comparables</div>
 
----
-
 ### Le Pays basque et Bordeaux supportent une pression comparable à Florence et Porto {.unnumbered}
 
 ::: {.panel-tabset}
@@ -654,8 +728,6 @@ rt_styled(df_pr[, c("city_fr", "country_code", "n_listings", "listings_1000hab",
 La pression Airbnb sur les villes françaises est très contrastée. Le **Pays basque** (Biarritz, Anglet, Bayonne — 118 000 habitants, 4 600 annonces) atteint **39 annonces pour 1 000 habitants**, un ratio porté par le poids de Biarritz où l'offre balnéaire sature le parc de logements. Paris (24 annonces/1 000 hab) se situe au-dessus de la moyenne européenne mais reste modéré face aux records de Porto (55) ou Lisbonne (38). **Bordeaux commune** (260 000 habitants, 4 300 annonces centre) affiche **17 annonces/1 000 hab** — noter que la métropole bordelaise (Inside Airbnb) couvre 8 200 annonces sur 62 quartiers dont Talence, Bègles, Mérignac. Lyon (10 annonces/1 000 hab) est proche de la moyenne des grandes capitales.
 
 <div class="figure-source">Source : Inside Airbnb, juin 2025 · Population : INSEE commune propre</div>
-
----
 
 ### Plus de 80 % de logements entiers : un record européen {.unnumbered}
 
@@ -737,8 +809,6 @@ La France est un marché massivement orienté vers le **logement entier**. Le Pa
 
 <div class="figure-source">Source : Inside Airbnb, juin 2025 · 21 villes, 6 pays comparables</div>
 
----
-
 ### La professionnalisation française reste contenue face aux marchés sud-européens {.unnumbered}
 
 ::: {.panel-tabset}
@@ -818,18 +888,14 @@ Le Pays basque se distingue par un marché plus atomisé : un rapport annonces/h
 **Transition** — Comment ces différences de positionnement européen se traduisent-elles concrètement entre les quatre villes françaises ? La partie suivante examine ce qui distingue Paris, Lyon, Bordeaux et le Pays basque en termes de volumes, de prix, de profils d'hôtes et de dynamique d'offre.
 :::
 
----
-
 ## Partie 2 — Quatre villes, quatre profils : volumes, prix et dynamiques {#sec-partie2}
 
-::: {.chapeau}
 Au-delà du positionnement européen, qu'est-ce qui différencie Paris, Lyon, Bordeaux et le Pays basque ? Cette partie compare les quatre marchés français en termes de volumes, de prix, de profils d'hôtes, de concentration et de trajectoire récente.
 
 - Le logement entier parisien (**161 €/nuit**) coûte le double de Bordeaux (90 €) et Lyon (83 €) — le Pays basque s'intercale à **115 €**
 - La concentration reste modérée : **2 % des hôtes** parisiens détiennent **27 % de l'offre** (vs 36 % en moyenne européenne)
 - **99 hôtes** opèrent sur plusieurs villes françaises — un réseau de gestionnaires inter-marchés
 - La loi Le Meur (nov. 2024) produit un **signal précoce** de baisse des volumes à Paris (–5 % en 6 mois)
-:::
 
 ### Paris domine en volume (51 000 annonces), le Pays basque en pression (39 ann./1 000 hab) {.unnumbered}
 
@@ -909,8 +975,8 @@ Avec **51 000 annonces**, Paris est le 2e marché européen derrière Londres. L
 Le prix médian d'un logement entier reflète une fracture Paris/province : **161 €** à Paris contre **115 €** au Pays basque, **90 €** à Bordeaux et **83 €** à Lyon.
 
 ::: {.callout-warning collapse="true"}
-## Scope géographique Bordeaux
-Inside Airbnb couvre la **métropole bordelaise** (62 quartiers) incluant Talence, Bègles, Le Bouscat, Mérignac... soit 8 200 annonces au total. Les KPI ville (sp10) et les ratios de pression utilisent le **centre commune** uniquement (4 300 annonces / 265K hab), cohérent avec Paris et Lyon (commune propre). Les indicateurs de prix et structure (sp08) portent sur l'ensemble métropolitain. Les analyses IRIS utilisent la jointure spatiale et ne sont pas affectées.
+## Périmètre géographique Bordeaux
+Inside Airbnb couvre la **métropole bordelaise** (62 quartiers) incluant Talence, Bègles, Le Bouscat, Mérignac... soit 8 200 annonces au total. Les ratios de pression utilisent la **commune centre** uniquement (4 300 annonces / 265K hab), par cohérence avec Paris et Lyon (commune propre). Les indicateurs de prix et de structure portent sur l'ensemble métropolitain.
 :::
 
 Comment cette fracture tarifaire se manifeste-t-elle dans la distribution des prix ?
@@ -958,8 +1024,6 @@ _html = f"""<div class="highlight-section" style="margin-top:1rem">
 print(_re.sub(r'>\s+<', '><', _html).strip())
 # &e
 ```
-
----
 
 ### Le logement entier à Paris (161 €) coûte le double — des marchés aux réalités distinctes {.unnumbered}
 
@@ -1034,7 +1098,7 @@ rt_styled(df_px, columns = list(
   lowerfence = colDef(show = FALSE),
   upperfence = colDef(show = FALSE)
 ), title = "Distribution des prix — logements entiers, 4 villes françaises",
-   source = "Source : Inside Airbnb, juin 2025 · Logements entiers uniquement, prix filtrés 10-1000 €/nuit")
+   source = "Source : Inside Airbnb, juin 2025 · Logements entiers uniquement, prix filtrés 10-2 000 €/nuit")
 ```
 
 :::
@@ -1045,9 +1109,7 @@ Paris s'inscrit dans le segment premium européen. Le prix médian du **logement
 
 Le **Pays basque** s'intercale à **115 €** — un prix élevé qui reflète le positionnement balnéaire de Biarritz (134 €/nuit en médiane). Bordeaux (**90 €**) et Lyon (**83 €**) se situent dans une fourchette proche. La chambre privée, alternative économique, descend à **43-61 €** hors Paris.
 
-<div class="figure-source">Source : Inside Airbnb, juin 2025 · Logements entiers uniquement, prix filtrés 10-1000 €/nuit</div>
-
----
+<div class="figure-source">Source : Inside Airbnb, juin 2025 · Logements entiers uniquement, prix filtrés 10-2 000 €/nuit</div>
 
 ### Le profil des hôtes : concentration, top loueurs France et indice de Gini {.unnumbered}
 
@@ -1188,8 +1250,6 @@ Un phénomène notable : **99 hôtes opèrent sur plusieurs villes françaises**
 
 <div class="figure-source">Source : Inside Airbnb, juin 2025 · Gini sur calculated_host_listings_count · Concentration ≥5 = semi-pro, ≥10 = pro</div>
 
----
-
 ### Paris perd 5 % de ses annonces en 6 mois — signal loi Le Meur {.unnumbered}
 
 ::: {.panel-tabset}
@@ -1296,11 +1356,8 @@ Bordeaux et Lyon montrent des trajectoires distinctes : Bordeaux avait déjà su
 **Transition** — Où, exactement, cette pression se concentre-t-elle à l'intérieur de chaque ville ? La partie suivante zoome à l'échelle des arrondissements, des IRIS, et des communes du Pays basque pour cartographier la géographie fine de la pression touristique.
 :::
 
----
-
 ## Partie 3 — La géographie fine de la pression : du centre touristique à la périphérie {#sec-partie3}
 
-::: {.chapeau}
 Les moyennes communales masquent des disparités internes considérables. Cette partie zoome à l'échelle des arrondissements, des IRIS et des communes pour révéler la géographie de la pression — du centre touristique hypersaturé aux périphéries résidentielles préservées.
 
 - Le **2e arrondissement** de Paris atteint 176 annonces pour 1 000 résidences principales — record européen au niveau quartier
@@ -1308,7 +1365,6 @@ Les moyennes communales masquent des disparités internes considérables. Cette 
 - Lyon présente un **gradient centre-périphérie** classique, la Presqu'île concentrant l'essentiel
 - Au Pays basque, **Biarritz concentre 44 % de l'offre** avec un prix médian de 134 € — Front de Mer et Chiberta en tête
 - Le dénominateur par **résidences principales** (1 000 RP) et par **propriétaires** (1 000 prop.) affine la lecture de la pression sur le parc habité
-:::
 
 ### Le 2e arrondissement de Paris : 123 annonces pour 1 000 logements, record européen {.unnumbered}
 
@@ -1398,10 +1454,8 @@ Les arrondissements centraux et touristiques (1er-4e, 6e, 8e) dépassent **80 an
 ::: {.callout-note collapse="true"}
 ## Note de lecture
 
-Le croisement IRIS Airbnb × INSEE logement révèle la **double pression** : les arrondissements à forte pression Airbnb sont aussi ceux où le taux de résidences secondaires est le plus élevé (6e : 22 %, 8e : 25 %). L'APUR estime que **30-36 % des logements** des arrondissements centraux sont inoccupés. Le ratio **L/% propriétaires** mesure combien de listings Airbnb existent pour 100 logements en résidence principale occupés par leur propriétaire — un proxy de la part du parc potentiellement détournée vers la location touristique.
+Le croisement entre données Airbnb et données INSEE du logement révèle une **double pression** : les arrondissements à forte densité Airbnb sont aussi ceux où le taux de résidences secondaires est le plus élevé (6e : 22 %, 8e : 25 %). L'APUR estime que **30-36 % des logements** des arrondissements centraux sont inoccupés. Le ratio annonces/propriétaires mesure combien d'annonces Airbnb existent pour 1 000 logements occupés par leur propriétaire — un indicateur de la part du parc potentiellement détournée vers la location touristique.
 :::
-
----
 
 ### Lyon : la Presqu'île concentre l'essentiel de la pression {.unnumbered}
 
@@ -1484,8 +1538,6 @@ rt_styled(df_ly, columns = list(
 Les arrondissements centraux de Lyon (1er — Croix-Rousse/Terreaux, 2e — Presqu'île, 5e — Vieux Lyon) concentrent la pression, avec des niveaux de **20-35 annonces/1 000 logements** — modérés comparés à Paris mais significatifs pour une ville de 523 000 habitants. La mairie a instauré la compensation obligatoire dès le 1er m² en hypercentre (Presqu'île, Croix-Rousse, Vieux Lyon) depuis juin 2022.
 
 <div class="figure-source">Source : Inside Airbnb, juin 2025 × INSEE RP 2022</div>
-
----
 
 ### Bordeaux : 88 IRIS, le centre historique concentre l'essentiel {.unnumbered}
 
@@ -1578,8 +1630,6 @@ En rapportant l'offre au nombre de **propriétaires** (dénominateur INSEE), Bor
 Le prix médian bordelais reste modéré : **84 €/nuit** en médiane IRIS (90 € au niveau ville entière), avec un gradient centre (95-110 €) → périphérie (65-75 €) moins marqué qu'à Paris.
 
 <div class="figure-source">Source : Inside Airbnb, juin 2025 × INSEE RP 2022 · 88 IRIS · Dénominateur : résidences principales</div>
-
----
 
 ### Pays basque : Biarritz concentre 44 % de l'offre, Front de Mer en tête {.unnumbered}
 
@@ -1708,127 +1758,202 @@ Le dénominateur par **résidences principales** accentue encore la singularité
 
 <div class="figure-source">Source : Inside Airbnb, juin 2025 · Population : INSEE commune propre · BAB = Biarritz + Anglet + Bayonne</div>
 
----
-
 ### Cartographie IRIS : la pression se lit à l'échelle du quartier {.unnumbered}
 
-```{python}
-#| label: p3-carto-iris
-#| output: asis
-#| echo: false
+```{r}
+#| label: p3-carto-setup
+#| include: false
 
-# &s P3_CARTO_IRIS - Folium choroplèthe Paris IRIS + Lyon quartiers
+# &s P3_CARTO_SETUP - Chargement IRIS geo + KPI pour cartes ggplot
 
-import folium
-import json
+GPKG <- "C:/Users/vince/DBD-datab/TDC-ref/geo-shape-raw/CONTOURS-IRIS_3-0__GPKG_LAMB93_FXX_2025-01-01/iris.gpkg"
+LYR <- st_layers(GPKG)$name[1]
 
-# --- Paris IRIS ---
-with open(str(BASE / "data" / "external" / "geo" / "iris-paris-wgs84.geojson")) as f:
-    iris_geo = json.load(f)
+BASE_D <- "C:/Users/vince/hh/pq/PDS/pbnb-airbnb-log-jrr-jpy/data/interim"
+kpi_terr <- read.csv(file.path(BASE_D, "kpi_france_byterr_2506.csv"),
+                      stringsAsFactors = FALSE,
+                      colClasses = c(code_iris = "character"))
+kpi_iris <- kpi_terr |> dplyr::filter(level == "iris")
 
-# Join données IRIS
-iris_data = iris_paris.set_index("code_iris")
+load_iris_geo <- function(sql_where) {
+  sf_obj <- st_read(GPKG, query = sprintf('SELECT * FROM "%s" WHERE %s', LYR, sql_where),
+          quiet = TRUE) |>
+    st_transform(2154) |>
+    st_simplify(dTolerance = 5, preserveTopology = TRUE) |>
+    dplyr::select(code_iris, nom_iris)
+  st_geometry(sf_obj) <- "geometry"
+  sf_obj
+}
 
-m_paris = folium.Map(location=[48.8566, 2.3522], zoom_start=12,
-                     tiles="cartodbpositron", width="100%", height="500px")
+iris_paris_sf <- load_iris_geo("code_iris LIKE '751%'")
+iris_lyon_sf  <- load_iris_geo("code_iris LIKE '6938%'")
+iris_bdx_sf   <- load_iris_geo("SUBSTR(code_iris,1,5) = '33063'")
+iris_bab_sf   <- load_iris_geo("SUBSTR(code_iris,1,5) IN ('64102','64122','64024')")
 
-folium.Choropleth(
-    geo_data=iris_geo,
-    data=iris_paris,
-    columns=["code_iris", "n"],
-    key_on="feature.properties.code_iris",
-    fill_color="YlOrRd",
-    fill_opacity=0.7,
-    line_opacity=0.2,
-    nan_fill_color="#f0f0f0",
-    legend_name="Nombre d'annonces Airbnb par IRIS",
-).add_to(m_paris)
+join_kpi <- function(sf_data, city_code) {
+  kpi_sub <- kpi_iris |> dplyr::filter(city == city_code)
+  sf_data |>
+    dplyr::left_join(kpi_sub |> dplyr::select(code_iris, n_listings, logements, rp, pop,
+                                 listings_1000hab, listings_1000rp, prix_med,
+                                 pct_entire, pct_multi),
+              by = "code_iris") |>
+    dplyr::mutate(
+      l_1000log = ifelse(!is.na(logements) & logements > 50,
+                          round(n_listings / logements * 1000, 1), NA_real_))
+}
 
-folium.LayerControl().add_to(m_paris)
+paris_map <- join_kpi(iris_paris_sf, "paris")
+lyon_map  <- join_kpi(iris_lyon_sf, "lyon")
+bdx_map   <- join_kpi(iris_bdx_sf, "bordeaux")
+bab_map   <- join_kpi(iris_bab_sf, "pays-basque")
 
-print(f'<p style="font-weight:600; font-size:1.05em; color:#333; margin-bottom:0.3em;">Figure 13 — Densité Airbnb par IRIS à Paris : les quartiers centraux en surchauffe</p>')
-print(f'<p style="font-size:0.85em; color:#666; margin-bottom:0.8em;">Nombre d\'annonces par IRIS — 992 IRIS · Source : Inside Airbnb juin 2025 × IGN Contours IRIS</p>')
-print(m_paris._repr_html_())
+# Fonction carte pression IRIS
+map_pression <- function(sf_data, titre, subtitle_extra = "", n_top = 4,
+                          var = "l_1000log", show_legend = TRUE) {
+  sub <- sf_data |> dplyr::filter(!is.na(.data[[var]]))
+  if (nrow(sub) == 0) return(ggplot() + theme_void() + labs(title = titre))
+
+  vals <- sub[[var]]
+  med_val <- median(vals, na.rm = TRUE)
+  max_val <- quantile(vals, 0.98, na.rm = TRUE)
+
+  brks <- c(0, 5, 10, 20, 40, 80, max(vals, na.rm = TRUE) + 1)
+  labels_brk <- c("< 5", "5-10", "10-20", "20-40", "40-80", "> 80")
+  pal_map <- c("#f0ebe0", "#ffe68a", "#fecc5c", "#fd8d3c", "#e31a1c", "#5b1a8c")
+
+  sub$bin <- cut(vals, breaks = brks, labels = labels_brk, include.lowest = TRUE)
+
+  top_iris <- sub |> dplyr::slice_max(.data[[var]], n = n_top)
+  top_pts <- st_centroid(top_iris) |>
+    dplyr::mutate(label = sprintf("%s\n%s / 1 000 log.",
+                            nom_iris, format(round(.data[[var]]), big.mark = " ")))
+
+  p <- ggplot() +
+    geom_sf(data = sub, aes(fill = bin), color = "#ffffff", linewidth = 0.15) +
+    geom_label_repel(data = top_pts,
+      aes(geometry = geometry, label = label),
+      stat = "sf_coordinates", size = 2.6, color = "#67001f", fontface = "bold",
+      family = .font_family,
+      nudge_y = 500, nudge_x = 300,
+      force = 8, force_pull = 0.3,
+      segment.color = "#999", segment.size = 0.4,
+      fill = alpha("white", 0.9), label.size = 0.3,
+      min.segment.length = 0, box.padding = 0.5, lineheight = 0.85,
+      max.overlaps = 15, inherit.aes = FALSE) +
+    scale_fill_manual(
+      values = setNames(pal_map, labels_brk),
+      name = "Ann. / 1 000\nlogements",
+      na.value = "#e8e8e8",
+      guide = if (show_legend) guide_legend(nrow = 1, override.aes = list(color = NA),
+                                             label.position = "bottom") else "none") +
+    coord_sf(crs = 2154) +
+    labs(title = titre,
+         subtitle = sprintf("%d IRIS \u00b7 m\u00e9d. = %.0f \u00b7 max = %.0f%s",
+           nrow(sub), med_val, max(vals, na.rm = TRUE),
+           ifelse(subtitle_extra != "", paste0(" \u00b7 ", subtitle_extra), ""))) +
+    th_map
+
+  p
+}
+
+# Leaflet — palette commune 8 bins pour trio Lyon/Bordeaux/BAB
+PRESSION_BREAKS <- c(0, 3, 5, 10, 20, 40, 80, 150, Inf)
+PRESSION_LABELS <- c("< 3", "3–5", "5–10", "10–20", "20–40", "40–80", "80–150", "> 150")
+PRESSION_COLORS <- c("#f7f4ee", "#f0ebe0", "#ffe68a", "#fecc5c", "#fd8d3c", "#fc4e2a", "#e31a1c", "#5b1a8c")
+pal_pression <- colorBin(
+  palette = PRESSION_COLORS, domain = c(0, 300),
+  bins = PRESSION_BREAKS, na.color = "#e8e8e8"
+)
+
+make_leaflet_pression <- function(sf_data, titre, show_legend = TRUE) {
+  sf_wgs <- sf_data |>
+    dplyr::filter(!is.na(l_1000log)) |>
+    st_transform(4326)
+  if (nrow(sf_wgs) == 0) return(leaflet() |> addTiles())
+  bb <- st_bbox(sf_wgs)
+  m <- leaflet(sf_wgs,
+    options = leafletOptions(zoomControl = TRUE, attributionControl = FALSE),
+    height = 400) |>
+    addProviderTiles(providers$CartoDB.Positron) |>
+    addPolygons(
+      fillColor = ~pal_pression(l_1000log),
+      fillOpacity = 0.7, color = "#ffffff", weight = 0.8, opacity = 1,
+      popup = ~sprintf("<b>%s</b><br>%.0f ann. / 1 000 log.<br>Prix m\u00e9d. : %.0f \u20ac",
+                        nom_iris, l_1000log, ifelse(is.na(prix_med), 0, prix_med)),
+      highlightOptions = highlightOptions(weight = 2, color = "#333", bringToFront = TRUE)
+    ) |>
+    fitBounds(bb[["xmin"]], bb[["ymin"]], bb[["xmax"]], bb[["ymax"]])
+  if (show_legend) {
+    m <- m |> addLegend(
+      pal = pal_pression, values = ~l_1000log,
+      title = "Ann. / 1 000 log.", position = "bottomright", opacity = 0.9)
+  }
+  m
+}
 # &e
 ```
 
-```{python}
-#| label: p3-carto-lyon
-#| output: asis
-#| echo: false
+<div class="map-comment">
 
-# &s P3_CARTO_LYON - Folium choroplèthe Lyon quartiers
+**Paris** — Un **corridor de saturation** s'étend du 2e au 4e arrondissement (Sentier, Bonne Nouvelle, Arts et Métiers, Saint-Merri), prolongé vers le 6e (Saint-Germain) et le 8e (Madeleine). Les IRIS les plus sous pression — Gaillon (230 ann./1 000 hab), Champs-Élysées (223), Bonne Nouvelle (167) — concentrent une offre qui dépasse parfois le nombre de résidences principales. Les arrondissements périphériques (12e, 13e, 15e, 20e) restent épargnés.
 
-with open(str(BASE / "data" / "external" / "geo" / "geo-FRA-lyon_neighbourhoods.geojson")) as f:
-    lyon_geo = json.load(f)
+</div>
 
-m_lyon = folium.Map(location=[45.7578, 4.8320], zoom_start=12,
-                    tiles="cartodbpositron", width="100%", height="400px")
+```{r}
+#| label: fig-map-paris
+#| fig-width: 12
+#| fig-height: 8
 
-# Préparer données pour Choropleth
-lyon_choro = lyon_arr[["neighbourhood", "listings"]].copy()
-
-folium.Choropleth(
-    geo_data=lyon_geo,
-    data=lyon_choro,
-    columns=["neighbourhood", "listings"],
-    key_on="feature.properties.neighbourhood",
-    fill_color="YlGnBu",
-    fill_opacity=0.7,
-    line_opacity=0.3,
-    nan_fill_color="#f0f0f0",
-    legend_name="Nombre d'annonces Airbnb par arrondissement",
-).add_to(m_lyon)
-
-folium.LayerControl().add_to(m_lyon)
-
-print(f'<p style="font-weight:600; font-size:1.05em; color:#333; margin-top:1.5em; margin-bottom:0.3em;">Lyon — Concentration par arrondissement</p>')
-print(f'<p style="font-size:0.85em; color:#666; margin-bottom:0.8em;">Nombre d\'annonces par arrondissement — Source : Inside Airbnb juin 2025</p>')
-print(m_lyon._repr_html_())
-# &e
+map_pression(paris_map, "Paris — pression par IRIS",
+             subtitle_extra = "808 IRIS", n_top = 5)
 ```
 
-[**La cartographie IRIS confirme l'hyperconcentration dans les quartiers touristiques — du Marais à Paris au Front de Mer à Biarritz, des poches de saturation invisibles aux statistiques communales**]{.insight}
+<div class="map-trio-wrap">
+<div class="map-trio">
 
-La carte IRIS de Paris révèle une géographie très fine de la pression. Les zones les plus saturées (rouge foncé) correspondent aux quartiers touristiques historiques : **Marais** (3e-4e), **Sentier-Bourse** (2e), **Montmartre** (18e nord), **Saint-Germain** (6e), **Champs-Élysées** (8e). Cette concentration est invisible lorsqu'on raisonne à l'échelle de l'arrondissement — l'IRIS permet de distinguer les blocs résidentiels préservés des poches touristiques saturées au sein d'un même arrondissement.
+<div class="map-cell">
+<h4>Lyon</h4>
+<p class="map-comment">Gradient centre-périphérie classique : 1er, 2e et 5e concentrent 20 à 35 ann./1 000 log. Compensation obligatoire en hypercentre depuis juin 2022. Les 7e-9e restent quasi épargnés.</p>
 
-À Lyon, la carte confirme la domination de la **Presqu'île** (2e arrondissement) et du **Vieux Lyon** (5e), avec un gradient rapide vers les arrondissements périphériques (7e, 8e, 9e) où l'offre Airbnb est marginale. Au Pays basque, l'analyse IRIS révèle des niveaux de concentration inédits à l'échelle nationale : le quartier **Front de Mer** à Biarritz (251 ann./1 000 hab) dépasse les IRIS les plus saturés de Paris.
-
-<div class="figure-source">Source : Inside Airbnb, juin 2025 · Fonds : IGN Contours IRIS (Paris), Inside Airbnb neighbourhoods (Lyon)</div>
-
----
-
-## Synthèse et enseignements {#sec-synthese .unnumbered}
-
-```{python}
-#| label: synthese-kpi-stripe
-#| output: asis
+```{r}
+#| label: fig-leaflet-lyon
 #| echo: false
 
-# &s SYNTHESE_KPI_STRIPE - Bandeau synthèse 4 chiffres clés
-import re as _re
-
-_stripe_html = f"""<div class="kpi-stripe">
-<div class="kpi-item">
-<div class="kpi-number">{dd.format_value('n_listings', N_FRA)}</div>
-<div class="kpi-desc">annonces actives · 4 villes</div>
-</div>
-<div class="kpi-item">
-<div class="kpi-number">{dd.format_value('listings_1000hab', bab_kpi['listings_1000hab'])}</div>
-<div class="kpi-desc">{dd.label('listings_1000hab', 'short')} · Pays basque</div>
-</div>
-<div class="kpi-item">
-<div class="kpi-number">{dd.format_value('prix_med_entire', paris_kpi['prix_med_entire'])}</div>
-<div class="kpi-desc">{dd.label('prix_med_entire', 'short')} · Paris</div>
-</div>
-<div class="kpi-item">
-<div class="kpi-number">{dd.format_value('cr_offre_5plus', paris_kpi['cr_offre_5plus'])}</div>
-<div class="kpi-desc">{dd.label('cr_offre_5plus', 'short')} · Paris</div>
-</div>
-</div>"""
-print(_re.sub(r'>\s+<', '><', _stripe_html).strip())
-# &e
+make_leaflet_pression(lyon_map, "Lyon", show_legend = FALSE)
 ```
+
+</div>
+
+<div class="map-cell">
+<h4>Bordeaux</h4>
+<p class="map-comment">Pression polarisée sur les 73 IRIS du centre. Saint-Pierre, Hôtel de Ville et Quinconces dépassent 50 ann./1 000 RP. Seule ville française où le ratio Airbnb/hôtels dépasse 1 (1,4).</p>
+
+```{r}
+#| label: fig-leaflet-bordeaux
+#| echo: false
+
+make_leaflet_pression(bdx_map, "Bordeaux", show_legend = FALSE)
+```
+
+</div>
+
+<div class="map-cell">
+<h4>Biarritz-Anglet-Bayonne</h4>
+<p class="map-comment">Offre ultra-polarisée. Biarritz : 44 % de l'offre, 79 ann./1 000 hab. Front de Mer : 251 ann./1 000 hab, record absolu. Anglet intermédiaire (38), Bayonne résidentielle (20).</p>
+
+```{r}
+#| label: fig-leaflet-bab
+#| echo: false
+
+make_leaflet_pression(bab_map, "BAB", show_legend = TRUE)
+```
+
+</div>
+
+</div>
+</div>
+
+<div class="figure-source">Source : Inside Airbnb, juin 2025 · Fonds : IGN Contours IRIS · Données INSEE RP 2022</div>
 
 ```{python}
 #| label: synthese-france
@@ -1903,20 +2028,156 @@ clog.save()
 # &e
 ```
 
-::: {.callout-tip}
-## Réponses aux questions directrices
+## Annexe — Données détaillées par ville, arrondissement et IRIS {.unnumbered}
 
-**Q1. Volumes et positionnement** — La France pèse **65 000 annonces** sur les 4 villes étudiées (commune centre pour Bordeaux). Paris est le 2e marché européen (51K) derrière Londres (61K). Le Pays basque (4,6K) complète le panorama avec un positionnement balnéaire premium. Rapportée à la population, Paris (24 annonces/1 000 hab) reste modérée face à Porto (55) ou Lisbonne (38), mais le Pays basque (39) rejoint les marchés les plus sous tension.
+```{r}
+#| label: tbl-annexe-kpi
+#| echo: false
 
-**Q2. Pression territoriale** — Le Pays basque (**39 annonces/1 000 hab**, 68 ann./1 000 RP) est le marché français le plus sous pression, devant Paris (24, 45 ann./1 000 RP) et Bordeaux commune (17 ann./1 000 hab, 30 ann./1 000 RP). Le dénominateur par **résidences principales** (RP) affine la lecture : Paris atteint 45 ann./1 000 RP quand Lyon reste à 19. Rapporté aux **propriétaires**, le Pays basque (79 ann./1 000 prop.) dépasse Paris (71) et Bordeaux commune (44). Biarritz atteint **79 ann./1 000 hab**, comparable aux arrondissements centraux de Paris. Lyon reste modéré (10 ann./1 000 hab). À l'échelle IRIS, le quartier Front de Mer à Biarritz (**251 ann./1 000 hab**) et le centre historique bordelais (>50 ann./1 000 RP) illustrent l'hyperconcentration locale. Bordeaux est la seule ville où le ratio Airbnb/hôtels dépasse 1 (**1,4**).
+# &s TBL_ANNEXE_KPI - Reactable imbriqué ville → arr → iris
 
-**Q3. Niveaux de prix** — Le logement entier parisien (**161 €**) coûte le double de Lyon (83 €). Le Pays basque s'intercale à **115 €**, porté par Biarritz (134 €). Bordeaux (90 €) et Lyon (83 €) restent proches. Ce ratio est modéré comparé au facteur 4 Amsterdam-Budapest. La chambre privée (99 € à Paris, 43-61 € hors Paris) offre une alternative économique.
+library(reactable)
+library(htmltools)
 
-**Q4. Concentration et professionnalisation** — Les hôtes semi-professionnels (≥5 annonces) ne représentent que **2 % des hôtes** parisiens mais détiennent **27 % de l'offre** — nettement sous la moyenne européenne (37 %). Le Pays basque est le plus atomisé (1,4 % / 13 %). Fait notable : **99 hôtes opèrent sur plusieurs villes françaises**, formant un réseau de gestionnaires inter-marchés. Le multi-louage français (33-44 %) reste modéré face aux marchés espagnols (73-81 %).
+kpi_all <- read.csv(file.path(BASE_D, "kpi_france_byterr_2506.csv"),
+                     stringsAsFactors = FALSE,
+                     colClasses = c(code_iris = "character"))
 
-**Q5. Régulation** — Les traces sont mesurables : **14 % de location longue durée** à Paris (vs seulement 4 % au Pays basque), et une **baisse de –5 % des volumes** entre mars et septembre 2025 — signal précoce de la loi Le Meur. Le PLU bioclimatique interdit toute création de meublé touristique dans les arrondissements 1 à 11. Le cas bordelais interpelle : avec un ratio Airbnb/hôtels de **1,4** (le plus élevé de France) et **44 annonces pour 1 000 propriétaires** (commune centre), la pression sur le parc privé bordelais reste modérée en volume mais la substitution hôtelière est la plus avancée de France. La cartographie IRIS montre que la pression reste hyperconcentrée dans les quartiers touristiques centraux et les stations balnéaires.
-:::
+# Labels lisibles pour territory
+kpi_all$label <- dplyr::case_when(
+  kpi_all$level == "country" ~ "France (4 villes)",
+  kpi_all$level == "city" & kpi_all$city == "paris" ~ "Paris",
+  kpi_all$level == "city" & kpi_all$city == "lyon" ~ "Lyon",
+  kpi_all$level == "city" & kpi_all$city == "bordeaux" ~ "Bordeaux",
+  kpi_all$level == "city" & kpi_all$city == "pays-basque" ~ "Biarritz-Anglet-Bayonne",
+  kpi_all$level == "arr" ~ kpi_all$arr,
+  kpi_all$level == "iris" ~ paste0(kpi_all$nom_iris, " (", kpi_all$code_iris, ")"),
+  TRUE ~ kpi_all$territory
+)
 
----
+# Sélection colonnes clés
+cols_show <- c("label", "n_listings", "pop", "listings_1000hab", "listings_1000rp",
+               "prix_med", "prix_med_entire", "pct_entire", "pct_multi", "pct_longterm",
+               "cr_offre_5plus", "dispo_med")
 
-*Généré avec Quarto + Python + R | Données Inside Airbnb juin 2025 | Source : insideairbnb.com*
+kpi_show <- kpi_all[, intersect(cols_show, names(kpi_all))]
+
+# Données ville (parent rows)
+cities <- kpi_all |> dplyr::filter(level == "city")
+cities_show <- cities[, intersect(cols_show, names(cities))]
+
+# Détails imbriqués (arr + iris)
+make_detail <- function(row) {
+  city_code <- cities$city[row]
+  # Arrondissements de cette ville
+  arr_data <- kpi_all |>
+    dplyr::filter(level == "arr", city == city_code) |>
+    dplyr::select(dplyr::any_of(cols_show)) |>
+    dplyr::arrange(label)
+
+  # IRIS de cette ville (seuil n >= 5)
+  iris_data <- kpi_all |>
+    dplyr::filter(level == "iris", city == city_code, n_listings >= 5) |>
+    dplyr::select(dplyr::any_of(cols_show)) |>
+    dplyr::arrange(dplyr::desc(listings_1000hab))
+
+  has_arr <- nrow(arr_data) > 0
+  has_iris <- nrow(iris_data) > 0
+
+  col_defs_detail <- list(
+    label = colDef(name = "Territoire", minWidth = 180, sticky = "left",
+      style = list(fontWeight = "500", background = "#fafafa")),
+    n_listings = colDef(name = "Annonces", format = colFormat(separators = TRUE)),
+    pop = colDef(name = "Population", format = colFormat(separators = TRUE)),
+    listings_1000hab = colDef(name = "Ann./1000 hab",
+      style = function(value) {
+        if (is.na(value)) return(list())
+        bg <- if (value > 40) "#e31a1c" else if (value > 20) "#fd8d3c" else if (value > 10) "#fecc5c" else "#f0f0f0"
+        fg <- if (value > 40) "#fff" else "#333"
+        list(background = bg, color = fg, fontWeight = "600")
+      }),
+    listings_1000rp = colDef(name = "Ann./1000 RP"),
+    prix_med = colDef(name = "Prix m\u00e9d.", format = colFormat(suffix = " \u20ac")),
+    prix_med_entire = colDef(name = "Prix entier", format = colFormat(suffix = " \u20ac")),
+    pct_entire = colDef(name = "% Entiers", format = colFormat(suffix = " %", digits = 0)),
+    pct_multi = colDef(name = "% Multi", format = colFormat(suffix = " %", digits = 0)),
+    pct_longterm = colDef(name = "% Long terme", format = colFormat(suffix = " %", digits = 0)),
+    cr_offre_5plus = colDef(name = "CR offre 5+", format = colFormat(suffix = " %", digits = 0)),
+    dispo_med = colDef(name = "Dispo m\u00e9d.", format = colFormat(suffix = " j"))
+  )
+
+  elts <- list()
+  if (has_arr) {
+    elts <- c(elts, list(
+      tags$h5(style = "margin:8px 0 4px; color:#555;", "Arrondissements"),
+      reactable(arr_data,
+        columns = col_defs_detail[intersect(names(col_defs_detail), names(arr_data))],
+        compact = TRUE, bordered = FALSE, pagination = FALSE, highlight = TRUE,
+        defaultColDef = colDef(align = "center", headerStyle = list(fontSize = "10px", color = "#888")))
+    ))
+  }
+  if (has_iris) {
+    elts <- c(elts, list(
+      tags$h5(style = "margin:12px 0 4px; color:#555;",
+        sprintf("IRIS (%d quartiers, n \u2265 5 annonces)", nrow(iris_data))),
+      reactable(iris_data,
+        columns = col_defs_detail[intersect(names(col_defs_detail), names(iris_data))],
+        compact = TRUE, bordered = FALSE, pagination = TRUE, defaultPageSize = 20,
+        highlight = TRUE, searchable = TRUE,
+        defaultColDef = colDef(align = "center", headerStyle = list(fontSize = "10px", color = "#888")),
+        language = reactableLang(searchPlaceholder = "Filtrer un IRIS..."))
+    ))
+  }
+
+  htmltools::div(style = "padding: 8px 12px; background: #fafafa;", elts)
+}
+
+# Table principale
+col_defs_main <- list(
+  label = colDef(name = "Ville", minWidth = 200, sticky = "left",
+    style = list(fontWeight = "600")),
+  n_listings = colDef(name = "Annonces", format = colFormat(separators = TRUE)),
+  pop = colDef(name = "Population", format = colFormat(separators = TRUE)),
+  listings_1000hab = colDef(name = "Ann./1000 hab",
+    style = function(value) {
+      if (is.na(value)) return(list())
+      bg <- if (value > 40) "#e31a1c" else if (value > 20) "#fd8d3c" else if (value > 10) "#fecc5c" else "#f0f0f0"
+      fg <- if (value > 40) "#fff" else "#333"
+      list(background = bg, color = fg, fontWeight = "700")
+    }),
+  listings_1000rp = colDef(name = "Ann./1000 RP"),
+  prix_med = colDef(name = "Prix m\u00e9d.", format = colFormat(suffix = " \u20ac")),
+  prix_med_entire = colDef(name = "Prix entier", format = colFormat(suffix = " \u20ac")),
+  pct_entire = colDef(name = "% Entiers", format = colFormat(suffix = " %", digits = 0)),
+  pct_multi = colDef(name = "% Multi", format = colFormat(suffix = " %", digits = 0)),
+  pct_longterm = colDef(name = "% Long terme", format = colFormat(suffix = " %", digits = 0)),
+  cr_offre_5plus = colDef(name = "CR offre 5+", format = colFormat(suffix = " %", digits = 0)),
+  dispo_med = colDef(name = "Dispo m\u00e9d.", format = colFormat(suffix = " j"))
+)
+
+tbl <- reactable(
+  cities_show,
+  columns = col_defs_main[intersect(names(col_defs_main), names(cities_show))],
+  details = make_detail,
+  compact = TRUE,
+  bordered = FALSE,
+  pagination = FALSE,
+  highlight = TRUE,
+  defaultColDef = colDef(align = "center",
+    headerStyle = list(background = "#f0f0f0", fontSize = "11px", color = "#555", fontWeight = "600")),
+  elementId = "tbl-kpi-france"
+)
+
+browsable(tagList(
+  tags$style("
+    #tbl-kpi-france .rt-td-inner { padding: 4px 8px; }
+    #tbl-kpi-france .rt-expandable { cursor: pointer; }
+  "),
+  tbl
+))
+# &e
+```
+
+<div class="figure-source">Source : Inside Airbnb, juin 2025 · INSEE RP 2022 · Cliquer sur une ville pour voir arrondissements et IRIS</div>
+
+*Données Inside Airbnb juin 2025 · insideairbnb.com*

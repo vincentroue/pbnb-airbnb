@@ -1,0 +1,88 @@
+<!-- _srpt-france-01-europe.qmd -->
+<!-- Sous-rapport : Partie 1 — La France dans l'espace européen (benchmark 23 villes). -->
+<!-- Inclus dans rpt-pbnb-rapport-france.qmd (MAIN). Convention chunks : srptfr01-* -->
+<!-- v1 — 2026-06-05. Implémente les stubs P1 du rapport monolithique (scatters + table). -->
+
+Les marchés français ne se lisent qu'en comparaison. Cette partie les inscrit dans un panel de `r nrow(kpi_comp)` villes réparties entre la France et cinq voisins comparables — Royaume-Uni, Italie, Espagne, Allemagne et Pays-Bas — dans un espace structuré par deux tensions : la pression résidentielle d'un côté, le niveau de prix et la professionnalisation de l'offre de l'autre.
+
+### Pression et prix : Paris dans le quadrant premium
+
+[**Avec `r eu_val("pays-basque", "prs_listings_1000hab_dense", 0)` annonces pour 1 000 habitants, le Pays Basque devance Venise (`r eu_val("venice", "prs_listings_1000hab_dense", 0)`) et Florence (`r eu_val("florence", "prs_listings_1000hab_dense", 0)`) en tête de la pression européenne**]{.insight}
+
+Paris occupe seul, parmi les marchés français, le quadrant des villes à la fois chères et tendues : `r aa_fr$paris_prix` €/nuit pour le logement entier et `r aa_fr$paris_pression` annonces pour 1 000 habitants *(figure ci-contre)*. La capitale se range aux côtés de Rome et Barcelone, loin derrière le mur tarifaire d'Amsterdam (`r eu_val("amsterdam", "px_entire_med", 0)` €) et d'Édimbourg (`r eu_val("edinburgh", "px_entire_med", 0)` €), portés par une rareté de l'offre que leur faible pression confirme. À l'opposé, le Pays Basque pousse la pression à un niveau extrême sans flambée des prix : le marché balnéaire sature le parc résidentiel sans atteindre les sommets tarifaires des capitales. Lyon et Bordeaux complètent le tableau en marchés intermédiaires, sous la moyenne du panel sur les deux axes.
+
+```{r}
+#| label: srptfr01-scatter-pression-prix
+#| fig-width: 9
+#| fig-height: 5.5
+#| cache: false
+
+mx <- mean(kpi_comp$prs_listings_1000hab_dense, na.rm = TRUE)
+my <- mean(kpi_comp$px_entire_med, na.rm = TRUE)
+
+p_pp <- plot_scatter(kpi_comp,
+  x = "prs_listings_1000hab_dense", y = "px_entire_med",
+  label_col = "city_fr", color_col = "is_fr", size_col = "vol_n_ann",
+  palette = c("Autres pays" = "#9aa0a6", "France" = col_magenta),
+  xlab = "Pression — annonces / 1 000 habitants (zone dense)",
+  ylab = "Prix médian logement entier (€/nuit)",
+  title = "Paris cumule prix élevé et pression forte ; le Pays Basque sature sans flambée tarifaire",
+  subtitle = "Pression résidentielle × prix — 23 villes de 6 pays européens · taille = nombre d'annonces · Inside Airbnb juin 2026",
+  ref_lines = "auto", ref_x = mx, ref_y = my, mean_lines = FALSE)
+
+log_scatter_auto("srptfr01_scatter_pression_prix", kpi_comp,
+  "prs_listings_1000hab_dense", "px_entire_med", "city_fr")
+render_girafe(p_pp, width_svg = 9, height_svg = 5.5)
+```
+
+<div class="figure-source">Source : Inside Airbnb, juin 2026 · INSEE RP 2022 · Villes françaises en magenta · Lignes de référence = moyenne du panel</div>
+
+### Professionnalisation : un modèle français modéré
+
+[**Les villes françaises plafonnent à `r fr_max("cr_offre_1plus", 0)` % d'offre multi-hôtes, loin des `r eu_val("barcelona", "cr_offre_1plus", 0)` % de Barcelone ou `r eu_val("malaga", "cr_offre_1plus", 0)` % de Malaga**]{.insight}
+
+La France se distingue par un marché resté relativement artisanal. À Lyon, ville française la plus professionnalisée, `r naf(lyon_fr$cr_offre_1plus, 0)` % de l'offre relève de multi-hôtes et `r naf(lyon_fr$cr_offre_10plus, 0)` % seulement d'opérateurs gérant au moins dix annonces *(figure ci-contre)*. À l'opposé, les villes espagnoles forment un bloc nettement plus concentré : Barcelone dépasse `r eu_val("barcelona", "cr_offre_1plus", 0)` % d'offre multi-hôtes et près de la moitié de son parc est détenu par des hôtes à dix annonces ou plus. Cette modération française tient autant à une régulation précoce — Paris a plafonné les résidences secondaires dès 2017 — qu'à la structure du parc, où la résidence principale louée ponctuellement reste majoritaire.
+
+```{r}
+#| label: srptfr01-scatter-pro
+#| fig-width: 9
+#| fig-height: 5.5
+#| cache: false
+
+mx2 <- mean(kpi_comp$cr_offre_1plus, na.rm = TRUE)
+my2 <- mean(kpi_comp$cr_offre_10plus, na.rm = TRUE)
+
+p_pro <- plot_scatter(kpi_comp,
+  x = "cr_offre_1plus", y = "cr_offre_10plus",
+  label_col = "city_fr", color_col = "is_fr", size_col = "vol_n_ann",
+  palette = c("Autres pays" = "#9aa0a6", "France" = col_magenta),
+  xlab = "Offre détenue par des multi-hôtes (%)",
+  ylab = "Offre détenue par des hôtes ≥ 10 annonces (%)",
+  title = "Les marchés français restent peu professionnalisés face aux villes espagnoles et italiennes",
+  subtitle = "Concentration de l'offre — 23 villes de 6 pays européens · taille = nombre d'annonces · Inside Airbnb juin 2026",
+  ref_lines = "auto", ref_x = mx2, ref_y = my2, mean_lines = FALSE)
+
+log_scatter_auto("srptfr01_scatter_pro", kpi_comp,
+  "cr_offre_1plus", "cr_offre_10plus", "city_fr")
+render_girafe(p_pro, width_svg = 9, height_svg = 5.5)
+```
+
+<div class="figure-source">Source : Inside Airbnb, juin 2026 · Villes françaises en magenta · Lignes de référence = moyenne du panel</div>
+
+### Benchmark détaillé : 23 villes au crible
+
+Le tableau ci-dessous reprend les huit indicateurs structurants pour les `r nrow(kpi_comp)` villes du panel comparatif, classées par volume. Les quatre marchés français y apparaissent : Paris en 2e position derrière Londres, puis Lyon, le Pays Basque et Bordeaux dans la seconde moitié du tableau.
+
+::: {.column-page}
+
+```{r}
+#| label: srptfr01-rt-benchmark
+#| cache: false
+
+log_table_auto("srptfr01_bench_europe", kpi_comp)
+rt_bench_europe()
+```
+
+:::
+
+<div class="figure-source">Source : Inside Airbnb, juin 2026 · 23 villes de 6 pays comparables · Tri par nombre d'annonces décroissant</div>

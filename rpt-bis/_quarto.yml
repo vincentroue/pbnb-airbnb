@@ -70,7 +70,10 @@ execute:
 
 format:
   html:
-    theme: [cosmo, config/theme-pbnb-v2.scss]
+    # pbnb-print-reactable.scss (260824) : en PDF un reactable à hauteur fixe PERD les lignes
+    # au-delà de `height` (benchmark Europe : 16 villes imprimées sur 23, dont Lyon/Bordeaux/BAB
+    # manquants). Fix scopé @media print — candidat à promotion dans le canonical.
+    theme: [cosmo, config/theme-pbnb-v2.scss, config/pbnb-print-reactable.scss]
     toc: true
     toc-location: right
     toc-title: "Sommaire"

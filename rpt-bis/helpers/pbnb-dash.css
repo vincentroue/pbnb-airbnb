@@ -1,0 +1,79 @@
+/* pbnb-dash.css — Dashboard OJS Airbnb (rpt-bis)
+ * Layout grille carte + table + KPI, style ptod/pgent
+ * v1 — 2026-04-28 */
+
+/* &s &LAYOUT_GRID - Grille ville : carte gauche + table droite */
+.pbnb-city-block { margin-bottom: 16px; }
+.pbnb-city-hd {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 12px; background: #f0f2f5; border-bottom: 2px solid #0a4c6a;
+  font-size: 13px; font-weight: 700; color: #0a4c6a;
+}
+.pbnb-city-hd .city-badge {
+  background: #0a4c6a; color: white; padding: 2px 8px; border-radius: 3px;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.3px;
+}
+
+.pbnb-city-row {
+  display: grid; grid-template-columns: 55fr 45fr;
+  gap: 2px; background: #d1d5db; min-height: 460px;
+}
+.pbnb-map-col { background: white; position: relative; overflow: hidden; }
+.pbnb-table-col { background: white; overflow: hidden; display: flex; flex-direction: column; }
+/* &e */
+
+/* &s &KPI_STRIP - Bandeau KPI dynamique style pgent */
+.pbnb-kpi {
+  display: flex; gap: 12px; padding: 6px 12px; background: #f8f9fb;
+  border-bottom: 1px solid #e5e7eb; flex-wrap: wrap; align-items: flex-end;
+}
+.pbnb-kpi-item { display: flex; flex-direction: column; min-width: 0; }
+.pbnb-kpi-val {
+  font-size: 15px; font-weight: 700; color: #0a4c6a;
+  white-space: nowrap; line-height: 1.2;
+}
+.pbnb-kpi-val.accent { color: #ca5800; }
+.pbnb-kpi-label {
+  font-size: 8px; color: #6b7280; text-transform: uppercase;
+  letter-spacing: 0.3px; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; max-width: 130px;
+}
+/* &e */
+
+/* &s &CONTROLS - Sélecteurs indicateur + maille */
+.pbnb-ctrl {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 10px; background: #eef0f4; border-bottom: 1px solid #c8cdd4;
+  font-size: 11px;
+}
+.pbnb-ctrl select {
+  font-size: 11px; padding: 2px 6px; border: 1px solid #c8cdd4;
+  border-radius: 3px; background: #fff; max-width: 220px;
+}
+.pbnb-ctrl label {
+  font-weight: 600; color: #0a4c6a; font-size: 11px; white-space: nowrap;
+}
+.pbnb-ctrl .sep {
+  width: 1px; height: 16px; background: #a0a8b4; margin: 0 4px;
+}
+/* &e */
+
+/* &s &MAP_OVERRIDES - MapLibre dans Quarto */
+.maplibregl-map { background: #e8e8e8 !important; }
+.maplibregl-ctrl-zoom-in, .maplibregl-ctrl-zoom-out, .maplibregl-ctrl-compass { display: none !important; }
+.maplibregl-canvas { cursor: default !important; }
+.maplibregl-canvas:active { cursor: grabbing !important; }
+/* &e */
+
+/* &s &GLOBAL_HEADER - Header dashboard */
+.pbnb-dash-header {
+  background: #0a4c6a; color: white; padding: 10px 16px;
+  display: flex; align-items: center; gap: 16px;
+}
+.pbnb-dash-header h1 {
+  margin: 0; font-size: 16px; font-weight: 700; letter-spacing: 0.3px;
+}
+.pbnb-dash-header .sub {
+  font-size: 11px; color: #a0c4d8; font-weight: 400;
+}
+/* &e */

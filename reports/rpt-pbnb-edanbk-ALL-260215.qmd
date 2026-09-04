@@ -1,9 +1,7 @@
 ---
 title: "EDA — Notebook exploratoire"
 subtitle: "75 villes, 30 pays, 4 continents — Inside Airbnb juin 2025"
-author: "Vincent R."
-date: today
-date-format: "DD MMMM YYYY"
+date: "2026"
 categories: ["Notebook EDA"]
 number-sections: false
 format:
@@ -52,24 +50,6 @@ Ce notebook est le **compagnon technique** du rapport d'analyse. Il documente :
 **Données** : `dbsumlistings_2506_cons_global.parquet` · 75 villes · 30 pays · ~789K listings nettoyés
 :::
 
-<details>
-<summary style="cursor:pointer; font-weight:600; font-size:14px; color:#666; margin:8px 0;">
-Plan de travail auto-généré (cliquer pour déplier)
-</summary>
-
-*Commentaires : écrire `<!-- vvr: texte -->` dans le corps du rapport (pas ici). Le plan se met à jour au render.*
-
-```{r}
-#| label: auto-plan-parse
-#| results: asis
-#| echo: false
-source("C:/Users/vince/hh/pq/PDS/mutils/jrr/jcn-auto-plan.R")
-generate_auto_plan(knitr::current_input(),
-                   fallback = "rpt-pbnb-edanbk-ALL-260215.qmd",
-                   exclude_chunks = c("setup-reticulate", "setup", "auto-plan-parse"))
-```
-
-</details>
 
 # Setup {.unnumbered}
 
@@ -78,7 +58,7 @@ generate_auto_plan(knitr::current_input(),
 #| include: false
 
 library(reticulate)
-use_python("C:/ScoopApps/apps/python/current/python.exe", required = TRUE)
+use_python("C:/Users/vince/AppData/Local/Programs/Python/Python312/python.exe", required = TRUE)
 ```
 
 ```{python}

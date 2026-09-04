@@ -1,0 +1,18 @@
+<!-- Favicon swap : live (vert) si servi via http(s), static (gris) si file:// -->
+<link rel="icon" type="image/svg+xml" href="assets/favicon-pbnb-live.svg" id="pbnb-favicon">
+<script>
+(function() {
+  function swap() {
+    var link = document.getElementById('pbnb-favicon');
+    if (!link) return;
+    var isLive = location.protocol === 'http:' || location.protocol === 'https:';
+    var base = link.href.replace(/[^/]*$/, '');
+    link.href = base + (isLive ? 'favicon-pbnb-live.svg' : 'favicon-pbnb-static.svg');
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', swap);
+  } else {
+    swap();
+  }
+})();
+</script>

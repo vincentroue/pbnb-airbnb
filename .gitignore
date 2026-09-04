@@ -112,3 +112,25 @@ docs/
 
 # Quarto render intermediates
 reports/*.rmarkdown
+
+# --- Complements 2026-09-04 (audit avant ouverture publique) ---
+# Cache de rendu (11 Mo de JSON)
+cache/
+# Rendus du volet rpt-bis (sources .qmd/.R suivies, sorties non)
+rpt-bis/_output/
+rpt-bis/*.html
+rpt-bis/*_files/
+rpt-bis/*.rmarkdown
+rpt-bis/*_cache/
+# Anciens rendus de mars (remplaces par rpt-bis)
+reports/_output2/
+# Sandbox slides (10 Mo)
+reports/sld-*-sandbox/
+# Donnees pre-agregees du dashboard (regenerables)
+dashboard/src/data/
+dashboard/dist/
+dashboard/.observablehq/
+# Fichiers temporaires de session
+yviz/
+*.pdf
+data/_cache_acp/

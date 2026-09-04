@@ -1,10 +1,10 @@
 ---
 title: "Airbnb dans six villes françaises face aux marchés européens"
-subtitle: "Offre, professionnalisation et pression résidentielle à Paris, Lyon, Bordeaux et au Pays Basque · benchmark 23 métropoles européennes — Inside Airbnb juin 2025"
+subtitle: "Offre, professionnalisation et pression résidentielle à Paris, Lyon, Bordeaux et au Pays Basque · benchmark 23 métropoles européennes — Inside Airbnb juin 2026"
 date: today
 categories: ["Rapport"]
 number-sections: false
-title-block-banner: "#1690bd"
+title-block-banner: "#0a4c6a"     # France = bleu dark (distinct du Monde #1690bd)
 title-block-banner-color: white
 ---
 

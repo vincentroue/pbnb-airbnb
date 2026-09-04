@@ -1,0 +1,12 @@
+---
+title: "Observatoire Airbnb — 75 villes, 30 pays"
+subtitle: "Pression, prix, professionnalisation · Inside Airbnb juin 2025"
+---
+
+## Rapports disponibles
+
+| Document | Périmètre | Type |
+|----------|-----------|------|
+| [Synthèse Monde](rpt-pbnb-synth-monde.qmd) | 75 villes, 30 pays | Synthèse |
+
+*Site en construction — migration full R depuis reports/ v1.*

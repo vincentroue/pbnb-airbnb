@@ -4,24 +4,56 @@
      et le bloc « Ce qu il faut retenir » (cloture propre a la synthese 2 pages).
      Depend du snapshot ACP (aa_n_actives, aa_n_bestk, aa_v_sil) -> charge en setup du MAIN. -->
 <!-- v1 — 2026-08-20. Extrait de rpt-pbnb-synth-monde.qmd lignes 61-93. -->
+<!-- v2 — 2026-08-24. Refonte : dynamiques 25->26, comptages (au lieu de « facteur 107 »),
+     typologie réalignée sur les noms de clusters du snapshot (inline, plus jamais en dur). -->
 
-Le panel — **`r aa$n_total_km` annonces actives** dans `r aa$n_villes` villes de `r aa$n_pays` pays — dessine un marché devenu **européen, professionnalisé et concentré** : l'Europe capte `r aa$v_eur_pct` % de l'offre du panel, l'Amérique du Nord `r aa$v_nam_pct` %. Huit messages en résument la lecture, du portrait des volumes à la typologie.
+```{r}
+#| label: srpt00c-msg-calc
+#| include: false
+
+# Valeurs narratives des 8 messages — calculées, pas écrites en dur : se mettent à jour
+# à chaque snapshot. Évolutions continentales depuis kpi_cd_agg ; comptages depuis kpi.
+.cdev <- function(g, col = "vol_n_ann_vevol_2526", neg = FALSE) {
+  v <- kpi_cd_agg[[col]][kpi_cd_agg$level == "continent_detail" & kpi_cd_agg$continent_detail == g][1]
+  .fp(if (neg) abs(v) else v, 1)
+}
+msg_ev_asie   <- .cdev("Asia")
+msg_ev_latam  <- .cdev("Latin America")
+msg_ev_eurON  <- .cdev("Europe West & North", neg = TRUE)   # recul -> valeur absolue dans la prose
+msg_ev_eurSE  <- .cdev("Europe South & East", neg = TRUE)
+msg_n_ent90   <- sum(kpi$str_entire_pct > 90, na.rm = TRUE)
+msg_n_multi80 <- sum(kpi$cr_offre_1plus > 80, na.rm = TRUE)
+msg_n_multi30 <- sum(kpi$cr_offre_1plus < 30, na.rm = TRUE)
+msg_n_prs15   <- sum(kpi$prs_listings_1000hab_dense > 15, na.rm = TRUE)
+msg_n_prs40   <- sum(kpi$prs_listings_1000hab_dense > 40, na.rm = TRUE)
+msg_ncl       <- as.integer(table(as.integer(indiv_df$cluster)))   # effectifs clusters 1..5
+
+# ev_multi (points d'évolution multi-loueurs) est aussi calculé dans _srpt-monde-kpi-synth, inclus
+# AVANT ce bloc dans les deux MAINs. On le recalcule ici pour que ce srpt reste AUTONOME : sinon il
+# dépend d'un effet de bord d'un autre fichier et casse dès qu'on l'extrait ou le réordonne.
+if (!exists("ev_multi")) {
+  ev_multi <- round(weighted.mean(kpi$cr_offre_1plus,    kpi$vol_n_ann, na.rm = TRUE) -
+                    weighted.mean(kpi$cr_offre_1plus_25, kpi$vol_n_ann, na.rm = TRUE), 1)
+}
+```
+
+Le panel — **`r aa$n_total_km` annonces actives** dans `r aa$n_villes` villes de `r aa$n_pays` pays, soit `r aa$cov$monde_pct` % du stock mondial recensé par Inside Airbnb — dessine un marché devenu **européen, professionnalisé et concentré** : l'Europe capte `r aa$v_eur_pct` % de l'offre du panel, l'Amérique du Nord `r aa$v_nam_pct` %. Huit messages en résument la lecture, du portrait des volumes à la typologie.
 
 [**Un marché d'abord européen, concentré sur une poignée de métropoles**]{.insight}
 
-Londres approche 70 000 annonces et Paris 60 000, quand le bas du panel — Genève, Bergame — reste sous 2 000. L'Europe du Sud-Est (Florence, Lisbonne, Athènes, Barcelone) forme le plus gros volume cumulé, devant une Europe de l'Ouest portée par les deux capitales. Le panel a gagné **`r .fp(aa$v_ann_evol, 1)` %** d'annonces en un an, une croissance concentrée sur les grandes métropoles.
+Londres approche 70 000 annonces et Paris 60 000, quand le bas du panel — Genève, Bergame — reste sous 2 000. L'Europe du Sud-Est (Florence, Lisbonne, Athènes, Barcelone) forme le plus gros volume cumulé, devant une Europe de l'Ouest portée par les deux capitales. Le panel a gagné **`r .fp(aa$v_ann_evol, 1)` %** d'annonces en un an, mais cette croissance vient d'ailleurs : l'Asie progresse de `r msg_ev_asie` % et l'Amérique latine de `r msg_ev_latam` %, tandis que les deux Europes reculent — `r msg_ev_eurSE` % au Sud-Est, `r msg_ev_eurON` % à l'Ouest-Nord. Le centre de gravité du marché commence à quitter le continent qui l'a fait naître.
 
 [**Le logement entier a supplanté le partage entre particuliers**]{.insight}
 
-**`r aa$v_entire` %** de l'offre mondiale est en logement entier — au-delà de 90 % à Thessalonique, Athènes ou Budapest, où le patrimoine bascule vers l'investissement touristique pur. Le parc reste dominé par les studios et petits appartements : 3 à 4 personnes, 1 à 2 chambres en médiane.
+**`r aa$v_entire` %** de l'offre mondiale est en logement entier, et la part progresse encore (`r .fp(aa$v_entire_evol, 1)` point en un an). `r msg_n_ent90` villes dépassent 90 % — Thessalonique, Athènes et Budapest en tête, où le patrimoine bascule vers l'investissement touristique pur. Le parc reste dominé par les studios et petits appartements : 3 à 4 personnes, 1 à 2 chambres en médiane.
 
 [**L'économie collaborative est devenue une industrie**]{.insight}
 
-**`r aa$v_multi` %** des annonces sont gérées par des multi-loueurs et **`r aa$v_hosts50` %** des hôtes captent la moitié de l'offre — une concentration comparable aux pays les plus inégalitaires. Tokyo, Hong Kong et Singapour dépassent 80 % de multi-loueurs quand Copenhague et Oslo restent sous 30 %. Le revenu se joue moins sur le prix que sur l'occupation : `r aa$t_top_rev` dépasse **`r aa$v_top_rev` €/an** grâce à un calendrier saturé.
+**`r aa$v_multi` %** des annonces sont gérées par des multi-loueurs et **`r aa$v_hosts50` %** des hôtes captent la moitié de l'offre — une concentration comparable aux pays les plus inégalitaires, et l'écart se creuse encore : la part multi-loueurs gagne `r .fp(ev_multi, 1)` point en un an. `r msg_n_multi80` villes dépassent 80 % d'offre multi-loueurs — Porto, Prague, Barcelone et les métropoles asiatiques — quand `r msg_n_multi30` seulement, Copenhague, Oslo et Amsterdam, restent sous 30 %. Le revenu se joue moins sur le prix que sur l'occupation : `r aa$t_top_rev` dépasse **`r aa$v_top_rev` €/an** grâce à un calendrier saturé.
 
 [**La pression résidentielle frappe les villes moyennes touristiques**]{.insight}
 
-La densité médiane atteint **`r aa$v_pression_med` annonces pour 1 000 habitants** en zone dense, mais le Pays Basque, Venise et Florence approchent ou dépassent 40 ‰ — un facteur `r aa$v_facteur_pression` avec le bas du panel. Les mégalopoles asiatiques (Tokyo, Bangkok, Singapour) restent sous 3 ‰ : leur densité de population dilue la pression rapportée aux habitants.
+La densité médiane atteint **`r aa$v_pression_med` annonces pour 1 000 habitants** en zone dense, mais `r msg_n_prs15` villes dépassent 15 ‰ — plus du double de la médiane — et `r msg_n_prs40` d'entre elles, le Pays Basque, Venise et Florence, franchissent 40 ‰, soit près d'une annonce pour 25 habitants. Les mégalopoles asiatiques (Tokyo, Bangkok, Singapour) restent sous 3 ‰ : leur densité de population dilue la pression rapportée aux habitants.
 
 [**Airbnb a rejoint l'hôtellerie, en volume comme en prix**]{.insight}
 
@@ -37,4 +69,6 @@ New York a effacé 90 % de ses annonces, Amsterdam a réduit son parc de 54 %, B
 
 [**Cinq familles de marchés se dégagent de la typologie**]{.insight}
 
-La classification (`r aa_n_actives` variables actives, `r aa_n_bestk` clusters, silhouette `r .fp(aa_v_sil, 2)`) répartit les `r aa$n_villes` villes en cinq familles : trois épousent la géographie continentale — l'**Europe du Sud** touristique et dense, l'**Europe de l'Ouest** des loueurs amateurs, l'**Amérique du Nord** des opérateurs premium — tandis que deux la traversent : les **grandes métropoles** tournées vers la longue durée (Madrid, Berlin, Los Angeles) et les **mégalopoles verticales** où domine la chambre (New York, Hong Kong, Singapour). La fracture majeure n'est ni nord-sud ni est-ouest : elle oppose un modèle amateur à un modèle professionnel d'opérateurs maximisant l'occupation.
+<!-- ⚠️ Noms de clusters TOUJOURS en inline depuis cluster_names (snapshot) — jamais en dur :
+     la version précédente citait une typologie périmée de deux générations. -->
+La classification (`r aa_n_actives` variables actives, `r aa_n_bestk` clusters, silhouette `r .fp(aa_v_sil, 2)`) répartit les `r aa$n_villes` villes en cinq familles de poids très inégaux. Les deux premières concentrent les deux tiers du panel : les **`r cluster_names[1]`** (`r msg_ncl[1]` villes — Tokyo, Athènes, Florence) et le **`r cluster_names[2]`** (`r msg_ncl[2]` — Londres, Paris, Rio de Janeiro). Viennent ensuite les **`r cluster_names[3]`** (`r msg_ncl[3]` — Mexico, Bangkok, Istanbul), les **`r cluster_names[4]`** (`r msg_ncl[4]` — Copenhague, Oslo) et, à part, `r msg_ncl[5]` **`r cluster_names[5]`** — New York, Hong Kong, Singapour, où la régulation et le bâti étranglent l'offre. La fracture majeure n'est ni nord-sud ni est-ouest : elle oppose les marchés pilotés par des professionnels très actifs aux marchés restés entre les mains d'amateurs encadrés.

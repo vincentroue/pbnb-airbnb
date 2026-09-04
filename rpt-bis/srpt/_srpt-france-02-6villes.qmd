@@ -1,0 +1,317 @@
+<!-- _srpt-france-02-6villes.qmd -->
+<!-- Sous-rapport : Partie 2 — Six marchés français comparés. -->
+<!-- Inclus dans rpt-pbnb-rapport-france.qmd (MAIN). Convention chunks : srptfr02-* -->
+<!-- v2 — 2026-09-01. Refonte en TROIS H3 FONCTIONNELS, chacun du général au particulier : -->
+<!--   activité et prix (pas de vue infra) · pression territoriale (4 cartes IRIS + hexbin) -->
+<!--   · professionnalisation (4 cartes IRIS). Clôture = tableau z-score. -->
+<!-- Le découpage par FONCTION remplace le découpage par ÉCHELLE : c'est ce qui supprime la -->
+<!-- répétition avec l'ancienne partie 3, qui reprenait les chiffres communaux déjà donnés ici. -->
+
+```{r}
+#| label: srptfr02-vars
+#| include: false
+#| cache: false
+
+.d6  <- fr_cities_df()
+.ir2 <- add_pression_iris(kpi_fr_iris)
+
+# --- H3 1 : activité et prix ---
+aa2_n_villes   <- nrow(.d6)
+aa2_n_total    <- nint(sum(.d6$vol_n_ann))
+aa2_v_facteur  <- naf(max(.d6$vol_n_ann) / min(.d6$vol_n_ann), 0)
+aa2_n_paris    <- nint(paris_fr$vol_n_ann)
+aa2_n_bayonne  <- nint(bayonne_fr$vol_n_ann)
+aa2_v_par_evol <- naf(abs(paris_fr$vol_n_ann_vevol_2526), 1)
+aa2_v_bia_evol <- naf(abs(biarritz_fr$vol_n_ann_vevol_2526), 1)
+aa2_v_ang_evol <- naf(anglet_fr$vol_n_ann_vevol_2526, 1)
+aa2_v_px_bia   <- naf(biarritz_fr$px_entire_med, 0)
+aa2_v_px_par   <- naf(paris_fr$px_entire_med, 0)
+aa2_v_px_lyon  <- naf(lyon_fr$px_entire_med, 0)
+aa2_v_ratio_vp <- naf(paris_fr$vol_n_ann / biarritz_fr$vol_n_ann, 0)
+aa2_v_rev_par  <- nint(paris_fr$act_revenu_med)
+aa2_v_rev_bia  <- nint(biarritz_fr$act_revenu_med)
+aa2_v_ent_min  <- naf(min(.d6$str_entire_pct), 0)
+aa2_v_ent_max  <- naf(max(.d6$str_entire_pct), 0)
+aa2_v_ent_fr   <- naf(kpi_fr_pays$str_entire_pct, 0)
+
+# --- H3 2 : pression territoriale ---
+.raw <- function(v, col) as.numeric(.d6[[col]][.d6$territory == v])
+.pr  <- function(v, col) naf(.raw(v, col), 0)
+aa2_p_bia  <- .pr("biarritz", "prsf_listings_1000rps")
+aa2_p_par  <- .pr("paris",    "prsf_listings_1000rps")
+aa2_p_lyo  <- .pr("lyon",     "prsf_listings_1000rps")
+aa2_p_fr   <- naf(kpi_fr_pays$prsf_listings_1000rps, 0)
+aa2_pd_bia <- .pr("biarritz", "prs_listings_1000hab_dense")
+aa2_pd_par <- .pr("paris",    "prs_listings_1000hab_dense")
+# "un logement sur N" : inverse du ratio, arrondi — plus parlant qu'un pour-mille en insight
+aa2_p_inv_bia <- naf(1000 / .raw("biarritz", "prsf_listings_1000rps"), 0)
+aa2_p_inv_par <- naf(1000 / .raw("paris",    "prsf_listings_1000rps"), 0)
+
+.medir <- function(v, col) naf(median(.ir2[[col]][.ir2$city == v], na.rm = TRUE), 0)
+aa2_ir_p_par <- .medir("paris", "prsf_listings_1000rps")
+aa2_ir_p_bab <- .medir("pays-basque", "prsf_listings_1000rps")
+aa2_ir_p_lyo <- .medir("lyon", "prsf_listings_1000rps")
+aa2_ir_p_bdx <- .medir("bordeaux", "prsf_listings_1000rps")
+.tir <- .ir2[!is.na(.ir2$prsf_listings_1000rps), ]
+.tir <- .tir[order(-.tir$prsf_listings_1000rps), ][1, ]
+aa2_ir_t1  <- .tir$nom_iris
+aa2_ir_v1  <- naf(.tir$prsf_listings_1000rps, 0)
+aa2_ir_pc1 <- naf(.tir$prsf_listings_1000rps / 10, 0)
+aa2_ir_mx_bab <- .medir("pays-basque", "prsf_listings_1000rps")
+aa2_ir_max_bab <- naf(max(.ir2$prsf_listings_1000rps[.ir2$city == "pays-basque"], na.rm = TRUE), 0)
+
+# --- H3 3 : professionnalisation ---
+aa2_o_lyo <- .pr("lyon", "cr_offre_1plus")
+aa2_o_par <- .pr("paris", "cr_offre_1plus")
+aa2_o_bay <- .pr("bayonne", "cr_offre_1plus")
+aa2_o_bia <- .pr("biarritz", "cr_offre_1plus")
+aa2_c_par <- .pr("paris", "cr_offre_top10pct_pct")
+aa2_c_ang <- .pr("anglet", "cr_offre_top10pct_pct")
+aa2_ir_o_par <- .medir("paris", "cr_offre_1plus_ville")
+aa2_ir_o_bab <- .medir("pays-basque", "cr_offre_1plus_ville")
+aa2_ir_o_lyo <- .medir("lyon", "cr_offre_1plus_ville")
+aa2_ir_o_bdx <- .medir("bordeaux", "cr_offre_1plus_ville")
+aa2_r_pro <- naf(cor(.ir2$prsf_listings_1000rps, .ir2$cr_offre_1plus_ville,
+                     use = "complete.obs"), 2)
+aa2_n_iris <- nrow(.ir2)
+
+# Ecart entre les deux lectures du denominateur : le front de mer basque
+.fm2 <- .ir2[which.max(ifelse(.ir2$city == "pays-basque", .ir2$prsf_listings_1000rp, NA)), ]
+aa2_fm_t   <- .fm2$nom_iris
+aa2_fm_occ <- naf(.fm2$prsf_listings_1000rps, 0)
+aa2_fm_rp  <- naf(.fm2$prsf_listings_1000rp, 0)
+aa2_fm_prp <- naf(.fm2$rp / .fm2$logements_occ * 100, 0)
+
+# --- Blocs de cartes : 4 périmètres IRIS, bins PARTAGÉS par indicateur ---
+IR_VILLES <- c("paris", "biarritz", "lyon", "bordeaux")
+IR_LABS   <- c("Paris", "Biarritz · Anglet · Bayonne", "Lyon", "Bordeaux")
+IR_GEOS   <- stats::setNames(lapply(IR_VILLES, load_iris_focus), IR_VILLES)
+BINS_PRESS <- iris_bins(VAR_PRESSION_IRIS)
+BINS_PRO   <- iris_bins("cr_offre_1plus_ville")
+
+# Grille 2x2 : bins communs -> la comparaison entre villes est valide ; legende sur la 1re
+# carte seulement puisqu'elle est identique partout. STATIQUE : le survol n'apporte rien sur
+# une vignette et 4 SVG interactifs de 800 polygones alourdiraient la page pour rien. Le
+# survol et le zoom sont reserves aux focus territoriaux, ou l'on plonge dans UNE ville.
+# ⚠️ PAS de htmltools::div() ici : un ggplot BRUT dans un div n'est pas rendable
+# (`cannot coerce type 'object' to vector of type 'character'`) — htmltools ne sait
+# emballer que du HTML ou un htmlwidget. Pour du statique on assemble donc en patchwork
+# et le chunk sort UNE figure, que Quarto convertit en PNG. La grille .g-col-6 reste
+# reservee aux widgets (cf duo_iris_grid des focus, qui passe par render_girafe).
+ir_grid <- function(var, bins, legend_title) {
+  ps <- lapply(seq_along(IR_VILLES), function(i) {
+    p <- map_iris_ville(IR_VILLES[i], var = var, bins = bins, geo = IR_GEOS[[i]],
+                        titre = IR_LABS[i], legend_title = legend_title,
+                        interactive = FALSE)
+    if (i > 1) p + ggplot2::theme(legend.position = "none") else p
+  })
+  patchwork::wrap_plots(ps, ncol = 2)
+}
+```
+
+Six marchés, deux ordres de grandeur et trois régimes. Cette partie les compare sur trois fonctions successives — ce qu'ils pèsent et à quel prix, la pression qu'ils exercent sur le parc résidentiel, et qui détient l'offre. Chaque fonction part de l'échelle communale puis descend au quartier, quand la géographie interne dit quelque chose que la moyenne masque.
+
+### Activité et prix : un marché sur deux ordres de grandeur, une capitale qui se contracte
+
+[**Paris perd `r aa2_v_par_evol` % de ses annonces actives en un an, quand Anglet en gagne `r aa2_v_ang_evol` %**]{.insight}
+
+Les `r aa2_n_villes` marchés du panel réunissent `r aa2_n_total` annonces actives, sur une amplitude d'un facteur `r aa2_v_facteur` — de `r aa2_n_paris` annonces à Paris à `r aa2_n_bayonne` à Bayonne. Mais la hiérarchie des volumes masque la dynamique : les deux marchés qui reculent sont les deux plus exposés à la régulation. Paris cède `r aa2_v_par_evol` % de son offre active, premier chiffrage du tassement engagé après la loi Le Meur de novembre 2024. Au Pays Basque, la compensation sur le changement d'usage s'applique depuis 2023 aux trois communes — mais seule Biarritz recule (`r aa2_v_bia_evol` % en un an), quand Anglet gagne encore `r aa2_v_ang_evol` % : la contrainte mord d'abord là où le parc de villégiature domine. Lyon et Bordeaux, eux, sont stables *(figure ci-contre)*.
+
+```{r}
+#| label: srptfr02-databar-act
+#| results: asis
+#| cache: false
+
+H3A_VARS <- c("vol_n_ann", "px_entire_med", "str_entire_pct")
+log_table_auto("srptfr02_databar_act", .d6[, c("city_fr", H3A_VARS,
+  "vol_n_ann_vevol_2526", "str_entire_pct_vdifp_2526")])
+cat(databar_fr(H3A_VARS,
+  labels = c("Annonces actives", "Prix médian logement entier", "Part de logements entiers"),
+  subs   = c("n · juin 2026 · pastille = évol. 25→26",
+             "€/nuit · juin 2026 · non comparable à 2025",
+             "% · juin 2026 · pastille = évol. en points"),
+  evol   = c("vol_n_ann_vevol_2526", NA, "str_entire_pct_vdifp_2526"),
+  dec = c(0, 0, 1), units = c("", "€/nuit", "%"), n_col = 3))
+```
+
+<div class="figure-source">Source : Inside Airbnb, juin 2026 · Pastille = évolution 2025→2026 (volumes et parts uniquement — le prix n'est pas comparable entre les deux millésimes, Inside Airbnb ayant intégré les frais au champ prix en 2025) · Tick « FR » = référence France entière</div>
+
+Le prix raconte une autre histoire que le volume. Biarritz (`r aa2_v_px_bia` €/nuit) rejoint Paris (`r aa2_v_px_par` €) au sommet du panel, à quasi-égalité — mais la station balnéaire y parvient avec `r aa2_v_ratio_vp` fois moins d'annonces, portée par un parc de villégiature haut de gamme, quand Lyon plafonne à `r aa2_v_px_lyon` €. Le tarif à la nuit ne dit pourtant rien du rendement : le revenu médian estimé atteint `r aa2_v_rev_par` € par an à Paris contre `r aa2_v_rev_bia` € à Biarritz, l'écart d'occupation entre une capitale ouverte à l'année et une station saisonnière faisant plus que compenser l'égalité tarifaire.
+
+La structure de l'offre, elle, est remarquablement homogène : le logement entier représente de `r aa2_v_ent_min` % à `r aa2_v_ent_max` % des annonces selon la ville, autour d'une référence nationale à `r aa2_v_ent_fr` %. Sur ce plan, les six marchés relèvent du même modèle — la location de chambre y est partout marginale, et ce n'est donc pas là que se joue leur différenciation.
+
+```{r}
+#| label: srptfr02-rt-act
+#| cache: false
+
+.rt6 <- .d6 |>
+  dplyr::transmute(
+    lib = as.character(city_fr), vol_n_ann,
+    vol_n_ann_vevol_2526 = round(vol_n_ann_vevol_2526, 1),
+    px_entire_med  = round(px_entire_med),
+    px_private_med = round(px_private_med),
+    str_entire_pct = round(str_entire_pct, 1),
+    act_revenu_med = round(act_revenu_med))
+
+rt_table(.rt6, cols = list(
+  lib = rt_col_lib(.rt6, "lib", "Ville", indent = FALSE, mw = 110),
+  vol_n_ann = rt_col_level(.rt6, "vol_n_ann", "Annonces actives", unit = "n",
+                           bw = "fill", bh = 16, mw = 150, light = TRUE),
+  vol_n_ann_vevol_2526 = .rt_col_evol_fr(.rt6, "vol_n_ann_vevol_2526", "Évol. 26/25"),
+  px_entire_med  = rt_col_level(.rt6, "px_entire_med", "Prix logement entier",
+                                unit = "€/nuit", bw = "fill", bh = 16, mw = 140),
+  px_private_med = rt_col_level(.rt6, "px_private_med", "Prix chambre privée",
+                                unit = "€/nuit", bw = "fill", bh = 16, mw = 140),
+  str_entire_pct = rt_col_level(.rt6, "str_entire_pct", "Logements entiers",
+                                unit = "%", bw = "fill", bh = 16, mw = 130),
+  act_revenu_med = rt_col_level(.rt6, "act_revenu_med", "Revenu estimé",
+                                unit = "€/an", bw = "fill", bh = 16, mw = 140)),
+  sticky_cols = 1, searchable = FALSE, full_width = TRUE, height = "auto",
+  footnote = "Inside Airbnb, juin 2026 · Volumes en gris (light), niveaux colorés · Revenu médian estimé, modèle San Francisco (avis × séjour moyen, plafonné 70 %)")
+```
+
+### Pression territoriale : une station qui sature, une capitale qui concentre
+
+[**Un logement occupé sur `r aa2_p_inv_bia` est une annonce Airbnb à Biarritz, contre un sur `r aa2_p_inv_par` à Paris**]{.insight}
+
+Rapportée au parc de logements occupés, la hiérarchie s'inverse par rapport aux volumes. Biarritz atteint `r aa2_p_bia` annonces pour 1 000 logements occupés, loin devant Paris (`r aa2_p_par`) et Lyon (`r aa2_p_lyo`), pour une référence nationale à `r aa2_p_fr`. En zone dense — à maille strictement comparable d'une ville à l'autre — l'écart est encore plus net : `r aa2_pd_bia` annonces pour 1 000 habitants à Biarritz contre `r aa2_pd_par` à Paris.
+
+```{r}
+#| label: srptfr02-databar-press
+#| results: asis
+#| cache: false
+
+H3P_VARS <- c("prsf_listings_1000rps", "prs_listings_1000hab_dense", "act_cal_ouvert_med")
+log_table_auto("srptfr02_databar_press", .d6[, c("city_fr", H3P_VARS)])
+cat(databar_fr(H3P_VARS,
+  labels = c("Pression sur le parc", "Pression en zone dense", "Calendrier ouvert"),
+  subs   = c("annonces / 1 000 logements occupés · INSEE RP 2022",
+             "annonces / 1 000 hab · zone dense GHS-POP 2025",
+             "jours ouverts par an, médiane · juin 2026"),
+  dec = c(0, 0, 0), units = c("", "", "j/an"), n_col = 3))
+```
+
+<div class="figure-source">Source : Inside Airbnb, juin 2026 · INSEE RP 2022 · GHS-POP 2025 · Logements occupés = résidences principales et secondaires, hors vacants · Tick « FR » = référence France entière</div>
+
+::: {.callout-note appearance="minimal" collapse="true"}
+## Quel dénominateur pour une pression comparable entre territoires ?
+
+Le réflexe est de diviser par les résidences principales : « un logement touristique pour tant de logements habités ». Le calcul est pourtant **endogène**. Quand un logement bascule en location courte durée, il sort du champ des résidences principales — l'INSEE le reclasse en résidence secondaire ou en logement occasionnel. Le dénominateur rétrécit donc exactement là où la pression monte, et le ratio s'auto-gonfle. Cas d'école, Champs-Élysées 3 : 120 annonces pour 522 logements occupés, mais 237 résidences principales seulement. Le ratio passe de 506 pour 1 000 résidences principales à **230 pour 1 000 logements occupés** — un facteur 2,2 d'artefact.
+
+Rapporter au parc **total** corrigerait ce biais mais en introduirait un autre : le parc total embarque les logements vacants, dont la part varie d'un facteur 2,7 entre territoires — 3,6 % au Pays Basque contre 9,8 % à Paris. C'est un effet de composition local, sans rapport avec Airbnb, qui diluerait mécaniquement Paris. Et un logement vacant n'est pas un usage concurrent.
+
+Le panel retient donc les **logements occupés** — résidences principales et secondaires réunies. Ce dénominateur inclut le stock basculé en location courte durée, donc il ne bouge pas quand l'usage change, et il exclut la vacance. Il se lit simplement : *sur 1 000 logements effectivement occupés, combien sont en location courte durée*.
+
+| Dénominateur | Auto-gonflement | Biais de vacance |
+|---|---|---|
+| Résidences principales | −0,61 | — |
+| **Logements occupés** | **−0,455** | **neutralisé** |
+| Parc total | −0,417 | exposé (3,6 % à 9,8 %) |
+
+*Auto-gonflement = corrélation entre le ratio et la part de résidences principales dans le parc ; plus la valeur est négative, plus le ratio se nourrit de son propre dénominateur.* La corrélation résiduelle de −0,455 n'est pas entièrement un artefact : là où Airbnb est dense, il y a réellement moins de résidences principales. C'est le phénomène mesuré, pas un défaut.
+
+Garde-fou : sous **`r aa_ir_seuil` logements occupés**, le dénominateur reste trop petit pour être fiable — emprises hospitalières, monuments, gares. `r aa_ir_ns` IRIS sur `r aa_ir_n` (`r aa_ir_nspc` %) sont neutralisés, affichés en gris et exclus des classements.
+:::
+
+À l'échelle des quartiers, deux régimes se distinguent. L'agglomération basque affiche la médiane infracommunale la plus élevée du panel — **`r aa2_ir_p_bab`** annonces pour 1 000 logements occupés — devant Paris (`r aa2_ir_p_par`), Bordeaux (`r aa2_ir_p_bdx`) et Lyon (`r aa2_ir_p_lyo`). Mais les extrêmes disent l'inverse : Paris pousse jusqu'à `r aa2_ir_v1` dans `r aa2_ir_t1`, soit `r aa2_ir_pc1` % du parc occupé d'un seul quartier, quand le littoral basque plafonne à `r aa2_ir_max_bab`. Paris **concentre**, le Pays Basque **sature** *(cartes ci-contre)*.
+
+::: {.column-page}
+```{r}
+#| label: srptfr02-map-press
+#| cache: false
+#| fig-width: 9.5
+#| fig-height: 8.6
+#| out-width: "100%"
+
+for (i in seq_along(IR_VILLES)) {
+  log_map_auto(paste0("srptfr02_press_", IR_VILLES[i]), VAR_PRESSION_IRIS,
+               sf::st_drop_geometry(IR_GEOS[[i]]), "nom_iris")
+}
+ir_grid(VAR_PRESSION_IRIS, BINS_PRESS, "Ann./1 000 log. occ.")
+```
+:::
+
+<div class="figure-source">Source : Inside Airbnb, juin 2026 · INSEE RP 2022 · Échelle de couleur commune aux quatre cartes · Les douze valeurs les plus fortes sont écrites, les deux premières nommées · Gris = parc trop petit pour un ratio significatif · Projection Lambert 93</div>
+
+La grille métrique complète cette lecture par la **forme** du gradient, là où l'IRIS donne le nom des quartiers. Paris est monocentrique et saturé sur tout son centre ; le Pays Basque linéaire et côtier, la tension s'effondrant dès qu'on quitte l'océan ; Lyon suit ses deux fleuves, Presqu'île et pentes de la Croix-Rousse ; Bordeaux est le plus polycentrique, avec un cœur autour de la Place de la Bourse puis des foyers secondaires vers les Chartrons et la rive droite.
+
+::: {.column-page}
+![](assets/carte-pression-hexbin-france-260820.png){fig-alt="Quatre cartes hexbin de la pression Airbnb en zone dense : Paris, Biarritz-Anglet-Bayonne, Lyon, Bordeaux"}
+:::
+
+<div class="figure-source">Source : Inside Airbnb, juin 2026 · Population GHS-POP 2025 (grille 100 m) · Hexagones de 350 m, zone dense (au moins 1 500 hab/km²) · Le chiffre est la valeur du pic local, pas celle d'un quartier · Échelle de couleur commune aux quatre panneaux, échelle métrique propre à chacun</div>
+
+### Les quartiers les plus tendus : deux lectures, deux classements
+
+Contrairement à une grille régulière, la maille IRIS porte des noms — c'est donc à ce niveau, et à lui seul, que l'on peut désigner des quartiers. Le tableau donne les deux dénominateurs côte à côte, et l'écart entre eux est instructif.
+
+Rapporté au **parc occupé**, le classement national est intégralement parisien : la location courte durée y pénètre un parc majoritairement composé de résidences principales. Rapporté aux **seules résidences principales**, le littoral basque passe devant — `r aa2_fm_t` affiche `r aa2_fm_rp` annonces pour 1 000 résidences principales contre `r aa2_fm_occ` pour 1 000 logements occupés, parce que les résidences principales n'y représentent que `r aa2_fm_prp` % du parc occupé. Les deux chiffres sont exacts et racontent deux choses différentes : la **pénétration** du parc réellement occupé d'un côté, la **substitution** au logement habité à l'année de l'autre.
+
+```{r}
+#| label: srptfr02-rt-top-iris
+#| cache: false
+
+log_table_auto("srptfr02_top_iris", .ir2)
+top_iris_table(n = 12)
+```
+
+Lyon (médiane de `r aa_ir_med_lyo`) et Bordeaux (`r aa_ir_med_bdx`) forment un duo intermédiaire, sans poche comparable à celles de Paris ni saturation d'ensemble comparable au Pays Basque. Leurs cartes détaillées sont traitées dans les focus par territoire.
+
+### Professionnalisation : qui détient l'offre
+
+[**Lyon inverse le Pays Basque — la pression la plus faible du panel, la professionnalisation la plus forte**]{.insight}
+
+La pression dit l'intensité, pas le modèle économique. Sur ce second axe la hiérarchie se retourne : Lyon mène avec `r aa2_o_lyo` % de l'offre aux multi-hôtes, devant Paris (`r aa2_o_par` %), quand Bayonne (`r aa2_o_bay` %) et Biarritz (`r aa2_o_bia` %) restent des marchés de propriétaires. La concentration au sommet suit le même ordre — les dix pour cent d'hôtes les plus actifs captent `r aa2_c_par` % de l'offre à Paris contre `r aa2_c_ang` % à Anglet.
+
+```{r}
+#| label: srptfr02-databar-pro
+#| results: asis
+#| cache: false
+
+H3O_VARS <- c("cr_offre_1plus", "cr_offre_10plus", "cr_offre_top10pct_pct")
+log_table_auto("srptfr02_databar_pro", .d6[, c("city_fr", H3O_VARS)])
+cat(databar_fr(H3O_VARS,
+  labels = c("Offre aux multi-hôtes", "Offre aux hôtes de 10 annonces ou plus",
+             "Offre aux 10 % les plus actifs"),
+  subs   = c("% des annonces · hôtes à 2 annonces ou plus",
+             "% des annonces · opérateurs commerciaux",
+             "% des annonces · concentration au sommet (Lorenz)"),
+  dec = c(1, 1, 1), units = c("%", "%", "%"), n_col = 3))
+```
+
+<div class="figure-source">Source : Inside Airbnb, juin 2026 · Portefeuille de l'hôte mesuré à l'échelle de la ville · Tick « FR » = référence France entière</div>
+
+Vue par quartier, la professionnalisation dessine une géographie **distincte** de celle de la pression : les deux dimensions ne se recouvrent que partiellement à l'échelle des `r aa2_n_iris` IRIS du panel, avec une corrélation de `r aa2_r_pro`. Lyon affiche la médiane infracommunale la plus élevée (`r aa2_ir_o_lyo` %) devant Bordeaux (`r aa2_ir_o_bdx` %) et Paris (`r aa2_ir_o_par` %), le Pays Basque fermant la marche à `r aa2_ir_o_bab` %. À Paris, les foyers d'opérateurs multi-biens se déplacent vers l'ouest — Chaussée-d'Antin, Faubourg-du-Roule, abords des Champs-Élysées — là où la pression en volume est plus faible *(cartes ci-contre)*.
+
+::: {.column-page}
+```{r}
+#| label: srptfr02-map-pro
+#| cache: false
+#| fig-width: 9.5
+#| fig-height: 8.6
+#| out-width: "100%"
+
+for (i in seq_along(IR_VILLES)) {
+  log_map_auto(paste0("srptfr02_pro_", IR_VILLES[i]), "cr_offre_1plus_ville",
+               sf::st_drop_geometry(IR_GEOS[[i]]), "nom_iris")
+}
+ir_grid("cr_offre_1plus_ville", BINS_PRO, "% de l'offre")
+```
+:::
+
+<div class="figure-source">Source : Inside Airbnb, juin 2026 · Échelle de couleur commune aux quatre cartes · La professionnalisation est mesurée à l'échelle de la ville : un hôte gérant plusieurs annonces réparties sur plusieurs quartiers est bien compté comme multi-hôte partout · Projection Lambert 93</div>
+
+### Positionnement d'ensemble
+
+```{r}
+#| label: srptfr02-gt-profil
+#| cache: false
+
+panel_fr <- make_fr_panel()
+log_table_auto("srptfr02_panel_6v", panel_fr)
+gt_fr_panel_zscore(panel_fr)
+```
+
+Trois régimes se dégagent, et la ligne de partage ne suit pas la géographie. Paris, Lyon et Bordeaux forment un bloc de **métropoles professionnalisées** — offre aux multi-hôtes de 40 à 45 %, résidences secondaires sous 10 % du parc. Biarritz et Anglet relèvent d'un **parc de villégiature exploité par des particuliers**. Et Bayonne tient seule une troisième position : un parc ordinaire, avec 4,5 % de résidences secondaires — moins que Bordeaux ou Lyon — mais une offre de particuliers. C'est la ville-centre d'une agglomération touristique qui n'a pas basculé.
+
+Ces trois régimes appellent un examen à l'échelle de la commune : les focus territoriaux qui suivent descendent dans le détail des quartiers, ville par ville.

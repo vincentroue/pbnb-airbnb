@@ -1,0 +1,511 @@
+---
+title: "Dashboard Airbnb France"
+subtitle: "Paris · BAB — Inside Airbnb juin 2025"
+date: today
+format:
+  html:
+    page-layout: full
+    toc: false
+    include-in-header:
+      text: |
+        <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+        <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+        <link rel="stylesheet" href="helpers/pbnb-dash.css">
+execute:
+  echo: false
+  warning: false
+  cache: false
+---
+
+```{r}
+#| label: setup
+#| include: false
+
+library(dplyr)
+library(sf)
+library(jsonlite)
+
+BASE <- "C:/Users/vince/hh/pq/PDS/pbnb-airbnb-log-jrr-jpy"
+
+# --- KPI France multi-niveaux ---
+kpi_fr <- read.csv(file.path(BASE, "data/interim/kpi_france_byterr_2506.csv"),
+                   stringsAsFactors = FALSE)
+
+# Refs
+ref_monde <- kpi_fr |> filter(level == "ref_monde")
+ref_europe <- kpi_fr |> filter(level == "ref_europe")
+ref_france <- kpi_fr |> filter(level == "country")
+
+# Paris : city + arr
+paris_city <- kpi_fr |> filter(level == "city", territory == "paris")
+paris_arr <- kpi_fr |> filter(level == "arr", city == "paris") |> arrange(territory)
+paris_iris <- kpi_fr |> filter(level == "iris", city == "paris")
+
+# BAB : 3 villes city + iris
+bab_cities <- kpi_fr |> filter(level == "city", territory %in% c("biarritz", "bayonne", "anglet"))
+bab_iris <- kpi_fr |> filter(level == "iris", city %in% c("biarritz", "bayonne", "anglet",
+                                                            "pays-basque"))
+
+# --- GeoJSON IRIS ---
+gpkg_path <- "C:/Users/vince/DBD-datab/TDC-ref/geo-shape-raw/CONTOURS-IRIS_3-0__GPKG_LAMB93_FXX_2025-01-01/iris.gpkg"
+lyr <- st_layers(gpkg_path)$name[1]
+
+# Paris IRIS
+paris_sf <- st_read(gpkg_path,
+  query = sprintf("SELECT * FROM \"%s\" WHERE code_iris LIKE '75%%'", lyr),
+  quiet = TRUE) |>
+  st_transform(4326) |>
+  st_simplify(dTolerance = 0.00005, preserveTopology = TRUE) |>
+  select(code_iris, nom_iris)
+
+# BAB IRIS (Bayonne 64102, Biarritz 64122, Anglet 64024)
+bab_where <- "code_iris LIKE '64102%' OR code_iris LIKE '64122%' OR code_iris LIKE '64024%'"
+bab_sf <- st_read(gpkg_path,
+  query = sprintf("SELECT * FROM \"%s\" WHERE %s", lyr, bab_where),
+  quiet = TRUE) |>
+  st_transform(4326) |>
+  st_simplify(dTolerance = 0.00005, preserveTopology = TRUE) |>
+  select(code_iris, nom_iris)
+
+# Paris arrondissements (dissolve IRIS)
+paris_arr_sf <- paris_sf |>
+  mutate(arr_code = substr(code_iris, 1, 5)) |>
+  group_by(arr_code) |>
+  summarise(.groups = "drop")
+
+# BAB communes (dissolve IRIS)
+bab_com_sf <- bab_sf |>
+  mutate(com_code = substr(code_iris, 1, 5)) |>
+  group_by(com_code) |>
+  summarise(.groups = "drop")
+
+# Export GeoJSON strings
+write_geojson <- function(sf_obj) {
+  tmp <- tempfile(fileext = ".geojson")
+  st_write(sf_obj, tmp, driver = "GeoJSON", quiet = TRUE)
+  paste(readLines(tmp, warn = FALSE), collapse = "\n")
+}
+
+paris_iris_geojson <- write_geojson(paris_sf)
+paris_arr_geojson <- write_geojson(paris_arr_sf)
+bab_iris_geojson <- write_geojson(bab_sf)
+bab_com_geojson <- write_geojson(bab_com_sf)
+
+# --- DDICT (passé brut en string JSON, parsé côté OJS) ---
+ddict_str <- paste(readLines(file.path(BASE, "reports/helpers/ddict-airbnb.json"),
+                              warn = FALSE), collapse = "\n")
+
+# --- ojs_define ---
+ojs_define(
+  paris_city_data = paris_city,
+  paris_arr_data = paris_arr,
+  paris_iris_data = paris_iris,
+  bab_cities_data = bab_cities,
+  bab_iris_data = bab_iris,
+  ref_monde_data = ref_monde,
+  ref_europe_data = ref_europe,
+  ref_france_data = ref_france,
+  paris_iris_geojson = paris_iris_geojson,
+  paris_arr_geojson = paris_arr_geojson,
+  bab_iris_geojson = bab_iris_geojson,
+  bab_com_geojson = bab_com_geojson,
+  ddict_json = ddict_str
+)
+```
+
+<!-- &s IMPORTS_OJS -->
+
+```{ojs}
+//| label: imports
+//| include: false
+
+// Helpers mutils (symlinks)
+bins = import("./helpers/bins.js")
+maplib = import("./helpers/maplibre.js")
+tbl = import("./helpers/tableojs.js")
+
+// DDICT → window pour tableojs
+{
+  const full = JSON.parse(ddict_json);
+  const raw = full.indicators || full;
+  const dd = {};
+  for (const [k, e] of Object.entries(raw)) {
+    if (k.startsWith("_") || !e.type) continue;
+    dd[k] = {
+      label: e.medium || e.short || k,
+      short: e.short || k,
+      type: e.type, unit: e.unit || "",
+      desc: e.description || e.long || ""
+    };
+  }
+  window.DDICT = dd;
+}
+```
+
+<!-- &e IMPORTS_OJS -->
+
+<!-- &s HEADER -->
+
+<div class="pbnb-dash-header">
+  <h1>Airbnb France — Observatoire territorial</h1>
+  <span class="sub">Inside Airbnb, juin 2025 · KPI multi-niveaux</span>
+</div>
+
+<!-- &e HEADER -->
+
+<!-- &s CONTROLS -->
+
+```{ojs}
+//| label: controls
+viewof indicateur = Inputs.select(
+  new Map([
+    ["Annonces / 1 000 hab.", "listings_1000hab"],
+    ["Prix médian (€/nuit)", "px_med"],
+    ["Prix logement entier", "px_entire_med"],
+    ["% logement entier", "str_entire_pct"],
+    ["% multi-hôtes", "pct_multi"],
+    ["Ratio ann./hôte", "str_ratio_ann_hote"],
+    ["% longue durée", "str_minnuits30_pct"],
+    ["Disponibilité méd.", "act_cal_ouvert_med"],
+    ["Revenu estimé méd.", "act_revenu_med"],
+    ["Note moyenne", "actrv_note_glb"],
+    ["% superhôtes", "act_superhost_pct"],
+    ["Occupation estimée", "act_reserv_j_med"],
+    ["Ann. / 1 000 rés. princ.", "listings_1000rp"],
+    ["CR top 10%", "cr_offre_top10host_pct"],
+    ["% hôtes ≥10 ann.", "cr_host_10plus"]
+  ]),
+  { value: "listings_1000hab", label: "Indicateur" }
+)
+```
+
+```{ojs}
+//| label: maille-select
+viewof maille = Inputs.radio(
+  new Map([["IRIS", "iris"], ["Commune / Arr.", "comm"]]),
+  { value: "iris", label: "Maille" }
+)
+```
+
+<!-- &e CONTROLS -->
+
+<!-- &s PARIS_BLOCK -->
+
+## Paris
+
+```{ojs}
+//| label: paris-kpi
+{
+  const pk = transpose(paris_city_data)[0];
+  const fN = (n) => n != null ? Math.round(n).toLocaleString("fr-FR") : "—";
+  const fP = (n) => n != null ? n.toFixed(1) + " %" : "—";
+
+  const kpi = document.createElement("div");
+  kpi.className = "pbnb-kpi";
+  const items = [
+    { v: fN(pk.vol_n_ann), l: "Annonces", accent: false },
+    { v: fN(pk.px_entire_med) + " €", l: "Prix méd. entier", accent: true },
+    { v: fP(pk.str_entire_pct), l: "% entiers", accent: false },
+    { v: fP(pk.pct_multi), l: "% multi-hôtes", accent: true },
+    { v: pk.listings_1000hab?.toFixed(1), l: "Ann./1 000 hab.", accent: false },
+    { v: fN(pk.act_revenu_med) + " €", l: "Revenu méd.", accent: false },
+    { v: pk.actrv_note_glb?.toFixed(2) + "/5", l: "Note", accent: false },
+  ];
+  for (const it of items) {
+    const d = document.createElement("div");
+    d.className = "pbnb-kpi-item";
+    d.innerHTML = `<span class="pbnb-kpi-val${it.accent ? ' accent' : ''}">${it.v}</span><span class="pbnb-kpi-label">${it.l}</span>`;
+    kpi.appendChild(d);
+  }
+  kpi;
+}
+```
+
+```{ojs}
+//| label: paris-row
+{
+  // Data
+  const irisData = transpose(paris_iris_data);
+  const arrData = transpose(paris_arr_data);
+  const cityRow = transpose(paris_city_data)[0];
+  const refFr = transpose(ref_france_data)[0];
+
+  const isIris = maille === "iris";
+  const geoRaw = isIris ? paris_iris_geojson : paris_arr_geojson;
+  const geo = JSON.parse(geoRaw);
+  const data = isIris ? irisData : arrData;
+  const codeCol = isIris ? "code_iris" : "arr_code";
+  const codeProp = isIris ? "code_iris" : "arr_code";
+
+  // DataMap : code → row
+  const dataMap = new Map();
+  for (const d of data) {
+    const code = isIris ? d.code_iris : d.territory?.replace("paris_", "");
+    if (code) dataMap.set(code, d);
+  }
+
+  // Arr dataMap: arr_code (5 chiffres) → row
+  const dataMapGeo = new Map();
+  if (isIris) {
+    for (const d of data) {
+      if (d.code_iris) dataMapGeo.set(d.code_iris, d);
+    }
+  } else {
+    // arr géo a arr_code = "75101"..."75120", data a territory = "paris_1er"..."paris_20e"
+    const ARR_NUM = {};
+    for (let i = 1; i <= 20; i++) {
+      const suffix = i === 1 ? "1er" : i + "e";
+      ARR_NUM["751" + String(i).padStart(2, "0")] = "paris_" + suffix;
+    }
+    for (const d of arrData) {
+      for (const [geoCode, terrName] of Object.entries(ARR_NUM)) {
+        if (d.territory === terrName) dataMapGeo.set(geoCode, d);
+      }
+    }
+  }
+
+  // Bins
+  const vals = data.map(d => +d[indicateur]).filter(v => !isNaN(v));
+  const binsResult = vals.length > 5 ? bins.autoBins(vals, indicateur) : null;
+  const getColor = binsResult ? bins.makeGetColor(binsResult) : () => "#ccc";
+
+  // Build GeoJSON enrichi
+  const enriched = maplib.buildChoroplethSource(
+    geo.features, dataMapGeo, indicateur, getColor,
+    { codeProperty: codeProp, extraProps: ["nom_iris", "territory"] }
+  );
+
+  // Layout
+  const row = document.createElement("div");
+  row.className = "pbnb-city-row";
+
+  const mapCol = document.createElement("div");
+  mapCol.className = "pbnb-map-col";
+  const mapDiv = document.createElement("div");
+  mapDiv.style.cssText = "width:100%;height:460px;";
+  mapCol.appendChild(mapDiv);
+  row.appendChild(mapCol);
+
+  const tableCol = document.createElement("div");
+  tableCol.className = "pbnb-table-col";
+  row.appendChild(tableCol);
+
+  yield row;
+  await new Promise(r => setTimeout(r, 100));
+
+  // Map
+  const bds = maplib.computeBounds(enriched.features);
+  const { map, Popup } = await maplib.createOTTDMap(mapDiv, {
+    maxZoom: 16, center: bds.center, zoom: 11
+  });
+  await new Promise(r => { if (map.loaded()) r(); else map.on("load", r); });
+
+  const layers = maplib.addChoroplethLayers(map, "choro", enriched, {
+    prefix: "paris", fillOpacity: 0.75, lineColor: "#999", lineWidth: 0.3,
+    codeProperty: codeProp
+  });
+  maplib.attachTooltip(map, layers.fillLayerId, (props) => {
+    const label = props._label || props[codeProp] || "?";
+    const val = props._val;
+    const dd = window.DDICT?.[indicateur] || {};
+    const valStr = val != null ? (dd.type === "pct" ? (+val).toFixed(1) + "%" : (+val).toLocaleString("fr-FR")) : "n.d.";
+    return `<b style="color:#fff">${label}</b><br><span style="color:#93c5fd">${dd.short || indicateur}</span> : <b>${valStr}</b>`;
+  }, { Popup });
+  maplib.attachHighlight(map, layers.fillLayerId, layers.hoverLayerId, { codeProperty: codeProp });
+
+  if (bds.bounds) map.fitBounds(bds.bounds, { padding: 20, duration: 0 });
+
+  // Legend
+  if (binsResult) {
+    const dd = window.DDICT?.[indicateur] || {};
+    const labels = [];
+    const t = binsResult.thresholds;
+    labels.push("< " + bins.formatThreshold(t[0], dd.unit));
+    for (let i = 0; i < t.length - 1; i++) {
+      labels.push(bins.formatThreshold(t[i], dd.unit) + " – " + bins.formatThreshold(t[i+1], dd.unit));
+    }
+    labels.push("> " + bins.formatThreshold(t[t.length-1], dd.unit));
+    const leg = maplib.createMapLegend(binsResult.palette, labels, {
+      title: dd.short || indicateur, direction: "vertical", swatchSize: 12
+    });
+    maplib.setMapLegend(mapDiv, leg);
+  }
+
+  // Table
+  const tableKeys = ["vol_n_ann", "px_entire_med", "str_entire_pct", "pct_multi",
+    "listings_1000hab", "str_ratio_ann_hote", "act_cal_ouvert_med", "act_revenu_med", "actrv_note_glb"];
+
+  const refRow = {
+    label: "France (4 villes)",
+    data: refFr,
+    bgColor: "#eef2ff"
+  };
+
+  tbl.buildDataTable(tableCol, data, {
+    keys: tableKeys,
+    labelCol: isIris ? "nom_iris" : "territory",
+    labelFallback: isIris ? "code_iris" : "territory",
+    labelHeader: isIris ? "IRIS" : "Arrondissement",
+    colorCol: null,
+    defaultSort: indicateur,
+    maxHeight: 420,
+    groups: [
+      { label: "Stock", cols: ["vol_n_ann"] },
+      { label: "Prix", cols: ["px_entire_med"] },
+      { label: "Structure", cols: ["str_entire_pct", "pct_multi"] },
+      { label: "Pression", cols: ["listings_1000hab", "str_ratio_ann_hote"] },
+      { label: "Activité", cols: ["act_cal_ouvert_med", "act_revenu_med", "actrv_note_glb"] }
+    ],
+    refRow: refRow
+  });
+}
+```
+
+<!-- &e PARIS_BLOCK -->
+
+<!-- &s BAB_BLOCK -->
+
+## Biarritz · Anglet · Bayonne
+
+```{ojs}
+//| label: bab-kpi
+{
+  const cities = transpose(bab_cities_data);
+  const total = d3.sum(cities, d => d.vol_n_ann);
+  const pxMed = d3.median(cities.map(d => d.px_entire_med).filter(v => v != null));
+  const fN = (n) => n != null ? Math.round(n).toLocaleString("fr-FR") : "—";
+
+  const kpi = document.createElement("div");
+  kpi.className = "pbnb-kpi";
+  const items = [
+    { v: fN(total), l: "Annonces (3 comm.)", accent: false },
+    { v: fN(pxMed) + " €", l: "Prix méd. entier", accent: true },
+    { v: cities.length + " communes", l: "BAB", accent: false },
+  ];
+  for (const c of cities) {
+    items.push({ v: fN(c.vol_n_ann), l: c.territory, accent: false });
+  }
+  for (const it of items) {
+    const d = document.createElement("div");
+    d.className = "pbnb-kpi-item";
+    d.innerHTML = `<span class="pbnb-kpi-val${it.accent ? ' accent' : ''}">${it.v}</span><span class="pbnb-kpi-label">${it.l}</span>`;
+    kpi.appendChild(d);
+  }
+  kpi;
+}
+```
+
+```{ojs}
+//| label: bab-row
+{
+  const irisData = transpose(bab_iris_data);
+  const citiesData = transpose(bab_cities_data);
+  const refFr = transpose(ref_france_data)[0];
+
+  const isIris = maille === "iris";
+  const geoRaw = isIris ? bab_iris_geojson : bab_com_geojson;
+  const geo = JSON.parse(geoRaw);
+  const data = isIris ? irisData : citiesData;
+  const codeProp = isIris ? "code_iris" : "com_code";
+
+  const dataMapGeo = new Map();
+  if (isIris) {
+    for (const d of data) {
+      if (d.code_iris) dataMapGeo.set(d.code_iris, d);
+    }
+  } else {
+    // commune code: Bayonne=64102, Biarritz=64122, Anglet=64024
+    const COM_MAP = { "64102": "bayonne", "64122": "biarritz", "64024": "anglet" };
+    for (const d of citiesData) {
+      for (const [code, terr] of Object.entries(COM_MAP)) {
+        if (d.territory === terr) dataMapGeo.set(code, d);
+      }
+    }
+  }
+
+  const vals = data.map(d => +d[indicateur]).filter(v => !isNaN(v));
+  const binsResult = vals.length > 3 ? bins.autoBins(vals, indicateur) : null;
+  const getColor = binsResult ? bins.makeGetColor(binsResult) : () => "#ccc";
+
+  const enriched = maplib.buildChoroplethSource(
+    geo.features, dataMapGeo, indicateur, getColor,
+    { codeProperty: codeProp, extraProps: ["nom_iris", "territory"] }
+  );
+
+  const row = document.createElement("div");
+  row.className = "pbnb-city-row";
+
+  const mapCol = document.createElement("div");
+  mapCol.className = "pbnb-map-col";
+  const mapDiv = document.createElement("div");
+  mapDiv.style.cssText = "width:100%;height:460px;";
+  mapCol.appendChild(mapDiv);
+  row.appendChild(mapCol);
+
+  const tableCol = document.createElement("div");
+  tableCol.className = "pbnb-table-col";
+  row.appendChild(tableCol);
+
+  yield row;
+  await new Promise(r => setTimeout(r, 100));
+
+  const bds = maplib.computeBounds(enriched.features);
+  const { map, Popup } = await maplib.createOTTDMap(mapDiv, {
+    maxZoom: 16, center: bds.center, zoom: 11
+  });
+  await new Promise(r => { if (map.loaded()) r(); else map.on("load", r); });
+
+  const layers = maplib.addChoroplethLayers(map, "choro-bab", enriched, {
+    prefix: "bab", fillOpacity: 0.75, lineColor: "#999", lineWidth: 0.3,
+    codeProperty: codeProp
+  });
+  maplib.attachTooltip(map, layers.fillLayerId, (props) => {
+    const label = props._label || "?";
+    const val = props._val;
+    const dd = window.DDICT?.[indicateur] || {};
+    const valStr = val != null ? (dd.type === "pct" ? (+val).toFixed(1) + "%" : (+val).toLocaleString("fr-FR")) : "n.d.";
+    return `<b style="color:#fff">${label}</b><br><span style="color:#93c5fd">${dd.short || indicateur}</span> : <b>${valStr}</b>`;
+  }, { Popup });
+  maplib.attachHighlight(map, layers.fillLayerId, layers.hoverLayerId, { codeProperty: codeProp });
+
+  if (bds.bounds) map.fitBounds(bds.bounds, { padding: 30, duration: 0 });
+
+  if (binsResult) {
+    const dd = window.DDICT?.[indicateur] || {};
+    const labels = [];
+    const t = binsResult.thresholds;
+    labels.push("< " + bins.formatThreshold(t[0], dd.unit));
+    for (let i = 0; i < t.length - 1; i++) {
+      labels.push(bins.formatThreshold(t[i], dd.unit) + " – " + bins.formatThreshold(t[i+1], dd.unit));
+    }
+    labels.push("> " + bins.formatThreshold(t[t.length-1], dd.unit));
+    const leg = maplib.createMapLegend(binsResult.palette, labels, {
+      title: dd.short || indicateur, direction: "vertical", swatchSize: 12
+    });
+    maplib.setMapLegend(mapDiv, leg);
+  }
+
+  const tableKeys = ["vol_n_ann", "px_entire_med", "str_entire_pct", "pct_multi",
+    "listings_1000hab", "str_ratio_ann_hote", "act_cal_ouvert_med", "act_revenu_med", "actrv_note_glb"];
+
+  tbl.buildDataTable(tableCol, data, {
+    keys: tableKeys,
+    labelCol: isIris ? "nom_iris" : "territory",
+    labelFallback: isIris ? "code_iris" : "territory",
+    labelHeader: isIris ? "IRIS" : "Commune",
+    colorCol: null,
+    defaultSort: indicateur,
+    maxHeight: 420,
+    groups: [
+      { label: "Stock", cols: ["vol_n_ann"] },
+      { label: "Prix", cols: ["px_entire_med"] },
+      { label: "Structure", cols: ["str_entire_pct", "pct_multi"] },
+      { label: "Pression", cols: ["listings_1000hab", "str_ratio_ann_hote"] },
+      { label: "Activité", cols: ["act_cal_ouvert_med", "act_revenu_med", "actrv_note_glb"] }
+    ],
+    refRow: { label: "France", data: refFr, bgColor: "#eef2ff" }
+  });
+}
+```
+
+<!-- &e BAB_BLOCK -->

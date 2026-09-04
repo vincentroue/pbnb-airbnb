@@ -1,0 +1,16 @@
+<!-- STUB _ccom-acp-dim.qmd — définit dim_names / cluster_names (noms métier
+     des axes et clusters) pour les cartes + biplots. Chunk SILENCIEUX (include: false).
+     NULL = noms par défaut (Dim1/Dim2, C1/C2…). À renseigner une fois la typo finale validée. -->
+
+```{r}
+#| label: ccom-acp-dim
+#| include: false
+
+# Noms métier des dimensions ACP (NULL → "Dim1 (xx%)" par défaut)
+dim_names <- NULL
+# Ex après validation : c("Dim1" = "Professionnalisation", "Dim2" = "Régulation vs densité")
+
+# Noms métier des clusters HCPC (NULL → "C1", "C2"… par défaut)
+cluster_names <- NULL
+# Ex : c("1" = "Mégalopoles corporate", "2" = "Métropoles internationales", ...)
+```

@@ -86,7 +86,17 @@ IRIS_FILTERS = {
     "pays-basque": ("64102%", "64122%", "64024%"),
 }
 
-IRIS_MIN_LISTINGS = 20
+# 20 -> 5 (260824) : a 20, les IRIS sous le seuil n'etaient PAS emis du tout, donc leur
+# infobulle de carte n'avait rien a afficher ("— annonces · — logements"). A 5, ils portent
+# leurs valeurs ; c'est la CARTE qui les grise via MIN_OCC_IRIS. Garde-fou deplace au bon
+# endroit : le seuil de production n'est pas le seuil d'affichage.
+IRIS_MIN_LISTINGS = 5
+# Minimum de résidences principales : un IRIS n'entre dans l'analyse que s'il est
+# réellement résidentiel. En deçà de 20 RP, les ratios /1 000 RP explosent (division
+# par ~0) sur des IRIS non résidentiels — parcs, cimetières, monuments, quartiers
+# d'affaires — où le brouillage des coordonnées Inside Airbnb (~150 m) snape des
+# annonces (12 IRIS parisiens avaient plus d'annonces que de logements totaux : artefact).
+IRIS_MIN_RP = 20
 
 # &e
 
@@ -393,11 +403,24 @@ else:
         joined = gpd.sjoin(pts_gdf, iris_gdf[["code_iris", "nom_iris", "geometry"]], how="left", predicate="within")
         joined_valid = joined[joined["code_iris"].notna()]
 
+        # Taille du portefeuille de l'hote a l'echelle de la VILLE (pas de l'IRIS).
+        # Sans ca, compute_all_kpi recompte les annonces par hote DANS l'IRIS : un hote qui
+        # gere 5 annonces reparties sur 5 IRIS ressort "mono-annonce" dans chacun. Le biais
+        # de fragmentation est massif (Paris : 41,4 % au niveau ville, 14,3 % en mediane
+        # d'IRIS) et il varie avec l'etalement des portefeuilles, donc il n'est meme pas
+        # constant entre territoires. Colonnes suffixees _ville = definition portee ville.
+        joined_valid = joined_valid.assign(
+            _host_n_ville=joined_valid.groupby("host_id")["host_id"].transform("size"))
+
         n_iris = 0
         for code_iris, grp in joined_valid.groupby("code_iris"):
             if len(grp) < IRIS_MIN_LISTINGS:
                 continue
             kpi = jcn_kpi.compute_all_kpi(grp)
+            for seuil in (1, 5, 10):
+                kpi[f"cr_offre_{seuil}plus_ville"] = round(
+                    (grp["_host_n_ville"] > seuil).mean() * 100, 1) if seuil == 1 else round(
+                    (grp["_host_n_ville"] >= seuil).mean() * 100, 1)
             kpi["level"] = "iris"
             kpi["territory"] = code_iris
             kpi["city"] = city_name
@@ -428,6 +451,10 @@ else:
                         res_sec=row_i["rsecocc_2022"], housing=row_i["log_2022"],
                     )
 
+            # IRIS non résidentiel (rp < seuil, ou hors INSEE) : ratios /1 000 RP non
+            # fiables -> exclu de l'analyse IRIS. get(...,0) exclut aussi les IRIS sans match.
+            if kpi.get("rp", 0) < IRIS_MIN_RP:
+                continue
             rows_computed.append(kpi)
             n_iris += 1
 
@@ -445,6 +472,23 @@ print("\n--- Assemblage ---")
 # Convertir rows calculés en DataFrame
 df_computed = pd.DataFrame(rows_computed)
 
+# Pression zone dense des communes basques : sp08 la calcule bien (scope=sub_city dans
+# kpi_global_by_city) mais sp10 recalculait ces 3 lignes localement, sans le denominateur
+# GHS-POP -> colonne vide. On la recupere au lieu de laisser un "—" dans le rapport.
+_DENSE_COLS = ["ctx_pop_dense", "ctx_pop_dense_total", "prs_listings_1000hab_dense",
+               "ctx_densite_pop_dense", "n_listings_dense"]
+_sub = kpi_city_all[kpi_city_all.get("scope", "") == "sub_city"]
+if len(_sub) and len(df_computed):
+    _cols = [c for c in _DENSE_COLS if c in _sub.columns]
+    _src = _sub.set_index("city")[_cols]
+    for i in df_computed.index:
+        terr = df_computed.loc[i, "territory"]
+        if df_computed.loc[i, "level"] == "city" and terr in _src.index:
+            for c in _cols:
+                df_computed.loc[i, c] = _src.loc[terr, c]
+    print(f"  Pression dense récupérée (sp08 sub_city) pour : "
+          f"{[t for t in df_computed.territory if t in _src.index]}")
+
 # Empiler : refs (monde/europe/france) + cities importées + computed
 frames = [ref_monde, ref_europe, ref_fra, kpi_city_fra, df_computed]
 result = pd.concat([f for f in frames if len(f) > 0], ignore_index=True)
@@ -453,6 +497,37 @@ result = pd.concat([f for f in frames if len(f) > 0], ignore_index=True)
 level_order = {"ref_monde": 0, "ref_europe": 1, "country": 2, "city": 3, "arr": 4, "iris": 5}
 result["_sort"] = result["level"].map(level_order).fillna(9)
 result = result.sort_values(["_sort", "city", "territory"]).drop(columns="_sort")
+
+# &s &EVOLUTION_PREV - Evolution vs snapshot precedent, a TOUS les niveaux (dont IRIS)
+# sp12 ne descend pas sous la ville : les colonnes _vevol_ etaient donc vides a l'IRIS et a
+# l'arrondissement. Or sp10 produit un CSV par snapshot avec le MEME code, donc la definition
+# d'annonce active est identique de part et d'autre : il suffit d'apparier sur (level, territory).
+# Fait ICI plutot que cote R pour que le CSV *et* les JSON dashboard portent la colonne.
+PREV_TAG = {"2606": "2506", "2506": "2412"}.get(SNAP_TAG)
+PREV_PATH = INTERIM_DIR / f"kpi_france_byterr_{PREV_TAG}.csv" if PREV_TAG else None
+EVOL_COLS = ["vol_n_ann", "vol_n_hotes"]          # volumes uniquement : le PRIX n'est PAS
+# comparable entre 2025 et 2026 (Inside Airbnb a bascule `price` de base -> total, frais inclus).
+if PREV_PATH is not None and PREV_PATH.exists():
+    prev = pd.read_csv(PREV_PATH, dtype={"code_iris": str})
+    keep = ["level", "territory"] + [c for c in EVOL_COLS if c in prev.columns]
+    prev = prev[keep].rename(columns={c: f"{c}_prev" for c in EVOL_COLS if c in prev.columns})
+    result = result.merge(prev, on=["level", "territory"], how="left")
+    n_ok = 0
+    for c in EVOL_COLS:
+        pc = f"{c}_prev"
+        if c in result.columns and pc in result.columns:
+            base = pd.to_numeric(result[pc], errors="coerce")
+            cur = pd.to_numeric(result[c], errors="coerce")
+            result[f"{c}_{PREV_TAG[:2]}"] = base
+            result[f"{c}_vevol_{PREV_TAG[:2]}{SNAP_TAG[:2]}"] = (
+                (cur / base.where(base > 0) - 1) * 100).round(1)
+            n_ok = int(result[f"{c}_vevol_{PREV_TAG[:2]}{SNAP_TAG[:2]}"].notna().sum())
+    result = result.drop(columns=[f"{c}_prev" for c in EVOL_COLS if f"{c}_prev" in result.columns])
+    print(f"Evolution vs {PREV_TAG}: {n_ok} territoires appariés, "
+          f"dont {int(result['level'].eq('iris').sum())} IRIS")
+else:
+    print(f"[SKIP] Evolution : snapshot précédent introuvable ({PREV_PATH})")
+# &e
 
 result.to_csv(OUTPUT_PATH, index=False, encoding="utf-8-sig")
 
@@ -473,6 +548,8 @@ print("sp10 terminé.")
 print(f"{'='*60}")
 
 # &s &EXPORT_DASHBOARD_JSON - Export JSON pour dashboard Observable France
+# NB: level=city → kpi_fr_city.json (namespacé) pour NE PAS écraser kpi_city.json (= world by-city,
+#     écrit par sp11). Voir chantier "JSON dashboard 2606" : sp11 = exporteur unique, sp10 non-colisionnant.
 DASH_DIR = BASE / "dashboard" / "src" / "data"
 if DASH_DIR.exists():
     # Split by level
@@ -481,12 +558,14 @@ if DASH_DIR.exists():
         # Fix code_iris: float→string
         if "code_iris" in sub.columns:
             sub["code_iris"] = sub["code_iris"].apply(lambda x: str(int(x)) if pd.notna(x) else None)
-        sub.to_json(DASH_DIR / f"kpi_{lvl}.json", orient="records", force_ascii=False)
+        out_name = "kpi_fr_city.json" if lvl == "city" else f"kpi_{lvl}.json"
+        sub.to_json(DASH_DIR / out_name, orient="records", force_ascii=False)
 
     print(f"\nDashboard JSON: {DASH_DIR}")
     for lvl in ["ref_monde", "ref_europe", "country", "city", "arr", "iris"]:
         n = len(result[result["level"] == lvl])
-        print(f"  kpi_{lvl}.json ({n} lignes)")
+        tag = " → kpi_fr_city.json" if lvl == "city" else ""
+        print(f"  kpi_{lvl}.json ({n} lignes){tag}")
 else:
     print(f"\n[SKIP] Dashboard dir not found: {DASH_DIR}")
 # &e

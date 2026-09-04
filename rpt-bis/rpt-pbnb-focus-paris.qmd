@@ -1,0 +1,272 @@
+---
+title: "Focus Paris — Airbnb à la loupe"
+subtitle: "808 IRIS, 20 arrondissements · Inside Airbnb juin 2025 × INSEE RP 2022"
+date: today
+categories: ["Focus territoire"]
+number-sections: false
+---
+
+```{r}
+#| label: setup
+#| include: false
+#| cache: false
+
+source("_setup-common.R")
+source("_data-load-france.R")
+library(ggiraph)
+library(gt)
+
+claude_log_init("focus-paris")
+
+# === CONFIG FOCUS (à changer par ville) ===
+FOCUS_CITY <- "paris"
+FOCUS_LABEL <- "Paris"
+HAS_ARR <- TRUE  # Paris/Lyon = TRUE, Bordeaux/BAB = FALSE
+
+# Données focus
+focus <- kpi_fr_city |> dplyr::filter(territory == FOCUS_CITY) |> dplyr::slice(1)
+focus_iris <- load_iris_geo(FOCUS_CITY)
+focus_arr <- if (HAS_ARR) kpi_fr_arr |> dplyr::filter(city == FOCUS_CITY) |>
+  dplyr::mutate(city_fr = paste0(FOCUS_LABEL, " ", arr)) else NULL
+
+# Tooltip IRIS
+focus_iris$tooltip <- sprintf(
+  "<b>%s</b><br>%s ann.<br>%s ann./1 000 hab.<br>%s \u20ac/nuit<br>%s %% multi",
+  focus_iris$nom_iris,
+  ifelse(is.na(focus_iris$n_listings), "\u2014", format(focus_iris$n_listings, big.mark = "\u202f")),
+  ifelse(is.na(focus_iris$listings_1000hab), "\u2014", fmt_fr(focus_iris$listings_1000hab, 1)),
+  ifelse(is.na(focus_iris$prix_med_entire), "\u2014", fmt_fr(focus_iris$prix_med_entire, 0)),
+  ifelse(is.na(focus_iris$pct_multi), "\u2014", fmt_fr(focus_iris$pct_multi, 0)))
+
+# KPI clés pour inline
+.fk <- function(x, d = 0) ifelse(is.na(x), "\u2014", fmt_fr(x, d))
+.fn <- function(x) format(round(x), big.mark = "\u202f")
+
+aa_f <- list(
+  n = .fn(focus$n_listings),
+  n_hosts = .fn(focus$n_hosts),
+  prix = round(focus$prix_med_entire, 0),
+  pression = .fk(focus$listings_1000hab, 1),
+  pression_rp = .fk(focus$listings_1000rp, 1),
+  multi = round(focus$cr_offre_1plus, 0),
+  longterm = .fk(focus$pct_longterm, 1),
+  dispo = round(focus$dispo_med, 0),
+  revenu = .fn(focus$revenue_est_med),
+  occup = round(focus$occupancy_est_med, 0),
+  note = .fk(focus$rev_rating_med, 2),
+  n_iris = sum(focus_iris$n_listings > 0, na.rm = TRUE)
+)
+
+```
+
+## `r FOCUS_LABEL` en chiffres
+
+::: {.grey-section}
+
+`r FOCUS_LABEL` concentre **`r aa_f$n` annonces** gérées par `r aa_f$n_hosts` hôtes. Le prix médian du logement entier atteint **`r aa_f$prix` €/nuit**. La pression s'établit à **`r aa_f$pression` ann./1 000 hab.** (`r aa_f$pression_rp` pour 1 000 résidences principales) — au-dessus de la moyenne France (`r aa_fr$ref_france_pression`) et de la médiane européenne (`r aa_fr$ref_europe_pression`).
+
+`r aa_f$multi` % de l'offre est détenue par des multi-hôtes. L'occupation médiane reste modérée (`r aa_f$occup` jours/an) pour un revenu estimé de `r aa_f$revenu` €/an. Note globale : `r aa_f$note`/5.
+
+:::
+
+## Positionnement comparé
+
+```{r}
+#| label: gt-profil
+#| cache: false
+
+VARS <- c("n_listings", "listings_1000hab", "listings_1000rp",
+  "prix_med_entire", "prix_med_private",
+  "pct_entire", "cr_offre_1plus", "pct_longterm",
+  "cr_offre_10plus", "cr_hosts_offre50_pct",
+  "dispo_med", "revenue_est_med", "occupancy_est_med", "rev_rating_med")
+
+LABELS <- c(
+  n_listings = "Annonces", listings_1000hab = "Pression /1 000 hab.",
+  listings_1000rp = "Pression /1 000 RP",
+  prix_med_entire = "Prix entier (\u20ac)", prix_med_private = "Prix priv\u00e9 (\u20ac)",
+  pct_entire = "% Entier", cr_offre_1plus = "% Offre multi",
+  pct_longterm = "% Longue dur\u00e9e",
+  cr_offre_10plus = "Offre \u226510 ann.", cr_hosts_offre50_pct = "50 % offre =",
+  dispo_med = "Dispo. m\u00e9d. (j)", revenue_est_med = "Revenu (\u20ac/an)",
+  occupancy_est_med = "Occup. (j/an)", rev_rating_med = "Note /5")
+
+THEMES <- c(
+  n_listings = "Volume", listings_1000hab = "Pression", listings_1000rp = "Pression",
+  prix_med_entire = "Prix", prix_med_private = "Prix",
+  pct_entire = "Structure", cr_offre_1plus = "Structure", pct_longterm = "Structure",
+  cr_offre_10plus = "Concentration", cr_hosts_offre50_pct = "Concentration",
+  dispo_med = "Activit\u00e9", revenue_est_med = "Activit\u00e9",
+  occupancy_est_med = "Activit\u00e9", rev_rating_med = "Activit\u00e9")
+
+.val <- function(df, var) { v <- df[[var]]; if (is.null(v)||all(is.na(v))) NA_real_ else v[1] }
+
+# Colonnes comparaison (adapter par focus)
+profil <- data.frame(
+  theme = THEMES[VARS], indicateur = LABELS[VARS],
+  .focus = sapply(VARS, function(v) .val(focus, v)),
+  Lyon = sapply(VARS, function(v) .val(lyon_fr, v)),
+  Bordeaux = sapply(VARS, function(v) .val(bordeaux_fr, v)),
+  Biarritz = sapply(VARS, function(v) .val(biarritz_fr, v)),
+  France = sapply(VARS, function(v) .val(kpi_fr_pays, v)),
+  Europe = sapply(VARS, function(v) .val(ref_europe, v)),
+  row.names = NULL, stringsAsFactors = FALSE)
+names(profil)[3] <- FOCUS_LABEL
+
+cols_all <- c(FOCUS_LABEL, "Lyon", "Bordeaux", "Biarritz", "France", "Europe")
+
+vol_rows <- which(profil$theme == "Volume")
+log_table_auto("gt_profil", profil)
+
+profil |>
+  gt_styled(
+    title = paste0("Profil ", FOCUS_LABEL, " \u2014 positionnement"),
+    source = "Inside Airbnb, juin 2025 \u00b7 INSEE RP 2022",
+    groupname_col = "theme") |>
+  fmt(columns = all_of(cols_all), rows = theme == "Volume",
+      fns = function(x) ifelse(is.na(x), "\u2014", formatC(round(x), big.mark="\u202f", format="d"))) |>
+  fmt(columns = all_of(cols_all), rows = theme == "Pression",
+      fns = function(x) ifelse(is.na(x), "\u2014", formatC(x, format="f", digits=1, decimal.mark=","))) |>
+  fmt(columns = all_of(cols_all), rows = theme == "Prix",
+      fns = function(x) ifelse(is.na(x), "\u2014", formatC(round(x), big.mark="\u202f", format="d"))) |>
+  fmt(columns = all_of(cols_all), rows = theme %in% c("Structure","Concentration"),
+      fns = function(x) ifelse(is.na(x), "\u2014", paste0(round(x)," %"))) |>
+  fmt(columns = all_of(cols_all), rows = indicateur == "Note /5",
+      fns = function(x) ifelse(is.na(x), "\u2014", formatC(x, format="f", digits=2, decimal.mark=","))) |>
+  fmt(columns = all_of(cols_all),
+      rows = indicateur %in% c("Dispo. m\u00e9d. (j)", "Occup. (j/an)"),
+      fns = function(x) ifelse(is.na(x), "\u2014", formatC(round(x), format="d"))) |>
+  fmt(columns = all_of(cols_all), rows = indicateur == "Revenu (\u20ac/an)",
+      fns = function(x) ifelse(is.na(x), "\u2014", paste0(formatC(round(x), big.mark="\u202f", format="d")," \u20ac"))) |>
+  gt_gradient_vs_focus(columns = all_of(cols_all), ref_value = FOCUS_LABEL,
+    type = "ratio", skip_rows = vol_rows,
+    breaks_ratio = c(0.10, 0.30, 0.50)) |>
+  tab_spanner(label = "Comparaison", columns = c("Lyon","Bordeaux","Biarritz")) |>
+  tab_spanner(label = "R\u00e9f.", columns = c("France","Europe")) |>
+  cols_label(indicateur = "") |>
+  cols_align(align = "center", columns = all_of(cols_all)) |>
+  cols_width(indicateur ~ px(160)) |>
+  tab_options(row_group.font.weight = "600", row_group.background.color = "#f0f0f0",
+    row_group.border.top.color = "#aaa", table_body.hlines.style = "none") |>
+  sub_missing(missing_text = "\u2014")
+```
+
+<div class="note-lecture">Fond color\u00e9 par \u00e9cart relatif \u00e0 `r FOCUS_LABEL` (bordeaux = sup\u00e9rieur, bleu = inf\u00e9rieur).</div>
+
+## G\u00e9ographie IRIS — `r aa_f$n_iris` quartiers
+
+:::: {.column-screen-inset}
+::::: {.grid}
+
+:::::: {.g-col-4}
+```{r}
+#| label: map-pression
+#| cache: false
+
+p1 <- build_map(focus_iris, "listings_1000hab",
+  bin_type = "level", interactive = TRUE,
+  titre = "Pression (ann./1 000 hab.)",
+  label_col = "nom_iris", n_top = 3, n_bottom = 0,
+  show_values = TRUE, label_position = "repel",
+  label_fill_sign = FALSE, label_style = "text", label_size = 2.2,
+  tooltip_col = "tooltip", legend_title = "Ann./1 000 h.",
+  bin_args = list(palette = PAL_BV8, n_mid = 5)) + th_map_sm
+render_girafe(p1, width_svg = 5, height_svg = 4.5)
+```
+::::::
+
+:::::: {.g-col-4}
+```{r}
+#| label: map-prix
+#| cache: false
+
+p2 <- build_map(focus_iris, "prix_med_entire",
+  bin_type = "level", interactive = TRUE,
+  titre = "Prix m\u00e9dian entier (\u20ac/nuit)",
+  label_col = "nom_iris", n_top = 3, n_bottom = 0,
+  show_values = TRUE, label_position = "repel",
+  label_fill_sign = FALSE, label_style = "text", label_size = 2.2,
+  tooltip_col = "tooltip", legend_title = "\u20ac/nuit",
+  bin_args = list(palette = PAL_BV8, n_mid = 5)) + th_map_sm
+render_girafe(p2, width_svg = 5, height_svg = 4.5)
+```
+::::::
+
+:::::: {.g-col-4}
+```{r}
+#| label: map-multi
+#| cache: false
+
+p3 <- build_map(focus_iris, "pct_multi",
+  bin_type = "level", interactive = TRUE,
+  titre = "Multi-h\u00f4tes (%)",
+  label_col = "nom_iris", n_top = 3, n_bottom = 0,
+  show_values = TRUE, label_position = "repel",
+  label_fill_sign = FALSE, label_style = "text", label_size = 2.2,
+  tooltip_col = "tooltip", legend_title = "% multi",
+  bin_args = list(palette = PAL_BV8, n_mid = 5)) + th_map_sm
+render_girafe(p3, width_svg = 5, height_svg = 4.5)
+```
+::::::
+
+:::::
+::::
+
+## Zones les plus tendues
+
+```{r}
+#| label: rt-top-iris
+#| cache: false
+
+top_iris <- focus_iris |>
+  sf::st_drop_geometry() |>
+  dplyr::filter(!is.na(listings_1000hab)) |>
+  dplyr::slice_max(listings_1000hab, n = 15) |>
+  dplyr::select(nom_iris, arr, n_listings, pop, listings_1000hab,
+                listings_1000rp, prix_med_entire, pct_multi)
+
+log_table_auto("rt_top_iris", top_iris)
+
+rt_table(top_iris,
+  cols = list(
+    nom_iris         = rt_col_lib(top_iris, "nom_iris", "IRIS", indent = FALSE, mw = 160),
+    arr              = rt_col_tag("Arr.", w = 50),
+    n_listings       = rt_col_int(top_iris, "n_listings", "Ann."),
+    pop              = rt_col_int(top_iris, "pop", "Pop."),
+    listings_1000hab = rt_col_rank(top_iris, "listings_1000hab", "Pression", unit = "/1000h"),
+    listings_1000rp  = rt_col_rank(top_iris, "listings_1000rp", "Pression RP", unit = "/1000 RP"),
+    prix_med_entire  = rt_col_rank(top_iris, "prix_med_entire", "Prix ent.", unit = "\u20ac"),
+    pct_multi        = rt_col_level(top_iris, "pct_multi", "% Multi", unit = "%")
+  ),
+  sticky_cols = 1,
+  footnote = paste0("Top 15 IRIS par pression \u00b7 ", FOCUS_LABEL))
+```
+
+```{r}
+#| label: rt-arr
+#| cache: false
+#| eval: !expr HAS_ARR
+
+log_table_auto("rt_arr", focus_arr)
+
+rt_table(focus_arr |> dplyr::arrange(dplyr::desc(listings_1000hab)),
+  cols = list(
+    city_fr          = rt_col_lib(focus_arr, "city_fr", "Arrondissement", indent = FALSE, mw = 130),
+    n_listings       = rt_col_int(focus_arr, "n_listings", "Ann."),
+    pop              = rt_col_int(focus_arr, "pop", "Pop."),
+    listings_1000hab = rt_col_rank(focus_arr, "listings_1000hab", "Pression", unit = "/1000h"),
+    listings_1000rp  = rt_col_rank(focus_arr, "listings_1000rp", "Pression RP", unit = "/1000 RP"),
+    prix_med_entire  = rt_col_rank(focus_arr, "prix_med_entire", "Prix ent.", unit = "\u20ac"),
+    pct_entire       = rt_col_level(focus_arr, "pct_entire", "% Entier", unit = "%"),
+    pct_multi        = rt_col_level(focus_arr, "pct_multi", "% Multi", unit = "%"),
+    revenue_est_med  = rt_col_int(focus_arr, "revenue_est_med", "Rev./an", unit = "\u20ac")
+  ),
+  sticky_cols = 1,
+  footnote = paste0("Arrondissements par pression \u00b7 ", FOCUS_LABEL))
+```
+
+```{r}
+#| label: log-save
+#| include: false
+claude_log_save()
+```

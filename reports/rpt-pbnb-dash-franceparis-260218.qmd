@@ -1,5 +1,6 @@
 ---
 title: "Dashboard Airbnb France"
+date: "2026"
 subtitle: "Paris · Lyon · Bordeaux · BAB — Inside Airbnb juin 2025"
 format:
   dashboard:
@@ -707,7 +708,7 @@ ojs_define(delta_paris_js = delta_paris)
 ojs_define(paris_iris_territory = paris_iris_territory)
 ```
 
-## Row {height="300px"}
+## Row {height="380px"}
 
 ### Column {width="100%"}
 
@@ -726,13 +727,14 @@ ojs_define(paris_iris_territory = paris_iris_territory)
 ```
 
 ```{ojs}
-//| label: header-kpi-grid
+//| label: header-kpi-table
 {
   const fk = transpose(france_kpi_js)[0];
   const pk = transpose(paris_kpi_js)[0];
   const lk = transpose(lyon_kpi_js)[0];
   const bxk = transpose(bordeaux_kpi_js)[0];
   const babk = transpose(bab_kpi_js)[0];
+  const benchData = transpose(europe_bench_data);
 
   const cities = [
     {name:"Paris", kpi:pk}, {name:"Lyon", kpi:lk},
@@ -740,63 +742,76 @@ ojs_define(paris_iris_territory = paris_iris_territory)
   ];
   const fN = (n) => Math.round(n).toLocaleString("fr-FR");
 
-  // Per-city ranking line
-  const rkLine = (key) => cities
-    .map(c => ({name:c.name, val:c.kpi[key]}))
-    .filter(c => c.val != null)
-    .sort((a,b) => b.val - a.val)
-    .map((c,i) => `<span style="color:${i===0?'#0a4c6a':'#6b7280'};font-weight:${i===0?700:400};">${c.name} ${typeof c.val==='number'&&c.val%1!==0?c.val.toFixed(1):c.val}</span>`)
-    .join(" \u00b7 ");
+  // Helper ▲/▼ ranking 4 villes
+  const dtl = (key) => {
+    const items = cities
+      .map(c => ({name: c.name, val: c.kpi[key]}))
+      .filter(c => c.val != null)
+      .sort((a, b) => b.val - a.val);
+    if (items.length === 0) return "";
+    return `<div class="kpi-ed-detail">` + items.map((c, i) => {
+      const cls = i === 0 ? "u" : (i === items.length - 1 ? "d" : "");
+      const marker = i === 0 ? "\u25b2" : (i === items.length - 1 ? "\u25bc" : "\u00b7");
+      const v = typeof c.val === "number" && c.val % 1 !== 0 ? c.val.toFixed(1) : c.val;
+      return `<span class="${cls}">${marker}</span>\u00a0${c.name} ${v}`;
+    }).join(" \u00b7 ") + `</div>`;
+  };
 
-  const kItem = (key, val, label, color) => `<div class="kpi-item">
-    <span class="kv" style="color:${color};">${val}</span>
-    <span class="kl">${label}</span>
-    <div class="kt">${rkLine(key)}</div>
-  </div>`;
-  const kNarr = (html) => `<div class="kpi-narr">${html}</div>`;
+  // Row 1 grid: KPI left + Table right
+  const wrap = document.createElement("div");
+  wrap.style.cssText = "display:grid;grid-template-columns:30fr 70fr;gap:2px;height:100%;background:#d1d5db;";
 
-  const d = document.createElement("div");
-  d.innerHTML = `
-  <div class="kpi-panel" style="width:100%;">
-    <div class="kpi-header">
-      <span>Synth\u00e8se France \u00b7 4 villes</span>
-      <span style="font-size:10px;opacity:0.7;">Source : Inside Airbnb, juin 2025</span>
+  // LEFT — KPI éditorial 2 colonnes
+  const kpiCol = document.createElement("div");
+  kpiCol.style.cssText = "background:white;overflow-y:auto;";
+  kpiCol.innerHTML = `
+  <div class="kpi-ed">
+    <div class="kpi-ed-hd" style="border-bottom-color:#0a4c6a;">
+      <strong>France \u00b7 4 villes</strong>
+      <span>Inside Airbnb, juin 2025</span>
     </div>
-    <div class="kpi-blocs">
-      <div class="kpi-bloc">
-        <div class="kpi-bloc-title" style="border-color:#0a4c6a;color:#0a4c6a;">March\u00e9</div>
-        ${kItem("n_listings", fN(fk.n_listings), "annonces actives", "#0a4c6a")}
-        ${kItem("n_hosts", fN(fk.n_hosts || 0), "h\u00f4tes distincts", "#0a4c6a")}
-        ${kItem("pct_entire", fk.pct_entire+"%", "logements entiers", "#0a4c6a")}
+    <div class="kpi-ed-col">
+      <div class="kpi-ed-title" style="border-color:#0a4c6a;">March\u00e9</div>
+      <div class="kpi-ed-item">
+        <span class="kpi-ed-big" style="color:#ca5800;">${fk.prix_med_entire}\u00a0\u20ac</span> /nuit \u2014 logement entier
+        ${dtl("prix_med_entire")}
       </div>
-      <div class="kpi-bloc">
-        <div class="kpi-bloc-title" style="border-color:#ca5800;color:#ca5800;">Prix & Activit\u00e9</div>
-        ${kItem("prix_med", fk.prix_med+"\u00a0\u20ac", "prix m\u00e9dian / nuit", "#ca5800")}
-        ${kItem("prix_med_entire", fk.prix_med_entire+"\u00a0\u20ac", "logement entier (m\u00e9d.)", "#ca5800")}
-        ${kItem("dispo_med", fk.dispo_med+" j", "disponibilit\u00e9 m\u00e9d. / an", "#0a4c6a")}
+      <div class="kpi-ed-item">
+        <span class="kpi-ed-big" style="color:#0a4c6a;">${fk.pct_entire}\u202f%</span> logements entiers
+        ${dtl("pct_entire")}
       </div>
-      <div class="kpi-bloc">
-        <div class="kpi-bloc-title" style="border-color:#6d1a36;color:#6d1a36;">Professionnalisation</div>
-        ${kItem("pct_multi", fk.pct_multi+"%", "multi-h\u00f4tes (>1 ann.)", "#6d1a36")}
-        ${kNarr(`<strong style="color:#6d1a36;">${fk.top10_share}\u202f%</strong> des annonces g\u00e9r\u00e9es par les 10\u202f% d\u2019h\u00f4tes les plus actifs`)}
-        ${kItem("pct_longterm", fk.pct_longterm+"%", "longue dur\u00e9e (\u226530 nuits)", "#6d1a36")}
+      <div class="kpi-ed-item">
+        <span class="kpi-ed-big" style="color:#0a4c6a;">${fk.entire_1000rp || "\u2014"}</span> ent.\u00a0/\u00a01\u202f000 r\u00e9s. princ.
+        ${dtl("entire_1000rp")}
+      </div>
+      <div class="kpi-ed-item">
+        Disponibilit\u00e9 m\u00e9diane <span class="kpi-ed-big" style="color:#0a4c6a;">${fk.dispo_med}</span> j/an
+      </div>
+      <div class="kpi-ed-item">
+        <span class="kpi-ed-big" style="color:#ca5800;">${fk.pct_longterm}\u202f%</span> annonces longue dur\u00e9e (\u226530\u00a0j)
+        ${dtl("pct_longterm")}
       </div>
     </div>
+    <div class="kpi-ed-col">
+      <div class="kpi-ed-title prof">Professionnalisation</div>
+      <div class="kpi-ed-item">
+        <span class="kpi-ed-big" style="color:#6d1a36;">${fk.pct_multi}\u202f%</span> multi-h\u00f4tes
+        ${dtl("pct_multi")}
+      </div>
+      <div class="kpi-ed-item">
+        <span class="kpi-ed-big" style="color:#6d1a36;">${fk.ratio_lh}</span> annonces / h\u00f4te
+        ${dtl("ratio_lh")}
+      </div>
+      <div class="kpi-ed-item">
+        Top 10\u202f% des h\u00f4tes = <span class="kpi-ed-big" style="color:#ca5800;">${fk.top10_share}\u202f%</span> des annonces
+        ${dtl("top10_share")}
+      </div>
+      <div class="kpi-ed-note">Note\u00a0: 4 villes fran\u00e7aises (Paris, Lyon, Bordeaux, BAB)</div>
+    </div>
   </div>`;
-  return d;
-}
-```
+  wrap.appendChild(kpiCol);
 
-## Row {height="420px"}
-
-### Column {width="100%"}
-
-#### Benchmark europ\u00e9en — 42 villes
-
-```{ojs}
-//| label: header-bench-europe
-{
-  const data = transpose(europe_bench_data);
+  // RIGHT — Europe benchmark table with France refRow
   const COUNTRY_COL = {
     FRA:"#002395", GBR:"#C8102E", ITA:"#008C45", ESP:"#F1BF00",
     DEU:"#333333", PRT:"#006600", GRC:"#0D5EAF", NLD:"#FF6F00",
@@ -804,12 +819,25 @@ ojs_define(paris_iris_territory = paris_iris_territory)
     HUN:"#477050", IRL:"#169B62", NOR:"#BA0C2F", SWE:"#006AA7",
     TUR:"#E30A17", CHE:"#D52B1E", LVA:"#9E3039"
   };
-  const tableMod = await import(new URL("helpers/jcn-tableojs.js", document.baseURI).href);
-  const container = document.createElement("div");
-  container.id = "bench-europe-c";
-  yield container;
+  const tableCol = document.createElement("div");
+  tableCol.style.cssText = "background:white;overflow:hidden;display:flex;flex-direction:column;";
+  tableCol.id = "bench-europe-c";
+  wrap.appendChild(tableCol);
 
-  tableMod.buildDataTable(container, data, {
+  yield wrap;
+  await new Promise(r => setTimeout(r, 80));
+
+  // France average refRow
+  const frRef = {
+    n_listings: fk.n_listings, prix_med_entire: fk.prix_med_entire,
+    pct_entire: fk.pct_entire, pct_multi: fk.pct_multi, pct_longterm: fk.pct_longterm,
+    listings_1000hab: fk.entire_1000rp || null, listings_1000hsg: null,
+    entire_1000hsg: null, ratio_lh: fk.ratio_lh, cr_offre_10plus: fk.top10_share,
+    dispo_med: fk.dispo_med
+  };
+
+  const tableMod = await import(new URL("helpers/jcn-tableojs.js", document.baseURI).href);
+  tableMod.buildDataTable(tableCol, benchData, {
     keys: ["n_listings","prix_med_entire",
       "pct_entire","pct_multi","pct_longterm",
       "listings_1000hab","listings_1000hsg","entire_1000hsg",
@@ -828,7 +856,8 @@ ojs_define(paris_iris_territory = paris_iris_territory)
     colorMap: COUNTRY_COL,
     subCol: "top_host",
     defaultSort: "listings_1000hab",
-    maxHeight: 360
+    maxHeight: 310,
+    refRow: { label: "Moy. France (4 villes)", data: frRef, bgColor: "#eef2ff" }
   });
 }
 ```

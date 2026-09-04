@@ -1,0 +1,404 @@
+/* &s PBNB_DASHBOARD_CSS_aaMAIN - Styles dashboard Airbnb Observable
+ * Adapte de ptod dashboard-light.css
+ * v1 — 2026-04-30 */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --sans-serif: "Inter", system-ui, sans-serif;
+  --color-navy: #0a4c6a;
+  --color-teal: #0d6a5e;
+  --color-orange: #ca5800;
+  --color-bordeaux: #6d1a36;
+}
+
+body { font-family: var(--sans-serif); }
+h1, h2, h3, h4 { font-family: var(--sans-serif); font-weight: 600; }
+
+/* &s BANNER - Banniere fixed en haut (sticky ne marche pas dans le wrapper OF) */
+.pbnb-banner {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+  background: linear-gradient(135deg, #0a3d5c 0%, #0a4c6a 40%, #0d5e80 100%);
+  color: white; padding: 0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  margin: 0;
+}
+/* Spacer body pour compenser le banner+ctrl fixed (48px banner + 32px ctrl + 8px gap) */
+body, main, .observablehq, #observablehq-main { padding-top: 0 !important; }
+body { margin-top: 96px !important; }
+.pbnb-banner-inner {
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 16px; min-height: 40px;
+}
+.pbnb-banner-titles { display: flex; align-items: baseline; gap: 4px; flex-shrink: 0; }
+.pbnb-brand {
+  font-size: 15px; font-weight: 700; color: white; text-decoration: none;
+  letter-spacing: 0.5px;
+}
+.pbnb-brand:hover { color: #93c5fd; }
+.pbnb-dash { color: rgba(255,255,255,0.4); font-size: 14px; }
+.pbnb-volet { font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.85); }
+.pbnb-banner-source {
+  margin-left: auto; font-size: 10px; color: rgba(255,255,255,0.45);
+  white-space: nowrap; flex-shrink: 0;
+}
+/* &e BANNER */
+
+/* &s NAV - Navigation boutons */
+.pbnb-nav {
+  display: flex; gap: 3px; margin-left: 16px;
+  padding: 3px 5px; background: rgba(0,0,0,0.15);
+  border-radius: 6px; flex-shrink: 0;
+}
+.pbnb-nav-btn {
+  display: inline-block; padding: 5px 12px;
+  font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.7);
+  text-decoration: none; border-radius: 4px;
+  transition: all 0.15s;
+}
+.pbnb-nav-btn:hover { background: rgba(96,165,250,0.25); color: #fff; }
+.pbnb-nav-btn.active {
+  background: var(--volet-color, var(--color-navy));
+  color: #fff; box-shadow: 0 0 0 1px rgba(96,165,250,0.5);
+}
+/* &e NAV */
+
+/* &s KPI_STRIP */
+.pbnb-kpi {
+  display: flex; gap: 14px; padding: 6px 12px;
+  background: #f8f9fb; border-bottom: 1px solid #e5e7eb;
+  flex-wrap: wrap; align-items: flex-end; margin-bottom: 2px;
+}
+.pbnb-kpi-item { display: flex; flex-direction: column; }
+.pbnb-kpi-val {
+  font-size: 15px; font-weight: 700; color: var(--color-navy);
+  white-space: nowrap; line-height: 1.2;
+}
+.pbnb-kpi-val.accent { color: var(--color-orange); }
+.pbnb-kpi-label {
+  font-size: 8px; color: #6b7280; text-transform: uppercase;
+  letter-spacing: 0.3px; white-space: nowrap;
+}
+/* &e KPI_STRIP */
+
+/* &s CITY_ROW - Grille carte + table */
+.pbnb-city-row {
+  display: grid; grid-template-columns: 55fr 45fr;
+  gap: 2px; background: #d1d5db;
+  min-height: 480px; overflow: hidden; margin-bottom: 16px;
+}
+.pbnb-map-col { background: white; position: relative; overflow: hidden; }
+.pbnb-table-col { background: white; overflow: hidden; display: flex; flex-direction: column; }
+
+/* Variante cote a cote (2 villes petites) */
+.pbnb-pair-row {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 2px; background: #d1d5db; margin-bottom: 16px;
+}
+.pbnb-pair-cell { background: white; overflow: hidden; }
+.pbnb-pair-cell .pbnb-city-row {
+  grid-template-columns: 1fr; min-height: 360px; margin-bottom: 0;
+}
+/* &e CITY_ROW */
+
+/* &s CONTROLS - Barre controles */
+.pbnb-ctrl {
+  display: flex; align-items: center; gap: 24px;
+  padding: 6px 16px; background: #eef0f4;
+  border-bottom: 1px solid #c8cdd4;
+  font-size: 11px; margin-bottom: 0;
+}
+.pbnb-ctrl > form { display:flex; align-items:center; gap:6px; }
+.pbnb-ctrl select {
+  font-size: 11px; padding: 3px 8px;
+  border: 1px solid #c8cdd4; border-radius: 3px; background: #fff;
+}
+.pbnb-ctrl label {
+  font-weight: 600; color: var(--color-navy);
+  font-size: 11px; white-space: nowrap;
+}
+.pbnb-ctrl .sep {
+  width: 1px; height: 16px; background: #a0a8b4; margin: 0 6px;
+}
+/* &e CONTROLS */
+
+/* &s CITY_TITLE */
+.pbnb-city-title {
+  font-size: 14px; font-weight: 700; color: var(--color-navy);
+  margin: 12px 0 4px; border-bottom: 2px solid var(--color-navy);
+  padding-bottom: 3px;
+}
+/* &e CITY_TITLE */
+
+/* &s MAPLIBRE_OVERRIDES */
+.maplibregl-canvas { cursor: default !important; }
+.maplibregl-canvas:active { cursor: grabbing !important; }
+/* &e MAPLIBRE_OVERRIDES */
+
+/* &s GRID_2X2 - Grille 4 cartes France */
+.pbnb-grid2x2 {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 4px; background: #d1d5db; margin: 8px 0 12px;
+}
+.pbnb-cell {
+  background: white; display: flex; flex-direction: column;
+  overflow: hidden; min-height: 460px;
+}
+.pbnb-cell-head {
+  padding: 6px 12px; background: linear-gradient(180deg,#f4f7fa 0%,#e7ecf2 100%);
+  border-bottom: 1px solid #c8cdd4;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}
+.pbnb-cell-title {
+  font-size: 17px; font-weight: 700; color: var(--color-navy);
+  white-space: nowrap; flex-shrink: 0; letter-spacing: -0.2px;
+}
+.pbnb-cell-sub {
+  font-size: 10px; color: #64748b; font-weight: 400;
+  margin-left: 2px;
+}
+.pbnb-cell .kpi-strip {
+  margin: 0; flex: 1; border: none; border-radius: 0;
+  padding: 0; background: transparent;
+}
+.pbnb-cell-map {
+  flex: 1; min-height: 360px; position: relative;
+}
+/* &e GRID_2X2 */
+
+/* &s STICKY_CONTROLS - Fixed sous banner, légèrement décollé */
+.pbnb-ctrl-wrap {
+  position: fixed; top: 48px; left: 0; right: 0; z-index: 150;
+  background: #eef0f4; border-bottom: 1px solid #c8cdd4;
+  border-top: 4px solid transparent;  /* visuel décollage navbar */
+  margin: 0;
+}
+.pbnb-ctrl-wrap .pbnb-ctrl { margin: 0; padding: 6px 16px; gap: 28px; }
+/* &e STICKY_CONTROLS */
+
+/* &s CADRAGE - Bannières niveau 1 (Cadrage européen / Cadrage France) — bleu ciel très léger + texte navy */
+.pbnb-cadrage {
+  padding: 7px 16px;
+  background: #d4e6f1;
+  color: #0a3d5c;
+  border: none;
+  border-radius: 0;
+  margin-left: -16px; margin-right: -16px;
+  box-shadow: inset 0 -1px 0 rgba(10,61,92,0.07);
+}
+.pbnb-cadrage-title {
+  font-size: 13px; font-weight: 700;
+  letter-spacing: 0.5px; text-transform: uppercase;
+  color: #0a3d5c;
+}
+.pbnb-cadrage-sub {
+  font-size: 10px; font-weight: 500;
+  color: rgba(10,61,92,0.7); margin-top: 1px;
+}
+
+/* &s SUBHEAD - Sous-titres niveau 2 (Profil villes / Focus France) */
+.pbnb-subhead {
+  margin: 10px 0 4px;
+  padding: 4px 12px 4px 14px;
+  border-left: 3px solid #fbbf24;
+  font-size: 12px; font-weight: 600; color: #0a4c6a;
+}
+.pbnb-subhead-sub {
+  font-size: 10px; font-weight: 400; color: #94a3b8;
+  margin-left: 4px;
+}
+/* &e SUBHEAD */
+
+/* &s INDIC_BANNER - Bandeau indicateur sélectionné (dash-monde) : nom en GROS */
+.pbnb-indic-banner {
+  display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px;
+  margin: 12px 0 6px; padding: 7px 14px;
+  background: #fdfcf7; border-left: 4px solid #fbbf24; border-radius: 0 4px 4px 0;
+}
+.pbnb-indic-banner-lbl {
+  font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.4px;
+}
+.pbnb-indic-banner-val {
+  font-size: 19px; font-weight: 800; color: #b45309; letter-spacing: -0.3px;
+}
+.pbnb-indic-banner-meta {
+  font-size: 9.5px; font-weight: 400; color: #94a3b8; font-style: italic;
+  margin-left: auto;
+}
+/* &e INDIC_BANNER */
+
+/* &s TOPCELL_TITLE_LIGHT - Titres de cellules légers (Monde/Zoom Europe/Par sous-continent) */
+.pbnb-topcell-light {
+  padding: 5px 8px;
+  font-size: 10px; font-weight: 500; color: #94a3b8;
+  text-transform: uppercase; letter-spacing: 0.3px;
+}
+.pbnb-topcell-light .sub {
+  font-size: 9px; font-weight: 400; color: #b8bfc9; text-transform: none; letter-spacing: 0;
+  margin-left: 5px;
+}
+/* &e TOPCELL_TITLE_LIGHT */
+/* &e CADRAGE */
+
+/* &s KPI_HERO - Gros chiffres France, sobre, juste bordure basse jaune */
+.pbnb-kpi-hero {
+  display: flex; flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 12px 20px 14px 20px;
+  background: #fdfcf7;
+  border: none;
+  border-bottom: 2px solid #fbbf24;
+  margin: 0 -16px 10px;
+  align-items: flex-start;
+}
+.pbnb-kpi-hero-item {
+  display: flex; flex-direction: column;
+  line-height: 1.1; min-width: 92px; max-width: 160px;
+}
+.pbnb-kpi-hero-val {
+  font-size: 18px; font-weight: 700; color: #0a4c6a;
+  white-space: nowrap; letter-spacing: -0.3px;
+}
+.pbnb-kpi-hero-val.accent { color: #b45309; }
+.pbnb-kpi-hero-ref { font-size: 10px; font-weight: 500; color: #94a3b8; margin-left: 3px; }
+.pbnb-kpi-hero-refnote { position: absolute; top: 5px; right: 18px; font-size: 8.5px; color: #9ca3af; font-style: italic; }
+.pbnb-kpi-hero-lbl {
+  font-size: 9.5px; color: #4b5563;
+  margin-top: 2px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.3px;
+}
+.pbnb-kpi-hero-phrase {
+  font-size: 9.5px; color: #94a3b8;
+  margin-top: 1px; font-weight: 400; font-style: italic;
+}
+/* Groupes KPI : séparateur vertical visible (trait plein gris) + label haut */
+.pbnb-kpi-hero-group {
+  display: flex; flex-direction: column;
+  padding: 0 16px 0 16px;
+  border-left: 1px solid #cbd5e1;
+  position: relative;
+}
+.pbnb-kpi-hero-group:first-child { border-left: none; padding-left: 4px; }
+/* Petit trait épais en haut du séparateur pour le rendre plus marquant */
+.pbnb-kpi-hero-group:not(:first-child)::before {
+  content: "";
+  position: absolute;
+  left: -2px; top: -2px; bottom: -2px;
+  width: 3px;
+  background: linear-gradient(180deg, #fbbf24 0%, #fbbf24 22%, transparent 22%);
+  border-radius: 1px;
+}
+.pbnb-kpi-hero-group-label {
+  font-size: 9px; font-weight: 700;
+  color: #6d1a36; text-transform: uppercase; letter-spacing: 0.6px;
+  margin-bottom: 4px;
+}
+.pbnb-kpi-hero-group-items {
+  display: flex; gap: 14px; flex-wrap: nowrap; align-items: flex-start;
+}
+/* &e KPI_HERO */
+
+/* &s SCATTER_LEGEND - Compactage légende Plot native */
+.pbnb-top-cell figure[class^="plot-d6a7b5"] {
+  margin: 0; padding: 0;
+}
+.pbnb-top-cell figure > div[class*="plot-swatches"],
+.pbnb-top-cell figure > div[class*="-swatches"] {
+  font-size: 9px !important;
+  line-height: 1.2 !important;
+  margin: 0 0 4px !important;
+  padding: 0 !important;
+  gap: 8px !important;
+  display: flex !important;
+  flex-wrap: wrap !important;
+}
+.pbnb-top-cell figure > div[class*="swatches"] > span,
+.pbnb-top-cell figure > div[class*="swatches"] > div {
+  font-size: 9px !important;
+  gap: 3px !important;
+  margin: 0 !important;
+}
+.pbnb-top-cell figure svg + div { font-size: 9.5px !important; }
+/* &e SCATTER_LEGEND */
+
+/* &s SCATTER_ZOOM_CTRL - Boutons zoom du helper scatterojs */
+.scatter-zoom-ctrl {
+  position: absolute; top: 6px; right: 6px; z-index: 5;
+  display: flex; gap: 3px;
+  background: rgba(255,255,255,0.92);
+  border: 1px solid #d1d5db; border-radius: 4px;
+  padding: 2px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+.sz-btn {
+  font-size: 13px; line-height: 1; width: 22px; height: 22px;
+  cursor: pointer; background: #fff; border: none;
+  border-radius: 3px; color: #374151; font-weight: 600;
+  display: flex; align-items: center; justify-content: center;
+}
+.sz-btn:hover { background: #f1f5f9; color: #0a4c6a; }
+.sz-btn:active { background: #cbd5e1; }
+/* &e SCATTER_ZOOM_CTRL */
+
+/* &s SHARED_LEGEND */
+.pbnb-legend-shared {
+  display: flex; align-items: center; justify-content: center;
+  padding: 6px 12px; background: #fafbfc; border: 1px solid #e5e7eb;
+  border-radius: 6px; margin: 4px 0 8px;
+  font-size: 10px; color: #4b5563;
+}
+.pbnb-legend-shared .legend-bar { flex-shrink: 0; }
+/* &e SHARED_LEGEND */
+
+/* &s QUARTIER_TABS - Tableau quartier en bas par tabs */
+.pbnb-quartier-tabs {
+  margin: 12px 0;
+  border: 1px solid #e5e7eb; border-radius: 6px; overflow: hidden;
+}
+.pbnb-tabs-head {
+  display: flex; gap: 0; background: #f4f7fa;
+  border-bottom: 1px solid #c8cdd4;
+}
+.pbnb-tab {
+  padding: 7px 16px; font-size: 11px; font-weight: 600;
+  color: #64748b; cursor: pointer; border-right: 1px solid #e5e7eb;
+  background: transparent; border-top: 2px solid transparent;
+  transition: all 0.15s;
+}
+.pbnb-tab:hover { background: #eef0f4; color: var(--color-navy); }
+.pbnb-tab.active {
+  background: white; color: var(--color-navy);
+  border-top-color: var(--color-navy);
+}
+.pbnb-tab-body { padding: 8px; background: white; }
+/* &e QUARTIER_TABS */
+
+/* &s TOP_BLOCK - Bloc supérieur Europe + scatter + table */
+.pbnb-top-block {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(360px, 1.3fr) minmax(280px, 1fr);
+  gap: 4px; background: #d1d5db; margin: 8px 0 12px;
+  min-height: 320px;
+}
+.pbnb-top-cell {
+  background: white; padding: 6px; overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.pbnb-top-cell-title {
+  font-size: 11px; font-weight: 700; color: var(--color-navy);
+  text-transform: uppercase; letter-spacing: 0.4px;
+  margin-bottom: 4px; padding-bottom: 3px; border-bottom: 1px solid #e5e7eb;
+}
+/* &e TOP_BLOCK */
+
+/* &s RESPONSIVE */
+@media (max-width: 900px) {
+  .pbnb-city-row { grid-template-columns: 1fr; }
+  .pbnb-pair-row { grid-template-columns: 1fr; }
+  .pbnb-grid2x2 { grid-template-columns: 1fr; }
+  .pbnb-top-block { grid-template-columns: 1fr; }
+  .pbnb-nav { flex-wrap: wrap; gap: 2px; }
+  .pbnb-nav-btn { font-size: 10px; padding: 4px 6px; }
+}
+/* &e RESPONSIVE */
+
+/* &e PBNB_DASHBOARD_CSS_aaMAIN */

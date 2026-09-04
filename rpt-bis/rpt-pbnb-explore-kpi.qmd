@@ -1,0 +1,307 @@
+---
+title: "Explorateur KPI — 74 villes Airbnb"
+subtitle: "Tableau interactif par ville et par pays — Inside Airbnb juin 2025"
+date: today
+execute:
+  echo: false
+  cache: false
+format:
+  html:
+    page-layout: full
+    toc: false
+---
+
+```{r}
+#| label: setup
+#| include: false
+
+library(reactable)
+library(htmltools)
+library(dplyr)
+library(jsonlite)
+
+MUTILS <- "C:/Users/vince/hh/pq/PDS/mutils/jrr"
+BASE <- "C:/Users/vince/hh/pq/PDS/pbnb-airbnb-log-jrr-jpy"
+
+source(file.path(MUTILS, "jcn-reactable.R"))
+source(file.path(MUTILS, "jcn-ddict.R"))
+
+# Adapter load_ddict pour le JSON pbnb (indicators vs indicateurs)
+load_ddict_pbnb <- function(path) {
+  raw <- jsonlite::fromJSON(path, simplifyVector = FALSE)
+  indics <- raw$indicators
+  indics <- indics[!grepl("^_", names(indics))]
+  themes <- raw$themes
+
+  parse_col <- function(col) list(base = col, periode = NULL)
+
+  label <- function(col) {
+    e <- indics[[col]]
+    if (!is.null(e)) return(e$short %||% col)
+    col
+  }
+  unit <- function(col) {
+    e <- indics[[col]]
+    if (!is.null(e)) return(e$unit %||% "")
+    ""
+  }
+  type <- function(col) {
+    e <- indics[[col]]
+    if (!is.null(e)) return(e$type %||% "")
+    ""
+  }
+  theme_of <- function(col) {
+    e <- indics[[col]]
+    if (!is.null(e)) return(e$theme %||% "")
+    ""
+  }
+  definition <- function(col) {
+    e <- indics[[col]]
+    if (!is.null(e)) return(e$description %||% e$long %||% "")
+    ""
+  }
+  theme_label <- function(tk) {
+    e <- themes[[tk]]
+    if (!is.null(e)) return(e$label %||% tk)
+    tk
+  }
+  periode_label <- function(col) NULL
+  source <- function(col) { e <- indics[[col]]; if (!is.null(e)) e$source %||% "" else "" }
+
+  list(label = label, unit = unit, type = type, theme_of = theme_of,
+       definition = definition, theme_label = theme_label,
+       parse_col = parse_col, periode_label = periode_label, source = source)
+}
+
+dd <- load_ddict_pbnb(file.path(BASE, "reports/helpers/ddict-airbnb.json"))
+
+kpi <- read.csv(file.path(BASE, "data/interim/kpi_global_by_city_2506.csv"),
+                fileEncoding = "UTF-8-BOM")
+agg <- read.csv(file.path(BASE, "data/interim/kpi_global_by_aggregate_2506.csv"),
+                fileEncoding = "UTF-8-BOM")
+
+# Colonnes par dimension (ordre du ddict)
+C_PRS <- c("prs_listings_1000hab_dense", "prs_density_l_km2_dense", "prs_pct_listings_dense",
+           "listings_1000hab", "listings_1000hsg", "entire_1000hsg")
+C_VOL <- c("vol_n_ann", "str_n_entire", "vol_n_hotes")
+C_STR <- c("str_entire_pct", "str_minnuits30_pct", "str_minnuits90_pct", "str_cap_pers_med", "str_ratio_ann_hote")
+C_PRO <- c("cr_offre_1plus", "cr_host_1plus", "cr_offre_5plus", "cr_host_5plus",
+           "cr_offre_top10host_pct", "cr_hosts_offre50_pct")
+C_PX  <- c("px_entire_med", "px_entire_q25", "px_entire_q75", "px_entire_iqr",
+           "px_private_med", "px_1br_med", "px_2br_med")
+C_ACT <- c("act_cal_ouvert_med", "act_revenu_med", "act_reserv_j_med",
+           "actrv_note_glb", "act_superhost_pct", "str_instantbook_pct", "actrv_avis_mois")
+C_CTX <- c("pop", "housing", "ctx_pop_dense", "ctx_densite_pop_dense", "ctx_aire_dense_km2")
+C_ALL <- c(C_PRS, C_VOL, C_STR, C_PRO, C_PX, C_ACT, C_CTX)
+
+# Labels pour toolbar
+KPI_LBL <- setNames(sapply(C_ALL, dd$label), C_ALL)
+KPI_THEMES <- list(
+  "Pression" = C_PRS, "Volume" = C_VOL, "Offre" = C_STR,
+  "Pro" = C_PRO, "Prix" = C_PX, "Performance" = C_ACT, "Contexte" = C_CTX
+)
+
+# Types override :
+#   rank = barres bordeaux(fort)/gris(median)/bleu(faible) centrees médiane — indicateurs clés
+#   level = barres grises — indicateurs complémentaires
+#   pop/num = pas de barre
+TYPE_RANK <- c("prs_listings_1000hab_dense", "prs_density_l_km2_dense",
+              "listings_1000hab", "listings_1000hsg",
+              "px_entire_med", "px_entire_q25", "px_entire_q75",
+              "cr_offre_1plus", "cr_offre_5plus",
+              "act_revenu_med", "act_reserv_j_med", "actrv_note_glb")
+TYPES_OVR <- setNames(
+  ifelse(C_ALL %in% TYPE_RANK, "rank", "level"),
+  C_ALL
+)
+# Pop/housing = format separateur, pas de barre
+TYPES_OVR[c("pop", "housing", "ctx_pop_dense")] <- "pop"
+TYPES_OVR[c("vol_n_ann", "str_n_entire", "vol_n_hotes")] <- "pop"
+TYPES_OVR[c("ctx_densite_pop_dense", "ctx_aire_dense_km2")] <- "num"
+```
+
+::: {.panel-tabset}
+
+### Par ville
+
+```{r}
+#| label: rt-villes
+#| column: screen
+
+df_v <- kpi |>
+  filter(scope == "city") |>
+  arrange(desc(vol_n_ann)) |>
+  mutate(.rank = row_number())
+
+# Colonnes sticky (identite)
+cols_id <- list(
+  .rank = colDef(name = "#", width = 35, align = "center", sticky = "left",
+                 style = list(fontWeight = 700, background = "#fafafa", borderRight = "1px solid #ddd")),
+  city_fr = rt_col_lib(df_v, "city_fr", "Ville", mw = 130),
+  continent = colDef(name = "Cont.", width = 85, align = "left",
+                     style = list(fontSize = "11px"),
+                     filterInput = function(values, name) {
+                       tags$select(
+                         onchange = sprintf("Reactable.setFilter('rt-villes', '%s', event.target.value || undefined)", name),
+                         tags$option(value = "", "Tous"),
+                         lapply(sort(unique(values)), function(v) tags$option(value = v, v)))
+                     }),
+  country_code = rt_col_tag("Pays", w = 42)
+)
+
+# Colonnes KPI via ddict
+cols_kpi <- rt_cols_ddic(df_v, C_ALL, dd, types = as.list(TYPES_OVR), light = FALSE)
+
+# Groupes header
+grps <- list(
+  colGroup(" ", c(".rank", "city_fr", "continent", "country_code"), headerStyle = RT_GRP),
+  colGroup("Pression", C_PRS, headerStyle = RT_GRPBL),
+  colGroup("Volume", C_VOL, headerStyle = RT_GRPBL),
+  colGroup("Nature offre", C_STR, headerStyle = RT_GRPBL),
+  colGroup("Professionnalisation", C_PRO, headerStyle = RT_GRPBL),
+  colGroup("Prix EUR/nuit", C_PX, headerStyle = RT_GRPBL),
+  colGroup("Performance & qualite", C_ACT, headerStyle = RT_GRPBL),
+  colGroup("Contexte territorial", C_CTX, headerStyle = RT_GRPBL)
+)
+
+browsable(tagList(
+  mk_toolbar("rt-villes", nrow(df_v),
+    col_labels = KPI_LBL, themes = KPI_THEMES,
+    fullscreen = TRUE, col_filter = TRUE,
+    title = "74 villes — Indicateurs par dimension",
+    subtitle = "Barres bleu/bordeaux = indicateurs cles | Barres grises = indicateurs complementaires"),
+  rt_table(df_v, c(cols_id, cols_kpi), groups = grps,
+    id = "rt-villes", sticky_cols = 2, height = 600,
+    searchable = TRUE, sorted = list(vol_n_ann = "desc"))
+))
+```
+
+### Sub-cities BAB
+
+```{r}
+#| label: rt-bab
+#| column: page
+
+C_BAB <- c("vol_n_ann", "listings_1000hab", "prs_listings_1000hab_dense", "prs_pct_listings_dense",
+           "listings_1000hsg", "px_entire_med", "px_entire_q25", "px_entire_q75",
+           "str_entire_pct", "cr_offre_1plus", "cr_host_1plus",
+           "act_cal_ouvert_med", "act_revenu_med", "actrv_note_glb", "act_superhost_pct",
+           "pop", "ctx_pop_dense", "ctx_densite_pop_dense")
+
+df_bab <- kpi |> filter(scope == "sub_city" | city == "pays-basque")
+
+cols_bab <- c(
+  list(city_fr = rt_col_lib(df_bab, "city_fr", "Ville", mw = 140)),
+  rt_cols_ddic(df_bab, C_BAB, dd,
+    types = as.list(setNames(ifelse(C_BAB %in% TYPE_RANK, "rank", "level"), C_BAB)),
+    light = FALSE)
+)
+
+rt_table(df_bab, cols_bab,
+  id = "rt-bab", height = "auto",
+  sorted = list(vol_n_ann = "desc"))
+```
+
+### Par pays (groupBy)
+
+```{r}
+#| label: rt-pays
+#| column: screen
+
+C_AGG <- c("vol_n_ann", "listings_1000hab", "listings_1000hsg",
+           "px_entire_med", "px_entire_q25", "px_entire_q75",
+           "str_entire_pct", "str_minnuits30_pct", "str_ratio_ann_hote",
+           "act_cal_ouvert_med", "actrv_avis", "actrv_avis_mois")
+
+# Preparer un df city avec country pour groupBy
+df_pays <- kpi |>
+  filter(scope == "city") |>
+  arrange(country_code, desc(vol_n_ann)) |>
+  select(country_code, city_fr, all_of(C_AGG))
+
+cols_pays <- c(
+  list(
+    country_code = colDef(name = "Pays", width = 50, align = "center",
+      style = list(fontWeight = 700, fontSize = "11px")),
+    city_fr = colDef(name = "Ville", minWidth = 130, align = "left",
+      style = list(fontWeight = 500, fontSize = "11px"),
+      aggregate = NULL)
+  ),
+  rt_cols_ddic(df_pays, C_AGG, dd,
+    types = as.list(setNames(ifelse(C_AGG %in% TYPE_RANK, "rank", "level"), C_AGG)),
+    light = FALSE)
+)
+
+# Ajouter aggregate functions sur les colonnes numeriques
+for (col in C_AGG) {
+  if (is.numeric(df_pays[[col]])) {
+    if (col %in% c("vol_n_ann")) {
+      cols_pays[[col]]$aggregate <- "sum"
+    } else {
+      cols_pays[[col]]$aggregate <- "median"
+    }
+    cols_pays[[col]]$format <- list(aggregated = colFormat(digits = 0, separators = TRUE))
+  }
+}
+
+browsable(tagList(
+  mk_toolbar("rt-pays", nrow(df_pays),
+    col_labels = setNames(sapply(C_AGG, dd$label), C_AGG),
+    fullscreen = TRUE, col_filter = FALSE,
+    title = "74 villes groupees par pays",
+    subtitle = "Cliquer sur le triangle pour deplier un pays"),
+  reactable(df_pays,
+    columns = cols_pays,
+    groupBy = "country_code",
+    compact = TRUE, highlight = TRUE, bordered = FALSE,
+    searchable = TRUE, pagination = FALSE,
+    height = 600,
+    defaultSorted = list(vol_n_ann = "desc"),
+    defaultColDef = colDef(
+      align = "center", searchable = FALSE,
+      headerStyle = list(background = "#f5f5f5", fontSize = "11px",
+                         fontWeight = "600", padding = "3px 4px"),
+      style = list(padding = "1px 3px", fontSize = "11px")),
+    theme = reactableTheme(
+      cellPadding = "1px 3px",
+      style = list(fontFamily = "Inter, system-ui, sans-serif", fontSize = "11px")),
+    elementId = "rt-pays")
+))
+```
+
+### Monde / Continent
+
+```{r}
+#| label: rt-monde
+#| column: page
+
+C_MONDE <- c("n_villes", "vol_n_ann", "str_n_entire",
+             "listings_1000hab", "listings_1000hsg",
+             "px_entire_med", "px_entire_q25", "px_entire_q75", "px_entire_iqr",
+             "px_private_med", "str_entire_pct", "str_minnuits30_pct", "str_ratio_ann_hote",
+             "act_cal_ouvert_med", "actrv_avis", "actrv_avis_mois")
+
+df_monde <- agg |>
+  filter(level %in% c("world", "continent")) |>
+  arrange(match(level, c("world", "continent")))
+
+cols_monde <- c(
+  list(
+    level = colDef(name = "Niveau", width = 80, align = "left",
+      style = function(val) list(fontWeight = if (val == "world") 700 else 500)),
+    continent = colDef(name = "Continent", width = 110, align = "left",
+      style = list(fontWeight = 600))
+  ),
+  rt_cols_ddic(df_monde, C_MONDE, dd,
+    types = as.list(setNames(ifelse(C_MONDE %in% TYPE_RANK, "rank", "level"), C_MONDE)),
+    light = FALSE)
+)
+
+rt_table(df_monde, cols_monde, id = "rt-monde", height = "auto")
+```
+
+:::
+
+<div class="figure-source" style="margin-top:1rem;font-size:11px;color:#888;">
+Source : Inside Airbnb, juin 2025 (74 villes) · GHS-POP 2025 100m (JRC Copernicus) · Calculs auteur
+</div>

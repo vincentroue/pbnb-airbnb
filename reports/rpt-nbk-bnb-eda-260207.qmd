@@ -22,7 +22,7 @@ execute:
 
 # Configurer reticulate pour Python Scoop (packages installés)
 library(reticulate)
-use_python("C:/ScoopApps/apps/python/current/python.exe", required = TRUE)
+use_python("C:/Users/vince/AppData/Local/Programs/Python/Python312/python.exe", required = TRUE)
 
 # Charger helpers R (setup → tables → graphiques)
 source("C:/Users/vince/hh/pq/PDS/mutils/jrr/jcn-setup.R")

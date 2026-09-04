@@ -1,0 +1,30 @@
+<!-- _srpt-france-00-cadrage.qmd -->
+<!-- Ouverture du RAPPORT France : inclut le bloc EXEC partagé (_srpt-france-synthese : -->
+<!-- accroche + L'essentiel en chiffres) PUIS le cadrage (contexte mondial + méthodo). -->
+<!-- Même montage que srpt-monde-00-intro. v2 — 2026-07-19 (refactor pipe EXEC). -->
+
+{{< include srpt/_srpt-france-synthese.qmd >}}
+
+## Cadrage : d'où vient la pression Airbnb française ?
+
+::: {.cld-ctx}
+**Le rapport mondial de référence : Airbnb, une « double menace » pour le logement.** L'étude *The Threat of Short-Term Rentals to Housing* (Housing Justice Data Lab et Inside Airbnb, mars 2026) recense **8,35 millions d'annonces** dans 218 pays. Elle établit une double menace structurelle : **82,4 % des annonces sont des logements entiers** — près de 6,9 millions de logements potentiellement soustraits au marché résidentiel de long terme — et **62,9 % sont gérées par des multi-loueurs** ; les deux conditions coexistent dans **78 % des marchés**. La **France est le 2e marché mondial** avec **984 262 annonces**, derrière les États-Unis (1,52 million).
+
+La gestion s'est professionnalisée : le parc mondial est tenu par 4,2 millions d'hôtes, mais aussi **1,01 million de co-hôtes** — des gestionnaires (agences, conciergeries, prestataires) qui administrent des annonces pour le compte de propriétaires, marqueur direct de la commercialisation. Les grands événements accélèrent la conversion : les annonces parisiennes ont bondi de **92,7 %** avant les Jeux de 2024. Enfin, seuls **16 pays sur 218 (7 %)** disposent d'un enregistrement couvrant la majorité des logements entiers — un vide réglementaire que quatre leviers comblent : obligation de résidence principale, enregistrement, partage des données par les plateformes et responsabilité de celles-ci.
+
+*Source : Cruvinel A. & Cox M. (2026, mars). The Threat of Short-Term Rentals to Housing — A Critical Perspective on Airbnb's Global Expansion. Housing Justice Data Lab / Inside Airbnb / Rosa Luxemburg Stiftung.*
+:::
+
+Les benchmarks européens confrontent la France à cinq pays comparables — Royaume-Uni, Italie, Espagne, Allemagne et Pays-Bas — retenus pour la taille de leur marché et leur proximité économique. Ce périmètre de 23 villes écarte 17 des 40 villes européennes du panel mondial : les marchés les plus concentrés du continent (Porto, Prague, Lisbonne, Athènes) comme les moins professionnalisés (Copenhague, Oslo, Stockholm). Le choix rend la comparaison **conservatrice** : la médiane de concentration s'établit à 33,2 % sur ce périmètre contre 39,9 % sur l'Europe entière, si bien qu'un élargissement creuserait l'écart français plutôt qu'il ne le réduirait. Les focus détaillés par ville (Paris, Lyon, Bordeaux, Pays Basque) font l'objet de documents séparés.
+
+::: {.callout-note collapse="true" appearance="minimal"}
+## Méthodologie, données et sources
+
+**Source** — Inside Airbnb (juin 2026) croisé avec l'INSEE (recensement de la population 2022). Airbnb uniquement, hors Booking et Vrbo.
+
+**Nettoyage** — prix strictement positif, disponibilité supérieure à zéro, hôtels exclus, fourchette retenue entre 10 et 2 000 €/nuit (rétention d'environ 67 % des annonces brutes).
+
+**Pression** — deux dénominateurs complémentaires. *Annonces pour 1 000 habitants* en zone dense (référentiel GHS-POP, comparable au benchmark mondial) et *annonces pour 1 000 résidences principales* (lecture du report sur le parc résidentiel). Pour Biarritz, Anglet et Bayonne, la zone dense GHS-POP n'est pas isolée à l'échelle communale : la pression y est lue **par résidences principales**.
+
+**Maille IRIS** — indicateurs calculés au seuil minimal de 20 annonces par IRIS pour garantir la fiabilité statistique.
+:::

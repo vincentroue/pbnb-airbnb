@@ -1,9 +1,7 @@
 ---
 title: "ACP & Clustering — Profils de marchés"
 subtitle: "74 villes monde · 38 marchés Europe · 10 variables enrichies · Inside Airbnb juin 2025"
-author: "Vincent R."
-date: today
-date-format: "DD MMMM YYYY"
+date: "2026"
 categories: ["Notebook ACP"]
 number-sections: false
 format:
@@ -56,24 +54,6 @@ Les analyses listing-level (distributions, corrélations, dython) restent dans l
 
 ---
 
-<details>
-<summary style="cursor:pointer; font-weight:600; font-size:14px; color:#666; margin:8px 0;">
-Plan de travail auto-généré (cliquer pour déplier)
-</summary>
-
-*Commentaires : écrire `<!-- vvr: texte -->` dans le corps du rapport (pas ici). Le plan se met à jour au render.*
-
-```{r}
-#| label: auto-plan-parse
-#| results: asis
-#| echo: false
-source("C:/Users/vince/hh/pq/PDS/mutils/jrr/jcn-auto-plan.R")
-generate_auto_plan(knitr::current_input(),
-                   fallback = "rpt-pbnb-edanbk-acpfocus-260222.qmd",
-                   exclude_chunks = c("setup-reticulate", "setup-python", "auto-plan-parse"))
-```
-
-</details>
 
 # Setup {.unnumbered}
 
@@ -82,7 +62,7 @@ generate_auto_plan(knitr::current_input(),
 #| include: false
 
 library(reticulate)
-use_python("C:/ScoopApps/apps/python/current/python.exe", required = TRUE)
+use_python("C:/Users/vince/AppData/Local/Programs/Python/Python312/python.exe", required = TRUE)
 
 # ACP R (FactoMineR) — utilisé pour l'Europe
 library(FactoMineR)
@@ -96,7 +76,7 @@ library(reactablefmtr)
 
 source("C:/Users/vince/hh/pq/PDS/mutils/jrr/jcn-setup.R")
 source("C:/Users/vince/hh/pq/PDS/mutils/jrr/jcn-table.R")
-source("C:/Users/vince/hh/pq/PDS/mutils/jrr/jcn-acp-pca-plots.R")
+source("C:/Users/vince/hh/pq/PDS/mutils/jrr/jcn-dml-acp-plots.R")
 ```
 
 ```{python}

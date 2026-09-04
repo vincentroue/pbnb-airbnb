@@ -13,10 +13,16 @@ Usage:
 
 import argparse
 import gzip
+import re
 import shutil
 from pathlib import Path
 
 BASE_DIR = Path(r"C:\Users\vince\hh\pq\PDS\pbnb-airbnb-log-jrr-jpy\data\raw\zudb-inside-airbnbbnb")
+
+# Dossier date BRUT (YYYY-MM-DD) — seuls ceux-là sont aplatis.
+# Garde-fou : ne JAMAIS re-traiter un dossier déjà aplati (YY-MM), sinon
+# parse_date_folder('25-06') -> '-06' renommerait/écraserait la donnée existante.
+FULL_DATE_RE = re.compile(r'^\d{4}-\d{2}-\d{2}$')
 
 # Mapping pays Inside Airbnb → ISO 3166-1 alpha-3
 COUNTRY_CODES = {
@@ -121,6 +127,9 @@ def flatten_structure(base_dir: Path, dry_run: bool = False, country_filter: lis
             country = parts[1]
             city = parts[2]
             date_folder = parts[3]
+            # Skip dossiers déjà aplatis (YY-MM) — ne traiter que le brut YYYY-MM-DD
+            if not FULL_DATE_RE.match(date_folder):
+                continue
             city_key = f"{continent}/{country}/{city}"
 
             # Filtrer par pays si demandé
@@ -179,6 +188,9 @@ def flatten_structure(base_dir: Path, dry_run: bool = False, country_filter: lis
         country = parts[1]
         city = parts[2]
         date_folder = parts[3]
+        # Skip dossiers déjà aplatis (YY-MM) — ne traiter que le brut YYYY-MM-DD
+        if not FULL_DATE_RE.match(date_folder):
+            continue
 
         # Filtrer par pays si demandé
         if country_filter and country.lower() not in [c.lower() for c in country_filter]:

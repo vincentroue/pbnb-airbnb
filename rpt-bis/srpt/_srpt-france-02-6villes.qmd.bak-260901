@@ -1,0 +1,44 @@
+<!-- _srpt-france-02-6villes.qmd -->
+<!-- Sous-rapport : Partie 2 — Six marchés français, trois profils. -->
+<!-- Inclus dans rpt-pbnb-rapport-france.qmd (MAIN). Convention chunks : srptfr02-* -->
+<!-- v1 — 2026-06-05. Migre le gt comparatif 6 villes + small multiples + prose profils. -->
+
+Six marchés, trois profils. Paris domine en volume comme en prix. Le Pays Basque — Biarritz en tête — affiche la pression résidentielle la plus extrême du panel français, et probablement mondial. Lyon et Bordeaux forment un duo intermédiaire aux dynamiques proches.
+
+```{r}
+#| label: srptfr02-gt-profil
+#| cache: false
+
+panel_fr <- make_fr_panel()
+log_table_auto("srptfr02_panel_6v", panel_fr)
+gt_fr_panel_zscore(panel_fr)
+```
+
+<div class="note-lecture">La pression « / 1 000 hab. » n'est pas calculable à l'échelle communale pour Biarritz, Anglet et Bayonne (—) : lire la ligne « / 1 000 RP » pour ces trois villes.</div>
+
+[**Biarritz atteint `r aa_fr$biarritz_rp` annonces pour 1 000 résidences principales — près de trois fois la pression parisienne (`r aa_fr$paris_rp`)**]{.insight}
+
+**Paris** concentre `r aa_fr$paris_n` annonces, un prix médian de `r aa_fr$paris_prix` €/nuit et une pression de `r aa_fr$paris_pression` annonces pour 1 000 habitants en zone dense — élevée, mais contenue rapportée à la taille de la capitale. **Le Pays Basque** bascule dans un autre régime : la zone dense de l'agglomération atteint `r aa_fr$bab_pression_dense` annonces pour 1 000 habitants, et Biarritz culmine à `r aa_fr$biarritz_rp` pour 1 000 résidences principales, devant Anglet (`r aa_fr$anglet_rp`) et Bayonne (`r aa_fr$bayonne_rp`). Le marché balnéaire y absorbe une fraction du parc résidentiel sans équivalent. **Lyon et Bordeaux** restent en retrait : `r aa_fr$lyon_pression` et `r aa_fr$bordeaux_pression` annonces pour 1 000 habitants, des prix proches de 85 à 95 €/nuit, une professionnalisation à peine supérieure à celle de Paris.
+
+```{r}
+#| label: srptfr02-plt-smult
+#| fig-width: 9
+#| fig-height: 5
+#| cache: false
+
+sm_vars <- c("prsf_listings_1000rp", "px_entire_med", "cr_offre_1plus", "act_revenu_med")
+sm_lab  <- c(prsf_listings_1000rp = "Pression — ann. / 1 000 RP",
+             px_entire_med        = "Prix médian entier (€)",
+             cr_offre_1plus       = "Offre multi-hôtes (%)",
+             act_revenu_med       = "Revenu estimé (€/an)")
+
+cities6 <- dplyr::bind_rows(paris_fr, lyon_fr, bordeaux_fr,
+                            biarritz_fr, bayonne_fr, anglet_fr)
+
+log_table_auto("srptfr02_smult_6villes", cities6[, c("city_fr", sm_vars)])
+plot_cities_smult(cities6, sm_vars, sm_lab, ncol = 2)
+```
+
+<div class="figure-source">Source : Inside Airbnb, juin 2026 · INSEE RP 2022 · Pression rapportée aux résidences principales (comparable entre les six communes)</div>
+
+Ces trois profils interrogent la suite : la pression mesurée à l'échelle communale se concentre-t-elle sur quelques quartiers, ou se diffuse-t-elle sur tout le tissu urbain ?

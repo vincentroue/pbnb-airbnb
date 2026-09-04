@@ -1,0 +1,25 @@
+<!-- toc-expand-fix.html — force le sommaire (toc-location: right) à rester DÉPLIÉ
+     sur tous les niveaux, indépendamment de Bootstrap ScrollSpy (cassé en mode
+     website + toc-right) et du blocage CORS de quarto.js en file://.
+     Remplace scrollspy-fix.html (qui, lui, masquait les <ul> du TOC droit). -->
+<style>
+  /* Les sous-listes Quarto sont des <ul class="collapse"> -> display:none par Bootstrap.
+     On force l'affichage : niveaux 1 + 2 (+ 3) toujours visibles. */
+  nav#TOC ul.collapse { display: block !important; }
+  nav#TOC > ul ul { display: block !important; }
+</style>
+<script>
+  (function () {
+    function expandTOC() {
+      document.querySelectorAll('nav#TOC ul.collapse').forEach(function (ul) {
+        ul.classList.add('show');
+        ul.style.display = 'block';
+      });
+    }
+    if (document.readyState !== 'loading') expandTOC();
+    else document.addEventListener('DOMContentLoaded', expandTOC);
+    // quarto.js peut ré-initialiser le TOC après coup -> on repasse 2 fois.
+    setTimeout(expandTOC, 300);
+    setTimeout(expandTOC, 1200);
+  })();
+</script>

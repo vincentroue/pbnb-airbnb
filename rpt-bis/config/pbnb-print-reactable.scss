@@ -1,0 +1,55 @@
+/*-- scss:rules --*/
+// Fix PRINT reactable — candidat à promotion dans theme-pbnb-v2.scss (canonical).
+// Créé 2026-08-24, scopé projet pbnb le temps de valider.
+//
+// PROBLÈME : un reactable est un widget à HAUTEUR FIXE scrollable. À l'écran on scrolle ;
+// en PDF il n'y a pas de scroll -> les lignes au-delà de `height` sont PERDUES
+// (benchmark Europe : 16 villes imprimées sur 23). Le canonical fige en plus
+// `.reactable { page-break-inside: avoid }` -> le tableau saute la page entière quand il
+// ne rentre pas, laissant un grand blanc et son titre orphelin.
+//
+// CORRECTIF : en print seulement, hauteur auto (toutes les lignes sortent), coupe autorisée
+// entre les pages, mais chaque LIGNE reste entière et l'en-tête se répète.
+@media print {
+  .reactable,
+  .reactable > div,
+  .rt-table,
+  .rt-tbody {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  // EN-TÊTE RÉPÉTÉ : IMPOSSIBLE avec reactable 0.4.5 — le widget est en FLEXBOX
+  // (.rt-table/.rt-thead/.rt-tbody en display:flex) et `table-header-group` ne répète
+  // l'en-tête que sous un ancêtre `display: table`. Reconvertir le flex en table
+  // (testé 260824) DÉTRUIT la mise en page : en-têtes désalignés, colonnes qui débordent.
+  // => On garde donc le tableau INSÉCABLE : une seule page, un seul en-tête, zéro ligne
+  // perdue (la hauteur auto ci-dessus suffit à tout faire tenir pour ~25 lignes).
+  // Si un tableau dépasse une page : réduire le nombre de lignes, ou passer en `gt`
+  // (vraie table HTML) dont l'en-tête se répète nativement.
+  .reactable { page-break-inside: avoid !important; break-inside: avoid !important; }
+  .rt-tr { break-inside: avoid !important; page-break-inside: avoid !important; }
+
+  // Le titre reste collé à son tableau (évite le titre orphelin).
+  h2, h3, h4 { break-after: avoid !important; page-break-after: avoid !important; }
+
+  // ALIGNEMENT (diagnostiqué au mesureur Puppeteer en mode print, 260824) :
+  // ce n'est PAS un problème de marges. Les sections restent en `display: grid` en print,
+  // et le `.column-page` est placé dans une colonne dimensionnée PAR SON CONTENU — donc
+  // chaque tableau s'indente selon sa propre largeur (841px -> left 399 ; 966px -> left 274),
+  // pendant que la prose reste à left 0. Le `grid-template-columns: 1fr` du canonical ne
+  // l'emporte pas sur la règle Quarto. On sort donc ces conteneurs du grid en print.
+  main section, main .page-columns, main div.page-columns,
+  #quarto-document-content section, #quarto-document-content .page-columns {
+    display: block !important;
+  }
+  .column-page, .column-body, .column-body-outset,
+  .column-screen-inset, .cell-output-display {
+    grid-column: unset !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+}

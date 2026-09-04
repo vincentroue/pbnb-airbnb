@@ -69,6 +69,17 @@
 .t-toolbar { display:flex; align-items:center; gap:8px; margin-bottom:4px; font-size:12px; }
 .t-toolbar input { padding:4px 8px; font-size:12px; border:1px solid #d1d5db; border-radius:3px; width:140px; }
 .t-toolbar .info { color:#6b7280; font-size:11px; }
+.t-fs-btn {
+  background:white; border:1px solid #d1d5db; border-radius:3px;
+  padding:2px 8px; cursor:pointer; font-size:14px; margin-left:auto;
+  color:#374151; line-height:1;
+}
+.t-fs-btn:hover { background:#f1f5f9; }
+.t-fullscreen {
+  position:fixed !important; top:10px; left:10px; right:10px; bottom:10px;
+  z-index:9999; background:white; box-shadow:0 0 30px rgba(0,0,0,0.4);
+  border-radius:8px; padding:12px; overflow:auto;
+}
 /* &e */
 
 /* &s &HOST_TABLE - Tableau top hôtes */
@@ -126,42 +137,32 @@
 h2.anchored { margin-top:0 !important; padding-top:0 !important; }
 /* &e */
 
-/* &s &KPI_GRID - Bloc KPI structuré 3 colonnes + panel hôtes */
-.kpi-grid { display:grid; grid-template-columns:3.5fr 0.8fr; gap:0; height:100%; }
-.kpi-panel { display:flex; flex-direction:column; background:white; border:1px solid #e5e7eb; }
-.kpi-header {
-  background:#0a4c6a; color:white; padding:6px 16px; font-size:12px;
-  display:flex; justify-content:space-between; align-items:center;
+/* &s &KPI_EDITORIAL - Style éditorial 2 colonnes (Marché + Professionnalisation) */
+.kpi-ed {
+  display:grid; grid-template-columns:1fr 1fr; grid-template-rows:auto 1fr;
+  height:100%; background:white;
 }
-.kpi-blocs { display:flex; flex:1; min-height:0; }
-.kpi-bloc { flex:1; padding:10px 14px; border-right:1px solid #e5e7eb; overflow-y:auto; }
-.kpi-bloc:last-child { border-right:none; }
-.kpi-bloc-title {
-  font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;
-  padding-bottom:4px; margin-bottom:6px; border-bottom:2px solid;
+.kpi-ed-hd {
+  grid-column:1/-1; padding:5px 14px; font-size:11px; color:#6b7280;
+  border-bottom:1px solid #e5e7eb; display:flex; justify-content:space-between;
+  align-items:center; background:#f8f9fa;
 }
-.kpi-item { margin-bottom:8px; }
-.kpi-item .kv { font-size:20px; font-weight:800; display:inline; }
-.kpi-item .kl { font-size:12px; color:#374151; display:inline; margin-left:6px; }
-.kpi-item .kt { font-size:8.5px; color:#475569; margin-top:2px; line-height:1.3; }
-.kpi-item .kt .u { color:#0a4c6a; } .kpi-item .kt .d { color:#ca5800; }
-.kpi-narr { margin-bottom:8px; font-size:11px; line-height:1.4; color:#374151; }
-.kpi-narr strong { font-size:13px; font-weight:800; }
-.hosts-panel {
-  background:#f8f9fa; border:1px solid #e5e7eb; border-left:none;
-  display:flex; flex-direction:column; overflow:hidden;
+.kpi-ed-hd strong { color:#374151; font-weight:700; font-size:12px; }
+.kpi-ed-col { padding:8px 12px; overflow-y:auto; }
+.kpi-ed-col:first-child { border-right:1px solid #e5e7eb; }
+.kpi-ed-title {
+  font-size:10px; font-weight:700; text-transform:uppercase;
+  letter-spacing:0.8px; color:#374151; margin-bottom:8px;
+  padding-bottom:3px; border-bottom:2px solid #0d6a5e;
 }
-.hosts-panel .hosts-hd {
-  font-size:11px; font-weight:700; color:#374151; padding:6px 12px;
-  background:#e5e7eb; border-bottom:1px solid #d1d5db;
-}
-.hosts-panel .hosts-scroll { overflow-y:auto; flex:1; }
-.hosts-panel table { width:100%; border-collapse:collapse; font-size:10px; }
-.hosts-panel th {
-  position:sticky; top:0; background:#e5e7eb; padding:3px 6px;
-  text-align:left; font-size:9px; font-weight:600; color:#374151;
-}
-.hosts-panel td { padding:2px 6px; border-bottom:1px solid #f1f5f9; }
+.kpi-ed-title.prof { border-color:#6d1a36; color:#6d1a36; }
+.kpi-ed-item { margin-bottom:6px; line-height:1.4; font-size:11px; color:#374151; }
+.kpi-ed-big { font-size:20px; font-weight:800; display:inline; }
+.kpi-ed-detail { font-size:8px; color:#6b7280; margin-top:1px; line-height:1.2; }
+.kpi-ed-detail .u { color:#0d6a5e; font-weight:600; }
+.kpi-ed-detail .d { color:#ca5800; font-weight:600; }
+.kpi-ed-note { font-size:8px; color:#94a3b8; font-style:italic; margin-top:6px; }
+.kpi-ed-sep { border:none; border-top:1px solid #e5e7eb; margin:6px 0; }
 /* &e */
 
 /* &s &IRIS_TOOLTIP - Tooltip IRIS enrichi (singleton DOM, inspiré ptod) */

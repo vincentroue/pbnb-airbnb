@@ -1,0 +1,457 @@
+---
+title: "Annexe méthodologique"
+subtitle: "Cadre analytique, indicateurs et pipeline — 74 villes, 31 pays"
+date: 2026-04-30
+execute:
+  echo: true
+  code-fold: true
+  cache: false
+---
+
+```{r}
+#| label: setup
+#| include: false
+
+library(jsonlite)
+library(dplyr)
+library(reactable)
+library(htmltools)
+
+# --- Paths ---
+BASE <- "C:/Users/vince/hh/pq/PDS/pbnb-airbnb-log-jrr-jpy"
+PATH_DDICT <- file.path(BASE, "reports/helpers/ddict-airbnb.json")
+PATH_KPI   <- file.path(BASE, "data/interim/kpi_global_by_city_2506.csv")
+
+# --- Load ddict ---
+ddict_raw <- fromJSON(PATH_DDICT, simplifyVector = FALSE)
+ddict_meta <- ddict_raw[["_meta"]]
+ddict_themes <- ddict_raw[["themes"]]
+ddict_ind <- ddict_raw[["indicators"]]
+ddict_ind <- ddict_ind[!grepl("^_comment", names(ddict_ind))]
+
+df_ind <- bind_rows(lapply(names(ddict_ind), function(key) {
+  x <- ddict_ind[[key]]
+  tibble(
+    variable    = key,
+    short       = x$short %||% NA_character_,
+    medium      = x$medium %||% NA_character_,
+    theme       = x$theme %||% NA_character_,
+    type        = x$type %||% NA_character_,
+    unit        = x$unit %||% NA_character_,
+    polarity    = x$polarity %||% NA_real_,
+    source      = x$source %||% NA_character_,
+    description = x$description %||% NA_character_,
+    note_lecture = x$note_lecture %||% NA_character_,
+    acp         = x$acp %||% NA_character_
+  )
+}))
+
+# --- Variables dynamiques ---
+aa_n_indic   <- nrow(df_ind)
+aa_n_themes  <- length(ddict_themes)
+aa_n_acp_act <- sum(df_ind$acp == "act", na.rm = TRUE)
+aa_n_acp_sup <- sum(df_ind$acp %in% c("supq", "supql"), na.rm = TRUE)
+aa_v_version <- ddict_meta$version
+aa_t_scope   <- ddict_meta$scope
+```
+
+
+## Cadre analytique
+
+### Question centrale
+
+> **Comment se structurent les marchés Airbnb dans les grandes villes mondiales, et quels indicateurs permettent de comparer leur intensité, leur professionnalisation et leur impact potentiel sur le logement ?**
+
+L'observatoire couvre `r aa_t_scope`. Il mobilise `r aa_n_indic` indicateurs (version `r aa_v_version`) organisés en `r aa_n_themes` familles thématiques pour répondre à cette question selon cinq axes complémentaires.
+
+### Hypothèses structurantes
+
+| Code | Hypothèse | Axe |
+|------|-----------|-----|
+| **H1** | Les mégapoles (Paris, Londres) dominent en volume absolu mais pas en pression relative — les villes touristiques compactes (Florence, Lisbonne) affichent des ratios annonces/habitant plus élevés | Pression |
+| **H2** | Les marchés à forte proportion de logements entiers (> 80 %) signalent une professionnalisation avancée plutôt qu'un partage de résidence principale | Structure |
+| **H3** | La concentration de l'offre (quelques hôtes détenant une grande part des annonces) est plus forte dans les capitales et les places financières | Concentration |
+| **H4** | Les prix médians s'expliquent en partie par le niveau de développement (PIB, IDH) mais aussi par des facteurs d'attractivité touristique (climat, patrimoine) | Prix |
+| **H5** | Les dispositifs réglementaires (plafonds nuitées, licences) se traduisent par un taux de longue durée élevé — proxy mesurable sans données juridiques comparées | Régulation |
+
+
+## Axes d'analyse
+
+### Axe 1 — Pression sur le territoire
+
+**Question** : quelle est l'intensité du marché Airbnb rapportée à la population et au parc de logements ?
+
+**Indicateurs mobilisés** : `prs_listings_1000hab_dense` (indicateur principal), `density_l_km2`, `listings_1000hsg`, `entire_1000hsg`.
+
+**Problème de comparabilité résolu** : les périmètres de scraping Inside Airbnb varient entre villes (commune stricte pour Paris, Grand Londres pour London, comté pour Nashville). L'indicateur de **zone dense** (GHS-POP ≥ 1 500 hab/km²) aligne numérateur et dénominateur sur le même polygone urbain, rendant les villes comparables indépendamment de leur découpage administratif.
+
+**Lecture** : une pression de 20 ann./1000 hab. signifie qu'il y a 1 annonce active pour 50 habitants dans la zone dense. Les villes touristiques compactes (Florence, Lisbonne, Biarritz) affichent des ratios 3 à 5 fois supérieurs aux mégapoles (Tokyo, Istanbul).
+
+### Axe 2 — Structure et nature du marché
+
+**Question** : le marché est-il dominé par des logements entiers (substituts au locatif) ou par du partage (chambres dans la résidence principale) ?
+
+**Indicateurs mobilisés** : `str_entire_pct`, `str_minnuits30_pct`, `str_minnuits90_pct`, `str_ratio_ann_hote`, `str_cap_pers_med`.
+
+**Clé de lecture** :
+
+- **> 80 % entiers + ratio ann./hôte > 2** = marché professionnel (logements retirés du parc locatif)
+- **< 60 % entiers** = économie de partage mixte (chambres chez l'habitant)
+- **> 30 % longue durée** = effet régulation marqué (contrainte min_nights locale)
+
+### Axe 3 — Concentration et professionnalisation
+
+**Question** : l'offre est-elle dispersée entre particuliers ou concentrée entre quelques opérateurs ?
+
+**Indicateurs mobilisés** : `cr_offre_5plus`, `cr_offre_10plus`, `cr_offre_top10host_pct`, `cr_hosts_offre50_pct`.
+
+**Distinction fondamentale** (numérateur) :
+
+- `cr_host_*` = % des **hôtes** dépassant un seuil → mesure la prévalence des pros
+- `cr_offre_*` = % des **annonces** détenues par ces hôtes → mesure leur emprise sur le marché
+
+Un marché peut avoir peu de multi-hôtes (5 %) mais ceux-ci peuvent détenir 40 % de l'offre — la distinction hôtes/annonces révèle ce levier.
+
+### Axe 4 — Prix et positionnement
+
+**Question** : comment se positionnent les marchés en termes de niveaux tarifaires et de dispersion ?
+
+**Indicateurs mobilisés** : `px_entire_med`, `px_private_med`, `px_entire_iqr`, `px_1br_med`/`px_2br_med`/`px_3brplus_med`.
+
+**Choix méthodologique** : les quartiles (Q1, Q3, IQR) sont calculés **sur les logements entiers uniquement**. Mélanger chambres privées (30 €) et penthouses (800 €) dans un même IQR n'a pas de sens comparatif. La restriction par type garantit l'homogénéité intra-distribution.
+
+### Axe 5 — Activité et performance
+
+**Question** : quel est le niveau réel d'exploitation des annonces — fréquence, disponibilité, revenus ?
+
+**Indicateurs mobilisés** : `act_cal_ouvert_med`, `act_reserv_taux`, `act_revenu_med`, `actrv_avis_mois`, `act_superhost_pct`.
+
+**Précaution interprétative** : l'occupation et les revenus sont des **estimations Inside Airbnb** (modèle San Francisco : reviews × 2 × durée séjour, cappé 70 %). Ils sous-estiment systématiquement les revenus réels et ne sont pas comparables aux données fiscales ou hôtelières. Leur valeur réside dans la **comparaison relative** entre villes (même biais partout).
+
+
+## Construction des indicateurs de pression territoriale
+
+Le ratio "annonces pour 1 000 habitants" est l'indicateur le plus cité dans la littérature Airbnb (Barron-Kung-Proserpio, Wachsmuth, Garcia-Lopez et al.). Sa construction paraît triviale — diviser un comptage par une population. En pratique, il a concentré l'essentiel des difficultés méthodologiques du projet.
+
+### Le problème fondamental : trois périmètres qui ne s'alignent jamais
+
+| Source | Ce qu'elle couvre | Paris | Istanbul |
+|--------|-------------------|-------|----------|
+| Inside Airbnb (numérateur) | Zone scrapée (variable, non standardisée) | ~105 km² (commune) | ~5 343 km² (province) |
+| Census national (dénominateur) | Commune administrative | 2,13 M hab | 15,8 M hab |
+| GHS-UCDB (référentiel morphologique) | Agglomération continue | 9,3 M hab / 1 421 km² | 14,5 M hab / 2 100 km² |
+
+Diviser 53 000 annonces par 2,13 M habitants (Paris) vs 25 000 par 15,8 M (Istanbul) produit un ratio de **24,9 vs 1,6** — un facteur 15 dont l'essentiel est un artefact de périmètre, pas une différence réelle de pression. Istanbul concentre ses annonces sur ~50 km² de Beyoğlu/Fatih, pas sur l'ensemble de la province.
+
+### Approches testées et abandonnées
+
+**Approche 1 — Ratio brut commune** (v1, janvier 2026)
+
+Ratio `listings / pop_commune × 1000`. Simple, mais biaisé dès que le périmètre IA ≠ commune. Rendu les comparaisons impossible pour LA (comté = 10 422 km²), Nashville (comté = 1 363 km²), Bergamo (province = 2 747 km²).
+
+**Approche 2 — UCDB comme référentiel** (testée, février 2026)
+
+Utiliser la population UCDB (agglomération morphologique) comme dénominateur. Abandonnée : le périmètre UCDB **déborde** le périmètre IA dans 80 % des cas. Paris UCDB = 9,3 M → le ratio tombe à 5,7 (3× sous-estimé vs la réalité communale). Le numérateur et le dénominateur ne couvrent pas la même zone.
+
+**Approche 3 — Fenêtre 50 km autour du centre** (testée, mars 2026)
+
+Extraire la zone dense GHS-POP dans un buffer de 50 km autour du centre-ville. Abandonné pour 3 raisons :
+
+1. Le plus grand polygone dense pouvait être dans la **mauvaise ville** (San Francisco → polygone Oakland, Naples → polygone intérieur)
+2. Nashville et New Orleans avaient **0 % de couverture** (centre-ville hors zone dense calculée)
+3. Corrélation avec les ratios de référence nationaux : **r = 0,70** (médiocre)
+
+### Approche retenue — Zone dense intra-IA
+
+**Principe** : au lieu de chercher un référentiel externe, utiliser le **périmètre IA lui-même** comme enveloppe, et calculer la population dense *à l'intérieur* de cette enveloppe.
+
+```
+listings_dense ∈ polygone_dense ⊂ périmètre_IA
+pop_dense      ∈ polygone_dense ⊂ périmètre_IA
+ratio = listings_dense / pop_dense × 1000
+```
+
+Numérateur et dénominateur portent sur le **même polygone** — le biais de périmètre est éliminé par construction.
+
+**Validation** :
+
+- Paris : ratio_dense = 23,1 vs ratio_ref (INSEE commune) = 24,3 → **Δ = 5 %** (acceptable, l'écart vient de la pop GHS-POP légèrement supérieure à l'INSEE)
+- London : ratio_dense = 8,4 vs calcul Greater London = 7,2 → cohérent (zone dense < Grand Londres)
+- Corrélation ratio_dense vs ratio_ref (villes où le périmètre IA = commune) : **r = 0,76** sur 73 villes
+
+### Indicateur complémentaire : % annonces en zone dense
+
+L'indicateur `prs_pct_listings_dense` révèle la **morphologie du marché** :
+
+- **> 90 %** (Paris, Bangkok, Athènes) = marché purement urbain, toute l'offre est en centre dense
+- **50-90 %** (Lisbonne, Bordeaux, Amsterdam) = offre mixte centre + périphérie
+- **< 50 %** (Nashville 22 %, Cape Town 51 %) = offre diffuse, le marché dépasse largement le centre
+
+Ce chiffre qualifie la fiabilité même du ratio dense : un marché à 22 % en zone dense ne peut pas être correctement décrit par le seul ratio dense — il faut aussi regarder le ratio total.
+
+### Pipeline historique — Convergence vers un flux unique
+
+Le pipeline a traversé 3 phases avant de se stabiliser :
+
+| Phase | Architecture | Problème |
+|-------|-------------|----------|
+| v1 (jan. 2026) | 2 pipelines parallèles : sumlistings (sp07+sp08) et gz (sp07b+sp08b) | Chiffres divergents (787K vs 815K), maintenance double |
+| v2 (fév. 2026) | Pipeline gz unique (sp07b+sp08) mais KPI dispersés entre 2 CSV | Jointures fragiles |
+| v3 (avr. 2026) | **Pipeline unifié** : sp07b → sp08 (tout en 1 CSV), GHS-POP mergé après sub_cities | ✅ Retenu |
+
+Les indicateurs sum (prix, structure, concentration) et gz (notes, occupation, capacité) sont maintenant calculés dans le **même script** (sp08) depuis la même source (parquet gz consolidé). Un seul CSV de sortie, 76 colonnes.
+
+### Villes exclues — Résultat de l'audit GHS-POP
+
+L'audit GHS-POP a permis d'identifier 3 villes dont le périmètre rendait toute comparaison impossible :
+
+| Ville | Problème | Chiffre clé | Décision |
+|-------|----------|-------------|----------|
+| Victoria (CAN) | IA = île de Vancouver entière (4 846 km²) | 23 % listings en zone dense, ratio IA/dense × 111 | Exclue |
+| Asheville (USA) | Station de montagne, 294 listings en zone dense | Trop fragile pour benchmark | Exclue |
+| Fort Worth (USA) | Banlieue de Dallas, 377 listings dense | Pas un marché autonome | Exclue |
+
+À l'inverse, Nashville (22 % en dense, flag "partiel") est **conservée** avec un CENTRE_FILTER (12 districts centraux) car le volume reste suffisant (6 786 listings, 1 481 en dense).
+
+
+## Autres choix méthodologiques
+
+### Pourquoi conserver les annonces longue durée ?
+
+Les annonces avec `minimum_nights ≥ 30` ne sont **pas exclues** mais **signalées** (`is_longterm`). Justification :
+
+1. Elles constituent un **signal de régulation** mesurable sans données juridiques (Istanbul 55 %, Barcelona 41 %)
+2. Elles font partie du marché réel (un hôte contraint à 30 nuits propose toujours son bien)
+3. Les exclure biaiserait les indicateurs de structure et de concentration
+
+### Pourquoi des agrégats calculés depuis les listings bruts ?
+
+Les KPI pays/continent/monde sont calculés en agrégeant **tous les listings** (chaque listing pèse 1), pas en moyennant les KPI par ville. Raison : une moyenne des médianes donne un poids égal à Winnipeg (1 500 ann.) et Paris (53 000 ann.), produisant un biais de composition.
+
+### Pourquoi 10-2 000 € (et pas 10-1 000 €) ?
+
+Le plafond initial de 1 000 € excluait les marchés premium légitimes (Hamptons, Malibu, Santorini en haute saison). Le seuil 2 000 € conserve le segment luxe tout en éliminant les erreurs de saisie manifestes (listings à 9 999 €/nuit).
+
+### Pourquoi conserver les annonces longue durée ?
+
+Les annonces avec `minimum_nights ≥ 30` ne sont **pas exclues** mais **signalées** (`is_longterm`). Justification :
+
+1. Elles constituent un **signal de régulation** mesurable sans données juridiques (Istanbul 55 %, Barcelona 41 %)
+2. Elles font partie du marché réel (un hôte contraint à 30 nuits propose toujours son bien)
+3. Les exclure biaiserait les indicateurs de structure et de concentration
+
+### Pourquoi des agrégats calculés depuis les listings bruts ?
+
+Les KPI pays/continent/monde sont calculés en agrégeant **tous les listings** (chaque listing pèse 1), pas en moyennant les KPI par ville. Raison : une moyenne des médianes donne un poids égal à Winnipeg (1 500 ann.) et Paris (53 000 ann.), produisant un biais de composition.
+
+### Pourquoi 10-2 000 € (et pas 10-1 000 €) ?
+
+Le plafond initial de 1 000 € excluait les marchés premium légitimes (Hamptons, Malibu, Santorini en haute saison). Le seuil 2 000 € conserve le segment luxe tout en éliminant les erreurs de saisie manifestes (listings à 9 999 €/nuit).
+
+
+## Pipeline de traitement
+
+```{mermaid}
+%%| fig-width: 10
+flowchart TD
+    A[Inside Airbnb<br/>74 villes × listings.csv.gz] --> B[sp07b — Consolidation<br/>+ cleaning + flags]
+    B --> C[dblistingfull_2506_cons_global.parquet<br/>~810K listings × 30 cols]
+    C --> D[sp08 — KPI par ville<br/>+ CENTRE_FILTERS + sub_cities]
+    D --> E[kpi_global_by_city_2506.csv<br/>77 lignes × 76 cols]
+    D --> F[kpi_global_by_aggregate_2506.csv<br/>36 lignes pays/continent/monde]
+    G[GHS-POP raster 100m<br/>Mollweide 2025] --> H[audit_ghspop<br/>Zone dense intra-IA]
+    H --> D
+    I[city-reference.csv<br/>pop · housing · FX · filters] --> D
+    J[GHS-UCDB R2024A<br/>IDH · PIB · climat] --> D
+```
+
+### Nettoyage (5 étapes)
+
+```{r}
+#| label: tbl-cleaning
+
+cleaning_steps <- tibble::tribble(
+  ~Étape, ~Règle, ~Justification, ~Impact,
+  "1", "Prix non null", "80 % des null-prix ont availability=0 → inactifs/retirés du marché", "~25 %",
+  "2", "Disponibilité > 0", "Calendrier fermé = annonce non commercialisée", "~5 %",
+  "3", "Exclure Hotel room", "Hôtels classiques, non comparables aux locations entre particuliers", "~1 %",
+  "4", "Prix EUR ∈ [10, 2000]", "Aberrants : erreurs de saisie ou annonces fantômes", "~2-3 %",
+  "5", "Flag is_longterm", "min_nights ≥ 30 conservé, signalé comme proxy régulation", "0 %"
+)
+
+reactable(cleaning_steps,
+  columns = list(
+    Étape = colDef(width = 55, align = "center"),
+    Règle = colDef(width = 160),
+    Justification = colDef(minWidth = 280),
+    Impact = colDef(width = 75, align = "center")
+  ),
+  striped = TRUE, compact = TRUE, borderless = TRUE
+)
+```
+
+**Rétention globale** : ~65-70 % de la base brute → **~810 000 listings actifs**.
+
+### Correction de périmètre (9 agglomérations)
+
+Pour les villes où Inside Airbnb scrape un périmètre plus large que la commune-centre, un filtre `CENTRE_FILTERS` restreint les annonces au périmètre cohérent avec la population de référence :
+
+```{r}
+#| label: tbl-filters
+
+filters <- tibble::tribble(
+  ~Ville, ~Méthode, ~Périmètre_retenu,
+  "Bordeaux", "neighbourhood_group", "Commune de Bordeaux",
+  "Lisbon", "neighbourhood_group", "Concelho de Lisboa",
+  "Porto", "neighbourhood_group", "PORTO",
+  "Bergamo", "neighbourhood", "Commune de Bergamo",
+  "Los Angeles", "neighbourhood_group", "City of Los Angeles",
+  "Geneva", "neighbourhood", "Commune de Genève",
+  "Thessaloniki", "neighbourhood", "Municipalité de Thessalonique",
+  "Nashville", "neighbourhood", "12 districts centraux",
+  "Brussels", "neighbourhood", "5 communes centrales"
+)
+
+reactable(filters, striped = TRUE, compact = TRUE, borderless = TRUE,
+  columns = list(Ville = colDef(width = 110), Méthode = colDef(width = 160)))
+```
+
+### Zone dense — Algorithme GHS-POP
+
+::: {.callout-note collapse="true"}
+## Détail de l'algorithme (11 étapes)
+
+1. Charger les quartiers IA (GeoJSON) → dissoudre en polygone unique
+2. Réparer les géométries (`buffer(0)`) et reprojeter en Mollweide (surfaces égales)
+3. Lire le raster GHS-POP 2025 (100 m) sur l'emprise du polygone
+4. **Seuil** : pixels ≥ 15 hab/pixel = **1 500 hab/km²** (définition GHSL Urban Centre, standard EU/ONU)
+5. Vectoriser les pixels denses → polygones
+6. Filtrer : garder les polygones ≥ 30 % de la surface du plus grand (exclut îlots parasites)
+7. **Fermeture morphologique** : `buffer(250 m)` + `buffer(-250 m)` → comble les trous inter-zones
+8. Calculer `pop_dense` = somme population dans le polygone résultant
+9. Jointure spatiale listings → polygone dense = `n_listings_dense`
+10. Calculer `prs_listings_1000hab_dense` = listings_dense / pop_dense × 1000
+11. Indicateur complémentaire `densite_top_5km2` = densité dans les 500 pixels les plus peuplés
+
+**Fiabilité** : 76 villes fiables (aire ≥ 5 km², n ≥ 200 listings), 1 partielle (Nashville).
+:::
+
+
+## Analyse multivariée (ACP + classification)
+
+L'ACP porte sur **`r aa_n_acp_act` variables actives** sélectionnées pour couvrir les 5 axes sans redondance, complétées par `r aa_n_acp_sup` variables supplémentaires (contexte UCDB, volumes).
+
+### Variables actives
+
+```{r}
+#| label: tbl-acp-act
+
+df_ind |>
+  filter(acp == "act") |>
+  select(Variable = variable, Indicateur = medium, Axe = theme, Unité = unit) |>
+  reactable(striped = TRUE, compact = TRUE, borderless = TRUE,
+    columns = list(Variable = colDef(width = 200), Indicateur = colDef(width = 250),
+                   Axe = colDef(width = 60), Unité = colDef(width = 80)))
+```
+
+**Critères de sélection** :
+
+- 1-2 indicateurs par axe (pression, prix, structure, concentration, activité)
+- Pas de redondance (pas Q1 et Q3 et IQR ensemble)
+- Couverture ≥ 95 % (pas de NA massifs)
+- Robustesse aux outliers (médianes plutôt que moyennes)
+
+### Variables supplémentaires
+
+```{r}
+#| label: tbl-acp-sup
+
+df_ind |>
+  filter(acp %in% c("supq", "supql")) |>
+  select(Variable = variable, Indicateur = medium, Rôle = acp) |>
+  mutate(Rôle = case_when(Rôle == "supq" ~ "Suppl. quanti", Rôle == "supql" ~ "Suppl. quali")) |>
+  reactable(striped = TRUE, compact = TRUE, borderless = TRUE,
+    columns = list(Variable = colDef(width = 200), Indicateur = colDef(width = 250), Rôle = colDef(width = 120)))
+```
+
+**Traitements préalables** :
+
+- **Log-transformation** de `prs_listings_1000hab_dense` (distribution très asymétrique, facteur 1:80)
+- **Centrage-réduction** (unités hétérogènes : %, €/nuit, j/an, ratio)
+- **Exclusions** : sub_cities BAB (pas des villes autonomes) + Nashville (périmètre partiel)
+
+### Classification (HCPC)
+
+Classification hiérarchique sur composantes principales (k = 4-6 clusters), méthode Ward. Objectif : identifier des **profils-types de marchés** (ex : capitales professionnalisées, stations balnéaires compactes, métropoles régulées, marchés émergents).
+
+
+## Comparabilité et précautions d'interprétation
+
+### Ce qui est comparable entre villes
+
+| Indicateur | Pourquoi comparable | Condition |
+|------------|-------------------|-----------|
+| `prs_listings_1000hab_dense` | Même périmètre dense partout | Zone dense GHS-POP fiable |
+| `px_entire_med` | Type homogène + EUR | Conversion au taux fixe |
+| `str_entire_pct` | Ratio interne à chaque ville | Aucune |
+| `cr_offre_5plus` | Même seuil partout | Taille marché comparable |
+
+### Ce qui n'est **pas** directement comparable
+
+| Indicateur | Biais | Précaution |
+|------------|-------|------------|
+| `cr_offre_top10host_pct` | Sensible à la taille du marché (500 vs 50 000 ann.) | Comparer villes de taille similaire |
+| `listings_1000hab` (non dense) | Dépend du périmètre administratif | Utiliser la variante _dense |
+| `act_revenu_med` | Estimation conservatrice (cappée 70 %) | Comparaison relative uniquement |
+| Prix Biarritz dense | GHS-POP exclut 40 % pop pavillonnaire | Utiliser INSEE pour France |
+
+### Limites structurelles
+
+1. **Source unique** : Airbnb seulement (pas Booking, Vrbo, location directe)
+2. **Coupe transversale** : juin 2025, pas de tendance temporelle
+3. **Prix listé ≠ payé** : frais ménage, dynamic pricing, réductions longue durée non captés
+4. **Biais de scraping** : annonces visibles à un instant T, pas les supprimées/pausées
+5. **Régulation non mesurée directement** : le `% longue durée` est un proxy, pas un indicateur juridique
+
+
+## Référence des indicateurs
+
+::: {.callout-tip collapse="true"}
+## Notes de lecture — indicateurs contre-intuitifs
+
+```{r}
+#| label: rt-notes-lecture
+
+df_ind |>
+  filter(!is.na(note_lecture) & note_lecture != "") |>
+  select(Indicateur = medium, `Note de lecture` = note_lecture) |>
+  reactable(striped = TRUE, compact = TRUE, borderless = TRUE,
+    columns = list(Indicateur = colDef(width = 250), `Note de lecture` = colDef(minWidth = 400)))
+```
+:::
+
+### Dictionnaire complet (`r aa_n_indic` indicateurs)
+
+```{r}
+#| label: tbl-ind-all
+
+df_ind |>
+  select(Variable = variable, Label = medium, Thème = theme,
+         Type = type, Unité = unit, Polarité = polarity, Source = source) |>
+  reactable(
+    striped = TRUE, compact = TRUE, borderless = TRUE,
+    searchable = TRUE, filterable = TRUE, defaultPageSize = 20,
+    columns = list(
+      Variable = colDef(width = 180),
+      Label = colDef(width = 230),
+      Thème = colDef(width = 55, align = "center"),
+      Type = colDef(width = 55, align = "center"),
+      Unité = colDef(width = 80),
+      Polarité = colDef(width = 65, align = "center",
+        cell = function(value) if (value == -1) "↑ déf." else if (value == 1) "↑ fav." else "—"),
+      Source = colDef(width = 55, align = "center")
+    )
+  )
+```
+
+{{< include _glossaire-indicateurs.qmd >}}

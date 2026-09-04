@@ -24,6 +24,11 @@ DDICT_PATH = BASE / "reports" / "helpers" / "ddict-airbnb.json"
 DEFAULT_CSV = BASE / "data" / "interim" / "kpi_global_by_city_2506.csv"
 OUTPUT_PATH = BASE / "reports" / "helpers" / "ddict-validation-airbnb.csv"
 
+# Colonnes editables manuellement dans le CSV — prefixe _ = preservees lors du regeneration
+# L'utilisateur tague dans le CSV, le script preserve par merge sur "variable"
+PRESERVE_PREFIX = "_"
+PRESERVE_COLS = ["_acp1", "_acp2", "_dash", "_eda", "_pry", "_note", "_note2"]
+
 # CLI: --csv override
 csv_path = DEFAULT_CSV
 for i, arg in enumerate(sys.argv):
@@ -60,14 +65,13 @@ for key in indic_keys:
         "theme": ind.get("theme", ""),
         "short": ind.get("short", ""),
         "medium": ind.get("medium", ""),
-        "long": ind.get("long", ""),
-        "label": ind.get("label", ""),
         "type": ind.get("type", ""),
         "unit": ind.get("unit", ""),
         "polarity": ind.get("polarity", 0),
         "order": ind.get("order", 99),
         "status_ddict": ind.get("status", ""),
         "source": ind.get("source", ""),
+        "long": ind.get("long", ""),
         "gz_col": ind.get("gz_col", ""),
         "formula": ind.get("formula", ""),
         "description": ind.get("description", ""),
@@ -189,6 +193,30 @@ df_ddict = df_ddict.sort_values(["theme_rank", "order", "variable"]).drop(column
 
 # &s &EXPORT
 print(f">>> Export: {OUTPUT_PATH.name}")
+
+# Preserver les colonnes _* du CSV existant (si present)
+if OUTPUT_PATH.exists():
+    try:
+        df_existing = pd.read_csv(OUTPUT_PATH, encoding="utf-8-sig")
+        preserve = [c for c in df_existing.columns if c.startswith(PRESERVE_PREFIX)]
+        if preserve:
+            df_preserve = df_existing[["variable"] + preserve].copy()
+            df_ddict = df_ddict.merge(df_preserve, on="variable", how="left")
+            print(f"    Colonnes preservees: {', '.join(preserve)}")
+    except Exception as e:
+        print(f"    [WARN] Lecture CSV existant echouee: {e}")
+
+# Ajouter colonnes _* manquantes (vides)
+for col in PRESERVE_COLS:
+    if col not in df_ddict.columns:
+        df_ddict[col] = ""
+
+# Ordre colonnes : variable, theme, short, medium, _cols, puis le reste
+_cols_front = ["variable", "csv_col", "theme", "short", "medium"]
+_cols_preserve = [c for c in df_ddict.columns if c.startswith(PRESERVE_PREFIX)]
+_cols_rest = [c for c in df_ddict.columns if c not in _cols_front and c not in _cols_preserve]
+df_ddict = df_ddict[_cols_front + _cols_preserve + _cols_rest]
+
 df_ddict.to_csv(OUTPUT_PATH, index=False, encoding="utf-8-sig")
 
 # Résumé
@@ -239,5 +267,6 @@ if len(ddict_only) > 0:
 
 print(f"\nOutput: {OUTPUT_PATH}")
 # &e
+
 
 # &e

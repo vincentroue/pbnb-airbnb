@@ -5,7 +5,7 @@
 
 Comparer la pression d'Airbnb entre des villes à morphologies très différentes exige un périmètre comparable. Le rapport utilise la **zone dense GHS-POP** — l'aire urbaine dont la densité dépasse 1 500 hab/km² — comme polygone de référence pour tous les indicateurs de pression. À l'échelle mondiale, le parc hôtelier compte environ **1,5 million d'établissements** traditionnels — moins que les **8 millions d'annonces Airbnb**. Dans plusieurs villes touristiques européennes, le ratio Airbnb / hôtels excède 1,0, signalant une bascule structurelle.
 
-La pression par habitant ne se mesure pas en volumes bruts. En médiane, la pression atteint **`r aa$v_pression_med` annonces pour 1 000 habitants** dans la zone dense. Mais `r aa$t_top_pression` atteint **`r aa$v_top_pression` ‰** quand `r aa$t_bot_pression` reste à **`r aa$v_bot_pression` ‰** — un facteur `r aa$v_facteur_pression`.
+La pression par habitant ne se mesure pas en volumes bruts. En médiane, la pression atteint **`r aa$v_pression_med` annonces pour 1 000 habitants** dans la zone dense. La distribution est très déséquilibrée : `r sum(kpi$prs_listings_1000hab_dense > 15, na.rm = TRUE)` villes dépassent 15 ‰ et `r sum(kpi$prs_listings_1000hab_dense > 40, na.rm = TRUE)` franchissent 40 ‰, `r aa$t_top_pression` culminant à **`r aa$v_top_pression` ‰** — soit une annonce pour `r round(1000 / as.numeric(gsub(",", ".", aa$v_top_pression)))` habitants. À l'autre extrémité, `r aa$t_bot_pression` reste à **`r aa$v_bot_pression` ‰** : rapporter l'offre aux habitants n'a plus grand sens dans les mégalopoles verticales, où la densité de population dilue mécaniquement le ratio.
 
 ```{r}
 #| label: srpt04-kpi-header

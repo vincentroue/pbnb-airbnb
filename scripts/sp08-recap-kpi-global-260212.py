@@ -216,9 +216,13 @@ city_kpi = df.groupby(["country_code", "city"]).agg(
     actrv_avis_mois=("reviews_per_month", lambda x: x.dropna().median()),
 ).reset_index()
 
+# Prix par personne (comparable inter-villes : neutralise la taille des logements)
+df["_px_pp"] = df["price_eur"] / df["accommodates"].where(df["accommodates"] > 0)
+
 # Prix médian par type de logement
 entire_prix = df[df["room_type"] == "Entire home/apt"].groupby(["country_code", "city"]).agg(
     px_entire_med=("price_eur", "median"),
+    px_entire_pp_med=("_px_pp", "median"),
     px_entire_q25=("price_eur", lambda x: x.quantile(0.25)),
     px_entire_q75=("price_eur", lambda x: x.quantile(0.75)),
 ).reset_index()
@@ -350,7 +354,7 @@ city_kpi["density_l_km2"] = (city_kpi["vol_n_ann"] / city_kpi["area_centre_km2"]
 city_kpi["city_fr"] = city_kpi["city"].map(lambda c: CITY_FR.get(c, c.replace("-", " ").title()))
 
 # Arrondir
-for col in ["px_med", "px_entire_med", "px_private_med", "prix_med_shared",
+for col in ["px_med", "px_entire_med", "px_entire_pp_med", "px_private_med", "prix_med_shared",
             "px_entire_q25", "px_entire_q75",
             "act_cal_ouvert_med", "act_cal_ouvert_moy", "actrv_avis", "actrv_avis_mois"]:
     if col in city_kpi.columns:
@@ -363,7 +367,7 @@ cols_city = [
     "pop", "housing",
     # "listings_1000hab", "listings_1000log", "entire_1000log",  # STANDBY
     "density_l_km2", "area_centre_km2",
-    "px_med", "px_entire_med", "px_entire_q25", "px_entire_q75", "px_entire_iqr",
+    "px_med", "px_entire_med", "px_entire_pp_med", "px_entire_q25", "px_entire_q75", "px_entire_iqr",
     "px_private_med",
     "str_entire_pct", "str_minnuits30_pct", "str_minnuits90_pct", "str_ratio_ann_hote",
     "cr_hosts_offre50_pct",
@@ -437,6 +441,7 @@ for sub_city, meta in SUB_CITIES.items():
         # listings_1000hab / listings_1000log / entire_1000log STANDBY
         "px_med": round(sub_df["price_eur"].median(), 1),
         "px_entire_med": round(entire["price_eur"].median(), 1) if len(entire) > 0 else np.nan,
+        "px_entire_pp_med": round(entire["_px_pp"].median(), 1) if len(entire) > 0 else np.nan,
         "px_entire_q25": round(entire["price_eur"].quantile(0.25), 1) if len(entire) > 0 else np.nan,
         "px_entire_q75": round(entire["price_eur"].quantile(0.75), 1) if len(entire) > 0 else np.nan,
         "str_entire_pct": round(len(entire) / len(sub_df) * 100, 1),
@@ -460,7 +465,15 @@ if sub_rows:
 # &e
 
 # &s &MERGE_GHSPOP - Merge variables densité GHS-POP (après sub_cities)
-GHSPOP_CSV = Path(r"C:\Users\vince\DBD-datab\dbd_glb\GHS-POP-raster\outputs\audit_dense_intra_ia_75villes.csv")
+# Snapshot-spécifique : n_listings_dense recompté par sp08d (polygones + pop_dense figés,
+# numérateur = annonces du snapshot). Fallback sur le build 2506 (_75villes) si absent.
+_GHS_DIR = Path(r"C:\Users\vince\DBD-datab\dbd_glb\GHS-POP-raster\outputs")
+GHSPOP_CSV = _GHS_DIR / f"audit_dense_intra_ia_{SNAP_TAG}.csv"
+if not GHSPOP_CSV.exists():
+    GHSPOP_CSV = _GHS_DIR / "audit_dense_intra_ia_75villes.csv"  # fallback build 2506
+    print(f"[GHS-POP] audit snapshot absent -> fallback {GHSPOP_CSV.name}")
+else:
+    print(f"[GHS-POP] audit dense snapshot : {GHSPOP_CSV.name}")
 if GHSPOP_CSV.exists():
     ghspop = pd.read_csv(GHSPOP_CSV)
     ghspop_cols = {
@@ -540,6 +553,7 @@ def compute_aggregate_kpi(df_sub, groupby_col=None):
 
     entire_px = entire.groupby(gcol).agg(
         px_entire_med=("price_eur", "median"),
+        px_entire_pp_med=("_px_pp", "median"),
         px_entire_q25=("price_eur", lambda x: x.quantile(0.25)),
         px_entire_q75=("price_eur", lambda x: x.quantile(0.75)),
     ).reset_index()
@@ -598,7 +612,7 @@ def compute_aggregate_kpi(df_sub, groupby_col=None):
     agg_kpi["str_ratio_ann_hote"] = (agg_kpi["vol_n_ann"] / agg_kpi["vol_n_hotes"]).round(2)
     for col in ["str_entire_pct", "str_minnuits30_pct", "str_minnuits90_pct"]:
         agg_kpi[col] = (agg_kpi[col] * 100).round(1)
-    for col in ["px_med", "px_entire_med", "px_private_med",
+    for col in ["px_med", "px_entire_med", "px_entire_pp_med", "px_private_med",
                 "px_entire_q25", "px_entire_q75",
                 "act_cal_ouvert_med", "act_cal_ouvert_moy", "actrv_avis", "actrv_avis_mois"]:
         if col in agg_kpi.columns:
@@ -659,7 +673,7 @@ agg_kpi = pd.concat([world_kpi, continent_kpi, contdet_kpi, country_kpi], ignore
 cols_agg = ["level", "continent", "continent_detail", "country_code", "n_villes", "n_countries",
     "vol_n_ann", "str_n_entire", "vol_n_hotes", "pop_total", "housing_total",
     # "listings_1000hab", "listings_1000log", "entire_1000log",  # STANDBY
-    "px_med", "px_entire_med", "px_entire_q25", "px_entire_q75", "px_entire_iqr",
+    "px_med", "px_entire_med", "px_entire_pp_med", "px_entire_q25", "px_entire_q75", "px_entire_iqr",
     "px_private_med",
     "str_entire_pct", "str_minnuits30_pct", "str_minnuits90_pct", "str_ratio_ann_hote",
     "cr_hosts_offre50_pct",

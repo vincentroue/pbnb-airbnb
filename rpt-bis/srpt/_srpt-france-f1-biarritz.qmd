@@ -1,0 +1,76 @@
+<!-- _srpt-france-f1-biarritz.qmd -->
+<!-- Focus territorial : Biarritz. Inclus dans rpt-pbnb-rapport-france.qmd (partie Focus). -->
+<!-- Chunks : focbia-* · v1 — 2026-08-28 -->
+<!-- PORTABLE (pterr) : dépendances = _setup-common.R (jcn-all), _data-load-france.R -->
+<!-- (kpi_fr_city, kpi_fr_iris, kpi_fr_pays, load_iris_geo, naf/nint), _helpers-france-srpt.R -->
+<!-- (blocs IRIS_FOCUS et FOCUS_COMMUNE). Aucune variable du MAIN requise. -->
+
+```{r}
+#| label: focbia-vars
+#| include: false
+#| cache: false
+
+.fb  <- focus_city_row("biarritz")
+.gb  <- load_iris_commune("biarritz")
+.db  <- sf::st_drop_geometry(.gb)
+
+ab_n_ann    <- nint(.fb$vol_n_ann)
+ab_v_evol   <- naf(abs(.fb$vol_n_ann_vevol_2526), 1)
+ab_v_px     <- naf(.fb$px_entire_med, 0)
+ab_v_px_fr  <- naf(kpi_fr_pays$px_entire_med, 0)
+ab_v_press  <- naf(.fb$prsf_listings_1000rps, 0)
+ab_v_dense  <- naf(.fb$prs_listings_1000hab_dense, 0)
+ab_v_multi  <- naf(.fb$cr_offre_1plus, 0)
+ab_v_rev    <- nint(.fb$act_revenu_med)
+ab_v_cal    <- naf(.fb$act_cal_ouvert_med, 0)
+ab_v_rs_pct <- naf((.fb$logements - .fb$rp - .fb$log_vacants) / .fb$logements * 100, 0)
+ab_n_pop    <- nint(.fb$pop)
+
+.top <- .db[order(-.db$prsf_listings_1000rps), ]
+ab_t_iris1  <- .top$nom_iris[1]
+ab_v_iris1  <- naf(.top$prsf_listings_1000rps[1], 0)
+ab_n_iris1  <- nint(.top$vol_n_ann[1])
+ab_v_iris1e <- naf(abs(.top$vol_n_ann_vevol_2526[1]), 1)
+ab_v_imin   <- naf(min(.db$prsf_listings_1000rps, na.rm = TRUE), 0)
+.rb <- .db[which.max(ifelse(is.na(.db$vol_n_ann_vevol_2526), NA, -.db$vol_n_ann_vevol_2526)), ]
+ab_t_recul  <- .rb$nom_iris
+ab_v_recul  <- naf(abs(.rb$vol_n_ann_vevol_2526), 1)
+```
+
+### Biarritz : la station au prix parisien, première à reculer sous la régulation
+
+[**Un logement occupé sur douze est une annonce Airbnb à Biarritz — et l'offre recule de `r ab_v_evol` % en un an**]{.insight}
+
+Biarritz concentre `r ab_n_ann` annonces actives pour `r ab_n_pop` habitants, soit **`r ab_v_press` annonces pour 1 000 logements occupés** — et `r ab_v_dense` pour 1 000 habitants en zone dense, le niveau le plus élevé du panel français. Le socle de ce marché est un parc de villégiature : `r ab_v_rs_pct` % des logements sont des résidences secondaires, un stock naturellement disponible pour la location courte durée. Le tarif suit — `r ab_v_px` € la nuit en logement entier, au niveau de Paris pour une commune de `r ab_n_pop` habitants — et le calendrier aussi : `r ab_v_cal` jours ouverts par an en médiane, une exploitation soutenue qui porte le revenu médian estimé à `r ab_v_rev` € par an.
+
+```{r}
+#| label: focbia-kpi
+#| cache: false
+
+focus_kpi_row("biarritz")
+```
+
+La géographie interne est **littorale et homogène** *(cartes ci-contre)*. `r ab_t_iris1` domine avec `r ab_v_iris1` annonces pour 1 000 logements occupés (`r ab_n_iris1` annonces à lui seul), mais l'écart avec le reste de la commune est faible : aucun quartier biarrot ne descend sous `r ab_v_imin`. La tension ne se concentre pas, elle sature — c'est la signature d'une station où la location touristique est un usage généralisé du parc, pas une spécialité de quartier. La professionnalisation reste en retrait de ce niveau de pression : `r ab_v_multi` % de l'offre relève de multi-hôtes, moins qu'à Bordeaux ou Lyon — le marché appartient d'abord aux propriétaires de résidences secondaires.
+
+```{r}
+#| label: focbia-maps
+#| cache: false
+
+log_map_auto("focbia_pression", "prsf_listings_1000rps", .db, "nom_iris")
+log_map_auto("focbia_pro", "cr_offre_1plus_ville", .db, "nom_iris")
+focus_duo_maps("biarritz", geo = .gb)
+```
+
+<div class="figure-source">Source : Inside Airbnb, juin 2026 · INSEE RP 2022 · Échelle de couleur propre à la commune · Survol pour le détail, molette pour zoomer · Projection Lambert 93</div>
+
+Le recul de `r ab_v_evol` % en un an prend ici tout son sens. La compensation sur le changement d'usage s'applique depuis 2023 aux communes tendues du Pays Basque, et Biarritz est la seule des trois communes de l'agglomération où l'offre se contracte — précisément parce que la contrainte mord d'abord le parc de villégiature. La baisse est la plus marquée à `r ab_t_recul` (`r ab_v_recul` % en un an), et `r ab_t_iris1` lui-même cède `r ab_v_iris1e` % *(tableau ci-contre)*.
+
+```{r}
+#| label: focbia-rt-iris
+#| cache: false
+
+log_table_auto("focbia_iris", .db)
+focus_top_iris("biarritz", geo = .gb,
+  title = "Tous les quartiers de Biarritz dépassent le niveau médian national",
+  subtitle = "12 IRIS, triés par pression — Inside Airbnb juin 2026 · INSEE RP 2022")
+```

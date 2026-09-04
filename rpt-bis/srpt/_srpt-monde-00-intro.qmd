@@ -139,7 +139,7 @@ gt_styled(cov_disp,
 Les deux colonnes « Annonces » comptent des **stocks bruts**, avant tout nettoyage : le décompte mondial d'Inside Airbnb ne filtre ni les annonces sans prix, ni les indisponibles, une comparaison à notre panel filtré fausserait la couverture. Un **écart positif** (orange) signale une **sur-représentation** du sous-continent dans l'échantillon, négatif (bleu) une sous-représentation. « Couverture » = nos annonces rapportées au stock mondial du sous-continent. Le panel retient `r aa$n_total` annonces après nettoyage, soit près de 90 % de son volume brut.
 :::
 
-L'analyse est guidée par des hypothèses structurantes (méthodologie complète ci-dessous) et organisée en sept parties analytiques, chacune répondant à une famille de questions évaluatives :
+L'analyse est guidée par des hypothèses structurantes (méthodologie complète ci-dessous) et organisée en huit parties analytiques, chacune répondant à une famille de questions évaluatives :
 
 - **Portrait mondial** — où se concentrent les annonces et les hôtes ? Comment l'activité se distribue-t-elle entre Europe, Amériques, Asie-Pacifique et Afrique ?
 - **Prix, structure et activité** — quels niveaux tarifaires et quelle dispersion entre villes ? Quelle nature d'offre (logements entiers, chambres, durée minimum de séjour, capacité) ? Quel revenu hôte et quelle activité commerciale réelle ?
@@ -147,6 +147,7 @@ L'analyse est guidée par des hypothèses structurantes (méthodologie complète
 - **Pression résidentielle** — quelle densité d'annonces par habitant en zone dense (GHS-POP ≥ 1 500 hab/km²) ? Où la tension entre usage touristique et logement long terme est-elle maximale ?
 - **Concurrence Airbnb et hôtellerie** — comment Airbnb se positionne face à l'offre hôtelière traditionnelle en prix, capacité et géographie ?
 - **Régulation et trajectoires** — quelles villes ont mis en place des contraintes effectives ? Quels signaux dans les durées minimum de séjour, et quels horizons à 2030 (Règlement UE 2024/1028, Local Law 18, interdictions ciblées) ?
+- **Qualité perçue** — que disent les notes des voyageurs ? La professionnalisation se paie-t-elle en satisfaction ?
 - **Typologie** — quelles familles de marchés émergent du croisement de ces dimensions (analyse en composantes principales et classification) ?
 
 ::: {.encadre}

@@ -1,0 +1,497 @@
+---
+title: "EDA Macro — 74 villes Airbnb"
+subtitle: "Analyse exploratoire pre-ACP — KPI agrees par ville, Inside Airbnb juin 2025"
+date: today
+execute:
+  cache: true
+params:
+  data_path: "C:/Users/vince/hh/pq/PDS/pbnb-airbnb-log-jrr-jpy/data/interim/kpi_global_by_city_2506.csv"
+  data_type: "aggregated"
+  echelon: "Ville"
+  label_col: "city_fr"
+  filter_expr: "scope == 'city'"
+  encoding: "UTF-8"
+  # vars_quanti lu depuis le CSV de validation (col `_eda` == "x") — voir chunk setup
+  # Hardcodé ici uniquement en fallback si CSV introuvable
+  vars_quanti: ""
+  eda_csv_path: "C:/Users/vince/hh/pq/PDS/pbnb-airbnb-log-jrr-jpy/reports/helpers/ddict-validation-airbnb.csv"
+  vars_quanti_corr: ""
+  vars_quali: "continent_detail,is_capital"
+  color_var: "continent_detail"
+  k_blocs: 3
+  seuil_alert: 0.70
+  pairs_filter: "both"
+  cap_pct: 0.99
+  min_eta2: 0.06
+  show_crosstab: false
+  crosstab_target: ""
+  seuil_resid: 1.96
+  show_cramer: true
+  ddict_path: "C:/Users/vince/hh/pq/PDS/pbnb-airbnb-log-jrr-jpy/reports/helpers/ddict-airbnb.json"
+  labels_manual: ""
+---
+
+```{r}
+#| label: setup
+#| include: false
+#| cache: false
+
+library(dplyr)
+library(tidyr)
+library(psych)
+library(reactable)
+library(htmltools)
+library(ggplot2)
+
+JCN <- "C:/Users/vince/hh/pq/PDS/mutils/jrr"
+source(file.path(JCN, "jcn-setup.R"))
+source(file.path(JCN, "jcn-helpers.R"))
+source(file.path(JCN, "jcn-reactable.R"))
+source(file.path(JCN, "jcn-eda-summary.R"))
+source(file.path(JCN, "jcn-eda-corr.R"))
+source(file.path(JCN, "jcn-claude-log.R"))
+
+claude_log_init(sprintf("eda-%s", gsub("[^a-z0-9]", "", tolower(params$echelon))))
+
+# VARS_QUANTI : source de verite = col `_eda` du CSV de validation ddict
+# Fallback sur params$vars_quanti uniquement si CSV introuvable ou colonne vide
+.read_eda_vars_from_csv <- function(csv_path) {
+  if (!file.exists(csv_path)) return(character(0))
+  v <- tryCatch({
+    # check.names = FALSE pour preserver "_eda" (sinon R renomme en "X_eda")
+    df <- read.csv(csv_path, encoding = "UTF-8", stringsAsFactors = FALSE,
+                    check.names = FALSE)
+    if (!"_eda" %in% names(df)) return(character(0))
+    df$variable[df[["_eda"]] == "x" & !is.na(df[["_eda"]])]
+  }, error = function(e) character(0))
+  v
+}
+VARS_QUANTI <- .read_eda_vars_from_csv(params$eda_csv_path)
+if (length(VARS_QUANTI) == 0 && nzchar(params$vars_quanti)) {
+  VARS_QUANTI <- trimws(strsplit(params$vars_quanti, ",")[[1]])
+}
+message(sprintf(">>> EDA macro : %d vars charges depuis %s",
+                length(VARS_QUANTI),
+                if (length(VARS_QUANTI) > 0) "CSV _eda" else "fallback YAML"))
+VARS_QUANTI_CORR <- if (nzchar(params$vars_quanti_corr)) {
+  trimws(strsplit(params$vars_quanti_corr, ",")[[1]])
+} else VARS_QUANTI
+VARS_QUALI   <- if (nzchar(params$vars_quali)) trimws(strsplit(params$vars_quali, ",")[[1]]) else character(0)
+COLOR_VAR    <- if (nzchar(params$color_var)) params$color_var else NULL
+LABEL_COL    <- if (nzchar(params$label_col)) params$label_col else NULL
+K_BLOCS      <- as.integer(params$k_blocs)
+SEUIL_ALERT  <- as.numeric(params$seuil_alert)
+PAIRS_FILTER <- params$pairs_filter
+MIN_ETA2     <- as.numeric(params$min_eta2)
+CAP_PCT      <- if (nzchar(params$cap_pct)) as.numeric(params$cap_pct) else NULL
+HAS_QUALI    <- length(VARS_QUALI) > 0
+SHOW_XTAB    <- as.logical(params$show_crosstab) && HAS_QUALI
+XTAB_TARGET  <- if (nzchar(params$crosstab_target)) params$crosstab_target else NULL
+SEUIL_RESID  <- as.numeric(params$seuil_resid)
+SHOW_CRAMER  <- as.logical(params$show_cramer) && HAS_QUALI
+```
+
+```{r}
+#| label: load-data
+#| include: false
+
+enc <- if (params$encoding == "UTF-8-BOM") "UTF-8-BOM" else params$encoding
+df_raw <- read.csv(params$data_path, stringsAsFactors = FALSE, fileEncoding = enc, check.names = FALSE)
+
+if (params$filter_expr != "NULL") {
+  df_raw <- df_raw %>% filter(eval(parse(text = params$filter_expr)))
+}
+
+# Restreindre VARS_QUANTI aux colonnes effectivement presentes dans le CSV charge
+# (ex: prsf_* sont France-only, absentes du CSV monde)
+.vars_missing <- setdiff(VARS_QUANTI, names(df_raw))
+if (length(.vars_missing) > 0) {
+  message(sprintf(">>> EDA macro : %d vars _eda absentes du CSV, ignorees : %s",
+                  length(.vars_missing), paste(.vars_missing, collapse = ", ")))
+  VARS_QUANTI <- intersect(VARS_QUANTI, names(df_raw))
+}
+VARS_QUANTI_CORR <- intersect(VARS_QUANTI_CORR, names(df_raw))
+if (length(VARS_QUANTI_CORR) == 0) VARS_QUANTI_CORR <- VARS_QUANTI
+
+# Labels : ddict > manual > noms bruts
+VAR_LABELS <- setNames(VARS_QUANTI, VARS_QUANTI)
+if (nzchar(params$ddict_path) && file.exists(params$ddict_path)) {
+  source(file.path(JCN, "jcn-ddict.R"))
+  dd <- load_ddict(params$ddict_path)
+  for (v in VARS_QUANTI) {
+    lbl <- tryCatch(dd$label(v), error = function(e) v)
+    if (!is.na(lbl) && lbl != v) VAR_LABELS[v] <- lbl
+  }
+} else if (nzchar(params$labels_manual)) {
+  pairs <- trimws(strsplit(params$labels_manual, ",")[[1]])
+  for (p in pairs) {
+    kv <- trimws(strsplit(p, "=")[[1]])
+    if (length(kv) == 2 && kv[1] %in% names(VAR_LABELS)) VAR_LABELS[kv[1]] <- kv[2]
+  }
+}
+
+for (qv in VARS_QUALI) {
+  if (qv %in% names(df_raw)) {
+    df_raw[[qv]] <- factor(df_raw[[qv]])
+    lvls <- levels(df_raw[[qv]])
+    df_raw[[qv]] <- factor(df_raw[[qv]], levels = lvls[nzchar(lvls)])
+  }
+}
+quali_ok <- if (length(VARS_QUALI) > 0) {
+  sapply(VARS_QUALI, function(qv) {
+    if (!qv %in% names(df_raw)) return(FALSE)
+    nlevels(df_raw[[qv]]) >= 2
+  })
+} else logical(0)
+if (any(!quali_ok)) message("Quali exclues (1 seul niveau) : ", paste(VARS_QUALI[!quali_ok], collapse = ", "))
+VARS_QUALI <- VARS_QUALI[quali_ok]
+HAS_QUALI  <- length(VARS_QUALI) > 0
+SHOW_XTAB  <- SHOW_XTAB && HAS_QUALI
+SHOW_CRAMER <- SHOW_CRAMER && HAS_QUALI && length(VARS_QUALI) >= 2
+COLOR_VAR  <- if (!is.null(COLOR_VAR) && COLOR_VAR %in% VARS_QUALI) COLOR_VAR else {
+  if (HAS_QUALI) VARS_QUALI[1] else NULL
+}
+
+cols_keep <- intersect(c(LABEL_COL, VARS_QUANTI, VARS_QUALI), names(df_raw))
+df <- df_raw[, cols_keep, drop = FALSE]
+```
+
+```{r}
+#| label: na-diagnostic
+#| include: false
+
+na_report <- calc_na_report(df, VARS_QUANTI)
+na_report_quali <- if (HAS_QUALI) calc_na_report(df, VARS_QUALI) else NULL
+
+log_step("POOL", n_raw = nrow(df), n_quanti = length(VARS_QUANTI),
+  n_quali = length(VARS_QUALI), na_pct_lost = na_report$pct_lost)
+log_result("na_report", na_report$per_var, interpret = na_report$summary_text)
+
+df_num <- df[, intersect(VARS_QUANTI, names(df)), drop = FALSE]
+names(df_num) <- VAR_LABELS[names(df_num)]
+
+VARS_CORR_LBL <- VAR_LABELS[intersect(VARS_QUANTI_CORR, names(VAR_LABELS))]
+
+df_num_clean <- df_num %>% na.omit()
+
+df_full_lbl <- if (!is.null(LABEL_COL) && LABEL_COL %in% names(df)) {
+  tmp <- df[, c(LABEL_COL, intersect(VARS_QUANTI, names(df))), drop = FALSE]
+  names(tmp)[match(VARS_QUANTI, names(tmp), nomatch = 0)] <- VAR_LABELS[intersect(VARS_QUANTI, names(tmp))]
+  tmp
+} else NULL
+
+df_eta_full <- df[, intersect(c(VARS_QUANTI, VARS_QUALI), names(df)), drop = FALSE]
+for (v in intersect(VARS_QUANTI, names(df_eta_full))) {
+  if (v %in% names(VAR_LABELS) && VAR_LABELS[v] != v) {
+    names(df_eta_full)[names(df_eta_full) == v] <- VAR_LABELS[v]
+  }
+}
+```
+
+```{r}
+#| label: aa-univarie
+#| include: false
+
+summ <- calc_eda_summary(df_num)
+aa_n_obs      <- nrow(df)
+aa_n_quanti   <- ncol(df_num)
+aa_n_quali    <- length(VARS_QUALI)
+aa_n_na_tot   <- sum(is.na(df[, intersect(VARS_QUANTI, names(df)), drop = FALSE]))
+
+aa_n_raw      <- nrow(df)
+aa_n_perdu    <- na_report$n_lost
+aa_pct_perdu  <- na_report$pct_lost
+aa_var_max_na <- ifelse(is.na(na_report$most_costly), "aucune", na_report$most_costly)
+aa_v_max_na   <- max(na_report$per_var$n_na)
+aa_pct_max_na <- max(na_report$per_var$pct_na)
+
+aa_n_skewed   <- sum(abs(summ$skewness) > 2, na.rm = TRUE)
+aa_n_skew_mod <- sum(abs(summ$skewness) > 1 & abs(summ$skewness) <= 2, na.rm = TRUE)
+aa_n_outlier  <- sum(summ$outliers_ratio > 5, na.rm = TRUE)
+aa_n_highcv   <- sum(summ$cv > 2, na.rm = TRUE)
+aa_t_most_skewed <- if (aa_n_skewed > 0) summ$variable[which.max(abs(summ$skewness))] else "aucune"
+aa_v_max_skew <- round(max(abs(summ$skewness), na.rm = TRUE), 2)
+aa_t_outlier_vars <- paste(summ$variable[summ$outliers_ratio > 5], collapse = ", ")
+aa_vars_skewed  <- summ$variable[abs(summ$skewness) > 2]
+aa_vars_outlier <- summ$variable[summ$outliers_ratio > 5]
+aa_bilan_skew   <- if (length(aa_vars_skewed) > 0) paste0("*", paste(aa_vars_skewed, collapse = "*, *"), "*") else "aucune"
+aa_bilan_skew_mod <- if (aa_n_skew_mod > 0) paste0("*", paste(summ$variable[abs(summ$skewness) > 1 & abs(summ$skewness) <= 2], collapse = "*, *"), "*") else ""
+aa_bilan_outl   <- if (length(aa_vars_outlier) > 0) paste0("*", paste(aa_vars_outlier, collapse = "*, *"), "*") else "aucune"
+
+log_result("eda_summary", summ, interpret = sprintf(
+  "%d obs, %d var. %d skewed, %d outlier>5%%, max_skew=%s (%.2f)",
+  aa_n_obs, aa_n_quanti, aa_n_skewed, aa_n_outlier, aa_t_most_skewed, aa_v_max_skew))
+```
+
+```{r}
+#| label: aa-bivarie
+#| include: false
+
+ct <- calc_corr_diag(df_num_clean, k_blocs = min(K_BLOCS, ncol(df_num_clean) - 1))
+emp_corr <- calc_empirical_thresholds(ct$abs_r)
+
+aa_n_crit    <- sum(ct$abs_r >= SEUIL_ALERT)
+aa_n_collin  <- sum(ct$abs_r >= 0.90)
+aa_n_nonlin  <- sum(ct$delta_ps > 0.10, na.rm = TRUE)
+aa_paires_crit <- ct %>%
+  filter(abs_r >= SEUIL_ALERT) %>%
+  mutate(txt = sprintf("**%s** x **%s** (r=%.2f)", var1, var2, r_pearson)) %>%
+  pull(txt)
+aa_paires_crit_short <- ct %>%
+  filter(abs_r >= SEUIL_ALERT) %>%
+  mutate(txt = sprintf("%s x %s", var1, var2)) %>%
+  pull(txt) %>% paste(collapse = ", ")
+aa_paires_collin <- ct %>%
+  filter(abs_r >= 0.90) %>%
+  mutate(txt = sprintf("**%s** x **%s** (r=%.2f)", var1, var2, r_pearson)) %>%
+  pull(txt)
+aa_paires_nonlin <- ct %>%
+  filter(delta_ps > 0.10) %>%
+  mutate(txt = sprintf("%s x %s (delta=%.2f)", var1, var2, delta_ps)) %>%
+  pull(txt)
+aa_paires_nonlin_short <- ct %>%
+  filter(delta_ps > 0.10) %>%
+  mutate(txt = sprintf("%s x %s", var1, var2)) %>%
+  pull(txt) %>% paste(collapse = ", ")
+
+log_step("BIVARIE", n_paires = nrow(ct), n_crit = aa_n_crit,
+  n_collin = aa_n_collin, n_nonlin = aa_n_nonlin)
+log_result("corr_top10", ct %>% head(10) %>% select(var1, var2, r_pearson, r_spearman, delta_ps),
+  interpret = sprintf("%d paires, %d critiques |r|>%.2f, %d non-lin",
+    nrow(ct), aa_n_crit, SEUIL_ALERT, aa_n_nonlin))
+if (!is.null(emp_corr)) log_result("empirical_thresholds", emp_corr)
+```
+
+```{r}
+#| label: aa-quali
+#| include: false
+
+if (HAS_QUALI) {
+  eta2 <- calc_eta2_table(df_eta_full, VARS_QUALI, names(df_eta_full)[!names(df_eta_full) %in% VARS_QUALI])
+  aa_best_quali <- {
+    moys <- eta2 %>% group_by(quali) %>% summarise(m = mean(eta2, na.rm = TRUE)) %>% arrange(desc(m))
+    sprintf("**%s** (eta² moyen = %.3f)", moys$quali[1], moys$m[1])
+  }
+} else {
+  eta2 <- NULL
+  aa_best_quali <- ""
+}
+```
+
+## Données et contexte
+
+```{r}
+#| label: scan-global
+#| column: page-right
+
+scan_dataset(df_raw, title = sprintf("Scan dataset brut — %d variables, %s obs",
+  ncol(df_raw), formatC(nrow(df_raw), big.mark = "\u202f")))
+```
+
+*EDA `r params$data_type` — **`r params$echelon`** : `r formatC(aa_n_raw, big.mark = " ")` observations brutes, `r length(VARS_QUANTI)` quanti retenues (`r length(VARS_QUANTI_CORR)` continues + `r length(VARS_QUANTI) - length(VARS_QUANTI_CORR)` binaires 0/1) et `r aa_n_quali` qualitatives. Pool apres na.omit : `r formatC(nrow(df_num_clean), big.mark = " ")` obs (`r aa_pct_perdu`% perdues`r if (aa_pct_perdu > 0) sprintf(", variable couteuse : %s", aa_var_max_na) else ""`).*
+
+| | Variables | Rôle EDA |
+|---|---|---|
+| **Quanti continues** (`r length(VARS_QUANTI_CORR)`) | `r paste(VARS_QUANTI_CORR, collapse = ", ")` | Describe, distributions, corrélations, eta² |
+| **Quanti binaires 0/1** (`r length(VARS_QUANTI) - length(VARS_QUANTI_CORR)`) | `r if (length(setdiff(VARS_QUANTI, VARS_QUANTI_CORR)) > 0) paste(setdiff(VARS_QUANTI, VARS_QUANTI_CORR), collapse = ", ") else "—"` | Eta²/v-test (taux par groupe), corrélations phi |
+| **Quali** (`r aa_n_quali`) | `r paste(VARS_QUALI, collapse = ", ")` | Profils, eta²/v-test, crosstabs, Cramér V |
+
+## Bilan diagnostic et préparation
+
+### Diagnostic transversal
+
+`r if (aa_n_collin > 0) sprintf("- \U0001F534 **Variables a retirer** (redondance |r| > 0.90) : %d paire(s) — %s", aa_n_collin, paste(aa_paires_collin, collapse = " ; ")) else ""`
+`r if (aa_n_crit > 0) sprintf("- \U0001F7E0 **Paires fortes** (|r| > %.2f) : %d — %s", SEUIL_ALERT, aa_n_crit, aa_paires_crit_short) else sprintf("- \U0001F7E2 Aucune paire critique (|r| > %.2f)", SEUIL_ALERT)`
+`r if (aa_n_skewed > 0) sprintf("- \U0001F7E1 **Asymetries** (|skew| > 2) : %s", aa_bilan_skew) else ""`
+`r if (aa_n_outlier > 0) sprintf("- \U0001F7E2 **Outliers** (>5%% IQR) : %s", aa_bilan_outl) else ""`
+`r if (aa_n_nonlin > 0) sprintf("- \u2139\ufe0f **Non-linearites** : %s", aa_paires_nonlin_short) else ""`
+`r if (nrow(df_num) > 10000) sprintf("- \u26a0 **p-values saturees** (N=%s) : se fier a |r|, eta2, seuils empiriques", formatC(nrow(df_num), big.mark = "\u202f")) else ""`
+
+### Recommandations par usage
+
+::: {.panel-tabset}
+
+#### Pre-ACP
+
+`r if (aa_n_collin > 0) "- Retirer 1 variable par paire |r| > 0.90 (axes parasites)" else ""`
+`r if (aa_n_crit > 0) sprintf("- Passer en quanti sup les paires |r| > %.2f : %s", SEUIL_ALERT, aa_paires_crit_short) else "- Pas de retrait necessaire"`
+`r if (aa_n_skewed > 0) sprintf("- Log-transform optionnel : %s", aa_bilan_skew) else ""`
+- Outliers : winsoriser si shift > 20%
+`r if (HAS_QUALI) sprintf("- Quali sup : %s", paste(VARS_QUALI, collapse = ", ")) else ""`
+
+#### Pre-regression
+
+`r if (aa_n_crit > 0) sprintf("- VIF a calculer — retirer si VIF > 5 : %s", aa_paires_crit_short) else "- Pas de colinearite bloquante"`
+`r if (aa_n_skewed > 0) sprintf("- Transformer pour normaliser les residus : %s", aa_bilan_skew) else ""`
+- Outliers : Cook's distance apres le fit, retirer si Di > 4/n
+`r if (aa_n_nonlin > 0) sprintf("- Non-linearites : splines ou GAM pour %s", aa_paires_nonlin_short) else ""`
+
+#### Pre-clustering
+
+- Standardiser obligatoirement (z-score ou robust scale)
+`r if (aa_n_collin > 0) "- Retirer redondances |r| > 0.90 (sur-ponderent une dimension)" else ""`
+- Outliers : winsoriser — deforment les distances euclidiennes
+`r if (aa_n_skewed > 0) sprintf("- Transformer : %s", aa_bilan_skew) else ""`
+
+#### Pre-ML supervise
+
+- Redondances : Lasso/Ridge gere, RandomForest aussi
+- Outliers : critique pour SVM/kNN, robuste pour arbres
+`r if (aa_n_skewed > 0) "- Asymetries : critique pour lineaire, robuste pour arbres" else ""`
+
+#### Indice synthetique
+
+- Standardiser obligatoirement (z-score, rang, min-max)
+`r if (aa_n_outlier > 0) sprintf("- Winsoriser : %s", aa_bilan_outl) else ""`
+- Redondances tolerables (renforcent une dimension)
+- Ponderation : egales (defaut), expert, ou Cronbach (alpha > 0.7)
+
+:::
+
+## Analyse univariée — structure des variables
+
+```{r}
+#| label: eda-quali-summary
+
+if (HAS_QUALI) make_eda_quali_summary(df, VARS_QUALI)
+```
+
+```{r}
+#| label: eda-describe
+#| column: page-right
+
+make_eda_describe_rt(df_num, summ, df_full = df_full_lbl, label_col = LABEL_COL, n_top = 5)
+```
+
+### Distributions
+
+```{r}
+#| label: eda-distributions
+#| column: page-right
+#| fig-width: 12
+#| fig-height: !expr max(4, ceiling(aa_n_quanti / (if (aa_n_quanti <= 4) 2 else if (aa_n_quanti <= 9) 3 else 4)) * 2.5)
+
+plot_eda_distributions(df_num[, VARS_CORR_LBL, drop = FALSE], cap_pct = CAP_PCT)
+```
+
+
+## Analyse bivariée — corrélations et redondances
+
+```{r}
+#| label: eda-corrmat
+#| column: page-right
+
+make_corr_matrix_rt(df_num_clean, k = min(K_BLOCS, ncol(df_num_clean) - 1))
+```
+
+```{r}
+#| label: eda-corr-diag
+#| column: page-right
+
+make_corr_diag_rt(ct, seuil_alert = SEUIL_ALERT, min_display = 0.20, empirical = emp_corr)
+```
+
+```{r}
+#| label: eda-scatter
+#| column: page-right
+#| fig-width: 12
+#| fig-height: !expr max(5, ceiling(sum(ct$abs_r >= 0.40) / 2) * 4)
+#| eval: !expr sum(ct$abs_r >= 0.40) > 0
+
+plot_eda_scatter_pairs(df_eta_full, ct, color_var = COLOR_VAR,
+  pairs_filter = PAIRS_FILTER, ncol = 2, point_size = 1)
+```
+
+
+`r if (HAS_QUALI) "## Croisement quali × quanti — influence des typologies" else ""`
+
+`r if (HAS_QUALI) "*Matrice eta² : part de variance de chaque quanti expliquée par chaque quali. Seuils Cohen : < 0.02 négligeable, 0.02-0.06 petit, 0.06-0.14 moyen, > 0.14 grand.*" else ""`
+
+```{r}
+#| label: eda-eta2
+
+if (HAS_QUALI && !is.null(eta2)) rt_eta2_matrix(eta2)
+```
+
+```{r}
+#| label: eda-eta2-comment
+#| cache: false
+
+if (HAS_QUALI && !is.null(eta2)) eta2_auto_comment(eta2)
+```
+
+`r if (HAS_QUALI) "*Heatmaps v-test : écart standardisé à la moyenne globale par modalité. Gras si |v| > 2.58 (p < 0.01). Bordeaux = au-dessus, bleu = en-dessous.*" else ""`
+
+```{r}
+#| label: eda-vtest-1
+#| cache: false
+#| eval: !expr length(VARS_QUALI) >= 1
+
+vt_1 <- calc_vtest_table(df_eta_full, VARS_QUALI[1], names(df_eta_full)[!names(df_eta_full) %in% VARS_QUALI], eta2_tbl = eta2)
+rt_vtest_heatmap(vt_1, VARS_QUALI[1])
+vtest_auto_comment(vt_1, VARS_QUALI[1])
+```
+
+```{r}
+#| label: eda-vtest-2
+#| cache: false
+#| eval: !expr length(VARS_QUALI) >= 2
+
+vt_2 <- calc_vtest_table(df_eta_full, VARS_QUALI[2], names(df_eta_full)[!names(df_eta_full) %in% VARS_QUALI], eta2_tbl = eta2)
+rt_vtest_heatmap(vt_2, VARS_QUALI[2])
+vtest_auto_comment(vt_2, VARS_QUALI[2])
+```
+
+```{r}
+#| label: eda-vtest-3
+#| cache: false
+#| eval: !expr length(VARS_QUALI) >= 3
+
+vt_3 <- calc_vtest_table(df_eta_full, VARS_QUALI[3], names(df_eta_full)[!names(df_eta_full) %in% VARS_QUALI], eta2_tbl = eta2)
+rt_vtest_heatmap(vt_3, VARS_QUALI[3])
+vtest_auto_comment(vt_3, VARS_QUALI[3])
+```
+
+`r if (HAS_QUALI) sprintf("*Distributions par modalité. Seules les variables avec eta² >= %.2f sont affichées. Pointillé = moyenne globale.*", MIN_ETA2) else ""`
+
+```{r}
+#| label: eda-distrib-1
+#| column: page-right
+#| fig-width: 12
+#| fig-height: !expr max(4, ceiling(length(VARS_CORR_LBL) / 3) * 3.5)
+#| eval: !expr length(VARS_QUALI) >= 1
+
+plot_eda_distrib_by_group(df_eta_full, VARS_CORR_LBL, VARS_QUALI[1],
+  eta2_tbl = eta2, min_eta2 = MIN_ETA2, ncol = 3, cap_pct = CAP_PCT)
+```
+
+```{r}
+#| label: eda-distrib-2
+#| column: page-right
+#| fig-width: 12
+#| fig-height: !expr max(4, ceiling(length(VARS_CORR_LBL) / 3) * 3.5)
+#| eval: !expr length(VARS_QUALI) >= 2
+
+plot_eda_distrib_by_group(df_eta_full, VARS_CORR_LBL, VARS_QUALI[2],
+  eta2_tbl = eta2, min_eta2 = MIN_ETA2, ncol = 3, cap_pct = CAP_PCT)
+```
+
+```{r}
+#| label: eda-distrib-3
+#| column: page-right
+#| fig-width: 12
+#| fig-height: !expr max(4, ceiling(length(VARS_CORR_LBL) / 3) * 3.5)
+#| eval: !expr length(VARS_QUALI) >= 3
+
+plot_eda_distrib_by_group(df_eta_full, VARS_CORR_LBL, VARS_QUALI[3],
+  eta2_tbl = eta2, min_eta2 = MIN_ETA2, ncol = 3, cap_pct = CAP_PCT)
+```
+
+
+```{r}
+#| label: log-save
+#| include: false
+#| cache: false
+
+claude_log_save()
+```

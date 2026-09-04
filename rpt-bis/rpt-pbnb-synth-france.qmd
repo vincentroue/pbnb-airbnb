@@ -1,0 +1,103 @@
+---
+title: "Airbnb dans six villes françaises : la synthèse"
+subtitle: "Pression, prix et professionnalisation à Paris, Lyon, Bordeaux et au Pays Basque — panel Inside Airbnb, juin 2026"
+date: today
+categories: ["Synthèse"]
+number-sections: false
+format:
+  html:
+    theme: [cosmo, config/theme-pbnb-v2.scss]
+    embed-resources: false
+    toc: false
+    lightbox: true
+    title-block-banner: "#0a4c6a"
+    title-block-banner-color: white
+    code-fold: true
+    code-tools: true
+    code-summary: "Afficher le code"
+    grid:
+      body-width: 950px
+      sidebar-width: 200px
+      margin-width: 220px
+    include-in-header:
+      - text: |
+          <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap" rel="stylesheet">
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+<!-- rpt-pbnb-synth-france.qmd | Type : SYNTHESE | Scope : France 6 villes + benchmark Europe -->
+<!-- Synthèse exécutive autonome (autoportée). Bannière dark #0a4c6a (distincte du monde). -->
+<!-- Consomme aa_fr$* (tout dynamique, données juin 2026) + benchmark kpi_comp. -->
+
+```{r}
+#| label: setup
+#| include: false
+#| cache: false
+
+source("_setup-common.R")
+source("_data-load-france.R")
+source("_helpers-france-srpt.R")
+library(ggiraph)
+library(gt)
+
+claude_log_init("synth-france-v2")
+log_aa_vars(aa_fr)
+```
+
+{{< include srpt/_srpt-france-synthese.qmd >}}
+
+## Six marchés, trois profils
+
+Paris domine en volume comme en prix. Le Pays Basque — Biarritz en tête — affiche la pression résidentielle la plus extrême du panel français. Lyon et Bordeaux forment un duo intermédiaire aux dynamiques proches. Le tableau compare les six communes indicateur par indicateur ; la couleur signale les positions atypiques.
+
+```{r}
+#| label: synthfr-panel
+#| cache: false
+
+panel_fr <- make_fr_panel()
+log_table_auto("synthfr_panel_6v", panel_fr)
+gt_fr_panel_zscore(panel_fr)
+```
+
+<div class="note-lecture">La pression « / 1 000 hab. » n'est pas calculable à l'échelle communale pour Biarritz, Anglet et Bayonne (—) : lire la ligne « / 1 000 RP » pour ces trois villes.</div>
+
+## La France dans l'Europe
+
+Rapportés à leurs pairs européens, les marchés français se distribuent sur un large spectre. Paris se range parmi les villes à la fois chères et tendues, aux côtés de Rome et Barcelone. Le Pays Basque pousse la pression à un niveau extrême sans atteindre les sommets tarifaires des capitales. Lyon et Bordeaux restent sous la moyenne du panel sur les deux axes.
+
+::: {.column-page}
+
+```{r}
+#| label: synthfr-scatter-europe
+#| fig-width: 9
+#| fig-height: 5.2
+#| cache: false
+
+mx <- mean(kpi_comp$prs_listings_1000hab_dense, na.rm = TRUE)
+my <- mean(kpi_comp$px_entire_med, na.rm = TRUE)
+
+p_eu <- plot_scatter(kpi_comp,
+  x = "prs_listings_1000hab_dense", y = "px_entire_med",
+  label_col = "city_fr", color_col = "is_fr", size_col = "vol_n_ann",
+  palette = c("Autres pays" = "#9aa0a6", "France" = col_magenta),
+  xlab = "Pression — annonces / 1 000 habitants (zone dense)",
+  ylab = "Prix médian logement entier (€/nuit)",
+  title = "Les marchés français dans l'espace européen : pression résidentielle × prix",
+  subtitle = sprintf("%d villes de 6 pays européens · villes françaises en magenta · Inside Airbnb juin 2026", nrow(kpi_comp)),
+  ref_lines = "auto", ref_x = mx, ref_y = my, mean_lines = FALSE)
+
+log_scatter_auto("synthfr_scatter_europe", kpi_comp,
+  "prs_listings_1000hab_dense", "px_entire_med", "city_fr")
+render_girafe(p_eu, width_svg = 9, height_svg = 5.2)
+```
+
+:::
+
+<div class="figure-source">Source : Inside Airbnb, juin 2026 · INSEE RP 2022 · Lignes de référence = moyenne du panel européen</div>
+
+## Ce qu'il faut retenir
+
+La pression Airbnb en France répond à deux logiques distinctes : la **masse parisienne**, portée par le volume et le prix, et l'**intensité balnéaire basque**, où l'offre touristique sature le parc résidentiel. Le prix ne suit pas la pression — Biarritz combine tension extrême et tarifs modérés. La professionnalisation reste en deçà des marchés sud-européens, mais la loi Le Meur (novembre 2024) ouvre une période d'encadrement renforcé, dont les premiers effets se lisent déjà à Paris. Le rapport complet décline ces constats sur trois axes, du benchmark européen à la maille IRIS.
